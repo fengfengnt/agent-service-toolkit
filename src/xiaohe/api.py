@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from starlette.datastructures import MutableHeaders
 
@@ -13,6 +13,7 @@ from xiaohe.conversations import load_snapshot
 from xiaohe.events import stream_events
 from xiaohe.identity import bootstrap_session, logout_session, resolve_actor, resolve_system
 from xiaohe.runs import cancel_run
+from xiaohe.streaming import ClosingStreamingResponse as StreamingResponse
 
 _MESSAGES = {
     "VISITOR_LIMIT_REACHED": "访客消息额度已用完，可继续注册或登录。",

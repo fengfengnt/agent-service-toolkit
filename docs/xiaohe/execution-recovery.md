@@ -34,6 +34,8 @@ ORM、任务、checkpoint 分别管理事务。checkpoint 的 durability 使用 
 
 本机正式参数完整测试通过，实测恢复 132.52 秒；该测试同时断言原业务 run 完成、模型节点没有重跑、人类消息 ID 不重复。此前一次实测 137.03 秒，业务恢复通过但测试把维护任务计入执行任务总数而失败；修正统计条件后已完整重跑。相邻业务/上游 core/schema 回归 188 项通过，原 client/threads 基线 22 项通过；新增迁移回填和最终受影响测试另行核验。19 条警告来自既有依赖。
 
+整批评审后修复了锁冲突投递提前确认的问题，正式参数再次实测 132.00 秒通过；锁仍由活进程持有时，接管者保持 doing 与框架 heartbeat，等待执行资格，不将锁冲突当作成功。等待时仍检查终态和执行授权期限。详见[整批复核](continuous-review.md)。
+
 ```powershell
 # XIAOHE_TEST_DATABASE_URL 必须明确指向 test_xiaohe_ 前缀的隔离库。
 uv run --frozen --python 3.14.7 pytest tests/xiaohe/test_worker_recovery.py tests/xiaohe/test_run_fencing.py tests/xiaohe/test_toolkit_execution.py tests/xiaohe/integration/test_runtime_crashes.py -q -m pg

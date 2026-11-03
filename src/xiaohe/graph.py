@@ -50,10 +50,6 @@ def _safe_model_text(text: str) -> str:
         _safe_text(text)
     except ServiceError:
         return "[认证信息已省略，请使用认证卡片]"
-    if re.search(
-        r"(?i)bearer\s|(?:browserVerifier|id_token|access_token|authorization)\s*[:=]", text
-    ):
-        return "[认证信息已省略]"
     return text[:10000]
 
 

@@ -32,3 +32,5 @@ P5扩展业务graph/contracts，新增professional、接待策略与测试；内
 P6新增api/main、扩展events/models/worker及0002c迁移，业务REST/SSE与原app装配并存。仍不改上游service/memory/registry源码；跨副本setup由业务入口的短期autocommit会话锁保护，原saver/store工厂和池完整复用。详见 [P6接口与证据](http-events.md)。
 
 P7新增artifacts及0003迁移、固定镜像清单、隔离MinIO fixture；扩展自身settings/API/worker/main完成配置、读取下载、生命周期和ready引用校验。复用锁内boto3，不新增依赖；pyproject只加minio测试marker。原Compose不改，仅业务测试Compose增加独立profile/私有服务/专用volume。真实MinIO权限、摘要、到期和重启门见 [P7产出物记录](artifacts.md)。
+
+P2–P7整批独立评审后，在自身worker/admission/runtime/streaming补齐活锁接管、凭据受理/历史checkpoint过滤和断流关闭。12项先RED后GREEN，完整231项及正式参数恢复132.00秒通过，见 [复核记录](continuous-review.md)。P8在跨工程契约交接点暂停，具体补充见 [认证契约建议](integrations/p8-auth-contract-proposal.md)。

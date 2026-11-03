@@ -7,7 +7,6 @@ from uuid import UUID, uuid4
 
 import anyio
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
 from langgraph.types import Command as GraphCommand
 from pydantic import ValidationError
@@ -22,10 +21,11 @@ from xiaohe.contracts import (
     ToolkitOutcome,
     WriteFence,
 )
-from xiaohe.graph import visible_text
+from xiaohe.graph import _safe_model_text, visible_text
 from xiaohe.models import Command, Conversation, Message, RunAttempt, Session
 from xiaohe.runs import TERMINAL, _authorized, _locked, reply_id, require_write
 from xiaohe.settings import Settings
+from xiaohe.streaming import ClosingStreamingResponse as StreamingResponse
 
 
 @dataclass
@@ -102,7 +102,7 @@ async def _prepare(db, command: ToolkitExecution) -> ExecutionContext:
     ).all()
     history = []
     for message in messages:
-        content = visible_text(message.parts)
+        content = _safe_model_text(visible_text(message.parts))
         if content:
             cls = HumanMessage if message.role == "user" else AIMessage
             history.append(cls(id=str(message.id), content=content))
@@ -113,13 +113,24 @@ async def _prepare(db, command: ToolkitExecution) -> ExecutionContext:
         pending.id,
         pending.kind,
         pending.message_id,
-        visible_text(current.parts),
-        pending.question,
+        _safe_model_text(visible_text(current.parts)),
+        _safe_question(pending.question),
         history,
         attempt.graph_run_id,
         previous is None or previous.graph_stopped_at is not None,
         None,
     )
+
+
+def _safe_question(question):
+    if question is None:
+        return None
+    safe = {**question, "prompt": _safe_model_text(question["prompt"])}
+    if "options" in safe:
+        safe["options"] = [
+            {**item, "label": _safe_model_text(item["label"])} for item in safe["options"]
+        ]
+    return safe
 
 
 def _receipt(value, command_id: str) -> bool:

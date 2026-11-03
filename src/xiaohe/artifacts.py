@@ -20,6 +20,34 @@ _MAX_BYTES = 32 * 1024 * 1024
 _PREVIEW_BYTES = 128 * 1024
 
 
+class _DownloadStream:
+    def __init__(self, chunks, body):
+        self.chunks, self.body = chunks, body
+        self.closed = False
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if self.closed:
+            raise StopAsyncIteration
+        try:
+            return await anext(self.chunks)
+        except BaseException:
+            await self.aclose()
+            raise
+
+    async def aclose(self):
+        if self.closed:
+            return
+        self.closed = True
+        with anyio.CancelScope(shield=True):
+            try:
+                await self.chunks.aclose()
+            finally:
+                await asyncio.to_thread(self.body.close)
+
+
 def _view(row):
     ready = row.status == "ready"
     return ArtifactView(
@@ -337,16 +365,12 @@ class ArtifactService:
         body = response["Body"]
 
         async def chunks():
-            try:
-                while block := await self._io(lambda: body.read(65536)):
-                    async with self.factory.begin() as db:
-                        await self._read(db, actor, artifact_id, version)
-                    yield block
-            finally:
-                with anyio.CancelScope(shield=True):
-                    await asyncio.to_thread(body.close)
+            while block := await self._io(lambda: body.read(65536)):
+                async with self.factory.begin() as db:
+                    await self._read(db, actor, artifact_id, version)
+                yield block
 
-        return chunks()
+        return _DownloadStream(chunks(), body)
 
     async def close(self):
         if self._s3 is not None:

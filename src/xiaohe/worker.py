@@ -10,7 +10,15 @@ from xiaohe.contracts import ChatMessage, ServiceError, ToolkitExecution
 from xiaohe.database import create_database_engine
 from xiaohe.events import persist_reply_chunk, record_event
 from xiaohe.models import Command, Conversation, Message, Run, RunAttempt, Session
-from xiaohe.runs import TERMINAL, _locked, acquire_run, reply_id, require_write
+from xiaohe.runs import (
+    TERMINAL,
+    _authorized,
+    _locked,
+    _status_event,
+    acquire_run,
+    reply_id,
+    require_write,
+)
 from xiaohe.settings import Settings
 from xiaohe.toolkit_client import ToolkitClient
 
@@ -171,11 +179,30 @@ class RunWorker:
     async def execute_run(self, run_id: UUID) -> None:
         engine = self.factory.kw["bind"]
         async with engine.connect() as guard, guard.begin():
-            if not await guard.scalar(
+            while not await guard.scalar(
                 text("SELECT pg_try_advisory_xact_lock(hashtextextended(:key,0))"),
                 {"key": "xiaohe.run:" + str(run_id)},
             ):
-                return
+                async with self.factory.begin() as db:
+                    row, conversation, session = await _locked(db, run_id)
+                    if row.status in TERMINAL or row.status == "waiting_input":
+                        return
+                    try:
+                        await _authorized(db, row, conversation, session)
+                    except ServiceError as error:
+                        row.status = "expired" if error.code == "EXECUTION_EXPIRED" else "failed"
+                        row.holds_slot = False
+                        command = await db.scalar(
+                            select(Command).where(
+                                Command.run_id == run_id, Command.completed_at.is_(None)
+                            )
+                        )
+                        if command is not None:
+                            command.completed_at = await db.scalar(select(func.clock_timestamp()))
+                        _status_event(db, conversation, row)
+                        return
+                # A healthy waiter keeps its framework heartbeat; contention is not completion.
+                await asyncio.sleep(1)
             async with self.factory.begin() as db:
                 fence = await acquire_run(db, run_id, recover=True)
                 if fence is None:

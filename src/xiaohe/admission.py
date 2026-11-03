@@ -27,6 +27,12 @@ _SENSITIVE = re.compile(
     r"(?<!\d)1[3-9]\d{9}(?!\d)|(?:验证码|短信码|otp)\s*[:：]?\s*\d{4,8}|^\s*\d{6}\s*$",
     re.IGNORECASE,
 )
+_CREDENTIAL = re.compile(
+    r"bearer\s+\S+|(?:access_token|id_token|client_secret|api_key|apikey|authorization|"
+    r"browser(?:completion)?verifier|code_verifier|cookie|captchaverification|secretkey|auth_secret|token)"
+    r"[\"']?\s*[:=]\s*\S+",
+    re.IGNORECASE,
+)
 
 
 def _parse(model, value):
@@ -42,7 +48,7 @@ def _parse(model, value):
 
 def _safe_text(value: str):
     inspected = re.sub(r"(?<=\d)[\s-]+(?=\d)", "", unicodedata.normalize("NFKC", value))
-    if _SENSITIVE.search(inspected):
+    if _SENSITIVE.search(inspected) or _CREDENTIAL.search(inspected):
         raise ServiceError("SENSITIVE_INPUT_REQUIRES_CARD", 422)
 
 
