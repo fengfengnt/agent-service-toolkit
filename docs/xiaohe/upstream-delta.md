@@ -26,3 +26,5 @@ P2新增jobs.py、独立PG17测试Compose与真实进程探针；依赖增量锁
 P3新增admission.py、最小events.py及0002迁移，扩展业务models/conversations和测试。job_app测试fixture提升到共用业务conftest，清理仅限已明确选择的测试库及业务metadata列出的表，不用CASCADE；上游测试配置不改。标准迁移模板补齐，无新增依赖。见 [P3记录](admission.md)。
 
 P4新增runs/worker/graph/toolkit_runtime、0002b增量迁移和真实HTTP进程探针；仅扩展业务models/admission/jobs及业务fixture。框架最终丢失回调用于释放业务占用，无新增依赖。0001/0002既有迁移不改；原上游代码及Compose继续保持。内部执行端点尚待P6产品装配，见 [P4恢复规则](execution-recovery.md)。
+
+P5扩展业务graph/contracts，新增professional、接待策略与测试；内部流仅转发显式公开文本，首版结构化接待只输出校验后的最终回答。直接复用core.get_model及原模型配置，未改上游模型/Agent源码，未增加依赖或真实模型调用。详见 [P5边界](reception.md)。

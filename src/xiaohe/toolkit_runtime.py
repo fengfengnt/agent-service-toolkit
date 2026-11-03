@@ -300,8 +300,10 @@ async def _drive(factory, context) -> AsyncIterator:
         try:
             async for kind, item in stream:
                 if kind == "messages":
-                    chunk, _ = item
-                    if isinstance(chunk, AIMessageChunk):
+                    chunk, metadata = item
+                    if isinstance(chunk, AIMessageChunk) and "xiaohe_public" in metadata.get(
+                        "tags", []
+                    ):
                         content = (
                             chunk.content
                             if isinstance(chunk.content, str)
