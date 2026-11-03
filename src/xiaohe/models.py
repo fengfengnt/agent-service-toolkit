@@ -332,11 +332,32 @@ class RunAttempt(Base):
     thread_id: Mapped[str]
     graph_run_id: Mapped[UUID] = mapped_column(unique=True, default=uuid4)
     status: Mapped[str] = mapped_column(server_default="running")
+    chunk_receipts: Mapped[dict] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
     graph_stopped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.clock_timestamp()
     )
+
+
+class EventTombstone(Base):
+    __tablename__ = "event_tombstones"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["conversation_id", "system_id", "tenant_id"],
+            [
+                "xiaohe.conversations.id",
+                "xiaohe.conversations.system_id",
+                "xiaohe.conversations.tenant_id",
+            ],
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    conversation_id: Mapped[UUID]
+    system_id: Mapped[str]
+    tenant_id: Mapped[int] = mapped_column(BigInteger)
+    sequence: Mapped[int] = mapped_column(BigInteger)
 
 
 class Event(Base):

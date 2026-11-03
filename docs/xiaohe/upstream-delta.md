@@ -28,3 +28,5 @@ P3新增admission.py、最小events.py及0002迁移，扩展业务models/convers
 P4新增runs/worker/graph/toolkit_runtime、0002b增量迁移和真实HTTP进程探针；仅扩展业务models/admission/jobs及业务fixture。框架最终丢失回调用于释放业务占用，无新增依赖。0001/0002既有迁移不改；原上游代码及Compose继续保持。内部执行端点尚待P6产品装配，见 [P4恢复规则](execution-recovery.md)。
 
 P5扩展业务graph/contracts，新增professional、接待策略与测试；内部流仅转发显式公开文本，首版结构化接待只输出校验后的最终回答。直接复用core.get_model及原模型配置，未改上游模型/Agent源码，未增加依赖或真实模型调用。详见 [P5边界](reception.md)。
+
+P6新增api/main、扩展events/models/worker及0002c迁移，业务REST/SSE与原app装配并存。仍不改上游service/memory/registry源码；跨副本setup由业务入口的短期autocommit会话锁保护，原saver/store工厂和池完整复用。详见 [P6接口与证据](http-events.md)。

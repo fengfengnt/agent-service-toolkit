@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from xiaohe.contracts import ChatMessage, ServiceError, ToolkitExecution
 from xiaohe.database import create_database_engine
-from xiaohe.events import record_event
+from xiaohe.events import persist_reply_chunk, record_event
 from xiaohe.models import Command, Conversation, Message, Run, RunAttempt, Session
 from xiaohe.runs import TERMINAL, _locked, acquire_run, reply_id, require_write
 from xiaohe.settings import Settings
@@ -18,8 +18,11 @@ class RunWorker:
     def __init__(self, factory, client: ToolkitClient):
         self.factory, self.client = factory, client
 
-    async def _save(self, fence, command_id, event):
+    async def _save(self, fence, command_id, event, chunk_key=None):
         async with self.factory.begin() as db:
+            if event.kind == "delta":
+                await persist_reply_chunk(db, fence, event.message_id, chunk_key, event.delta)
+                return
             run = await require_write(db, fence)
             conversation = await db.get(Conversation, run.conversation_id)
             command = await db.get(Command, command_id)
@@ -27,8 +30,6 @@ class RunWorker:
             message = await db.get(Message, message_id)
             if event.kind == "error":
                 raise ServiceError(event.code, 503, event.retryable)
-            if event.kind == "delta" and event.message_id != message_id:
-                raise ServiceError("UPSTREAM_PROTOCOL_ERROR", 502)
             if message is None:
                 message = Message(
                     id=message_id,
@@ -40,36 +41,7 @@ class RunWorker:
                 )
                 db.add(message)
                 await db.flush()
-            if event.kind == "delta":
-                if not message.parts:
-                    record_event(
-                        db,
-                        conversation,
-                        "message.upsert",
-                        {
-                            "message": ChatMessage(
-                                id=str(message.id),
-                                role="assistant",
-                                created_at=message.created_at,
-                                parts=[],
-                            ).model_dump(mode="json", by_alias=True)
-                        },
-                        run.id,
-                    )
-                message.parts = [
-                    {
-                        "type": "text",
-                        "text": (message.parts[0]["text"] if message.parts else "") + event.delta,
-                    }
-                ]
-                record_event(
-                    db,
-                    conversation,
-                    "message.delta",
-                    {"messageId": str(message.id), "delta": event.delta},
-                    run.id,
-                )
-            else:
+            if event.kind == "outcome":
                 outcome = event.outcome.model_dump(mode="json", by_alias=True)
                 questions = [
                     part for part in outcome["parts"] if part["type"] in ("choice", "input_request")
@@ -111,9 +83,12 @@ class RunWorker:
             await db.flush()
 
     async def _consume(self, fence, command_id, frame):
+        chunks = 0
         async with aclosing(self.client.stream_execution(frame)) as stream:
             async for event in stream:
-                await self._save(fence, command_id, event)
+                if event.kind == "delta":
+                    chunks += 1
+                await self._save(fence, command_id, event, str(chunks))
 
     async def _watch(self, fence, guard):
         while True:

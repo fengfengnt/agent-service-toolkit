@@ -60,6 +60,35 @@ async def main():
     from xiaohe import toolkit_runtime
 
     upstream.AUTH_SECRET = SecretStr("fixture-auth")
+    if kind == "composition":
+        from sqlalchemy.engine import make_url
+
+        from core.settings import DatabaseType
+        from schema import AgentInfo
+        from service import service
+        from xiaohe.main import create_app
+
+        target = make_url(url)
+        if not target.database.startswith("test_xiaohe_"):
+            raise ValueError("composition probe requires isolated test database")
+        upstream.DATABASE_TYPE = DatabaseType.POSTGRES
+        upstream.POSTGRES_USER = target.username
+        upstream.POSTGRES_PASSWORD = SecretStr(target.password or "fixture-only")
+        upstream.POSTGRES_HOST = target.host
+        upstream.POSTGRES_PORT = target.port
+        upstream.POSTGRES_DB = target.database
+        # Keep this process probe scoped to the new graph, with original memory/lifespan.
+        service.get_all_agent_info = lambda: [AgentInfo(key="xiaohe", description="probe")]
+        configured = Settings(
+            database_url=url,
+            toolkit_base_url=f"http://127.0.0.1:{port}",
+            auth_secret="fixture-auth",
+        )
+        composed = create_app(configured)
+        async with composed.router.lifespan_context(composed):
+            print("READY", flush=True)
+            await asyncio.Event().wait()
+        return
 
     async def handler(state):
         async with factory.begin() as db:

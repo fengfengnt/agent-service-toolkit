@@ -40,7 +40,13 @@ def start(kind, mode, port):
 
 
 async def line(process, expected):
-    value = await asyncio.wait_for(asyncio.to_thread(process.stdout.readline), 30)
+    try:
+        value = await asyncio.wait_for(asyncio.to_thread(process.stdout.readline), 30)
+    except TimeoutError:
+        process.probe_log.seek(0)
+        raise AssertionError(
+            ("probe readiness timeout", process.poll(), process.probe_log.read()[-2500:])
+        ) from None
     process.probe_log.seek(0)
     assert value.strip() == expected, (value, process.poll(), process.probe_log.read()[-2500:])
 
@@ -173,7 +179,9 @@ async def test_kill_after_checkpoint_recovers_same_run(pg_factory, job_app, wind
             )
             assert (
                 await db.scalar(
-                    text("SELECT count(*) FROM procrastinate_jobs WHERE status='succeeded' AND task_name='xiaohe.execute_run'")
+                    text(
+                        "SELECT count(*) FROM procrastinate_jobs WHERE status='succeeded' AND task_name='xiaohe.execute_run'"
+                    )
                 )
                 == expected
             )
