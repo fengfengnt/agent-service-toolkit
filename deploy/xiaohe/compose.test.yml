@@ -17,3 +17,33 @@ services:
       interval: 1s
       timeout: 3s
       retries: 30
+  minio:
+    profiles: [minio]
+    image: ${XIAOHE_TEST_MINIO_IMAGE:-ghcr.io/coollabsio/minio@sha256:69b55a1c1c5dc285ce04db96689f5b2102317fc77a50680a1874ca6efd1c87f9}
+    platform: linux/amd64
+    container_name: xiaohe-agent-test-minio
+    labels:
+      codex.task: xiaohe-agent-test
+    ports:
+      - "127.0.0.1:35418:9000"
+    environment:
+      MINIO_ROOT_USER: ${XIAOHE_TEST_MINIO_ROOT_USER:-}
+      MINIO_ROOT_PASSWORD: ${XIAOHE_TEST_MINIO_ROOT_PASSWORD:-}
+      MINIO_TEST_APP_USER: ${XIAOHE_TEST_MINIO_APP_USER:-}
+      MINIO_TEST_APP_SECRET: ${XIAOHE_TEST_MINIO_APP_SECRET:-}
+      MINIO_BROWSER: "off"
+      MC_CONFIG_DIR: /tmp/.mc
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - 'test -n "$$MINIO_ROOT_USER" && test -n "$$MINIO_ROOT_PASSWORD" && exec /usr/bin/minio server /data --console-address :9001'
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: [/tmp]
+    volumes:
+      - minio-data:/data
+volumes:
+  minio-data:
+    name: xiaohe-agent-test-minio-data
+    labels:
+      codex.task: xiaohe-agent-test

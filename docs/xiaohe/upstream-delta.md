@@ -1,6 +1,6 @@
 # 上游差异清单
 
-上游基线：`836649674568320c0cc994553a8a930ed82398d0`，开发分支 `dev-fengfeng`。P0 提交 `e82a8ae`；当前增量执行 P1。
+上游基线：`836649674568320c0cc994553a8a930ed82398d0`，开发分支 `dev-fengfeng`。P0 提交 `e82a8ae`；P0–P7 已实施，各阶段增量见下文，P8认证适配尚未实施。
 
 P1 新增 `src/xiaohe/{database,models,identity,conversations}.py`、业务 Alembic 配置/初始迁移、pg 会话测试及[说明](identity-sessions.md)。仅改既有业务 settings/conftest、增量 pyproject 依赖和 pg marker，以及相应 uv.lock；已有锁定版本未升级，新增 Alembic/Greenlet/Mako。上游源码及顶层测试配置继续保持原样。以下为 P0 历史差异与复用边界：
 
@@ -30,3 +30,5 @@ P4新增runs/worker/graph/toolkit_runtime、0002b增量迁移和真实HTTP进程
 P5扩展业务graph/contracts，新增professional、接待策略与测试；内部流仅转发显式公开文本，首版结构化接待只输出校验后的最终回答。直接复用core.get_model及原模型配置，未改上游模型/Agent源码，未增加依赖或真实模型调用。详见 [P5边界](reception.md)。
 
 P6新增api/main、扩展events/models/worker及0002c迁移，业务REST/SSE与原app装配并存。仍不改上游service/memory/registry源码；跨副本setup由业务入口的短期autocommit会话锁保护，原saver/store工厂和池完整复用。详见 [P6接口与证据](http-events.md)。
+
+P7新增artifacts及0003迁移、固定镜像清单、隔离MinIO fixture；扩展自身settings/API/worker/main完成配置、读取下载、生命周期和ready引用校验。复用锁内boto3，不新增依赖；pyproject只加minio测试marker。原Compose不改，仅业务测试Compose增加独立profile/私有服务/专用volume。真实MinIO权限、摘要、到期和重启门见 [P7产出物记录](artifacts.md)。

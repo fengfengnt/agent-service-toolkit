@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from xiaohe.artifacts import referenced_parts
 from xiaohe.contracts import ChatMessage, ServiceError, ToolkitExecution
 from xiaohe.database import create_database_engine
 from xiaohe.events import persist_reply_chunk, record_event
@@ -43,6 +44,9 @@ class RunWorker:
                 await db.flush()
             if event.kind == "outcome":
                 outcome = event.outcome.model_dump(mode="json", by_alias=True)
+                outcome["parts"] = await referenced_parts(
+                    db, fence, event.outcome.artifact_version_ids, outcome["parts"]
+                )
                 questions = [
                     part for part in outcome["parts"] if part["type"] in ("choice", "input_request")
                 ]

@@ -223,6 +223,7 @@ class Run(Base):
         UniqueConstraint(
             "id", "conversation_id", "system_id", "tenant_id", name="uq_runs_id_scope"
         ),
+        UniqueConstraint("id", "system_id", "tenant_id", name="uq_runs_id_tenant"),
         CheckConstraint(
             "status IN ('queued','running','waiting_input','completed','failed','cancelled','expired')"
         ),
@@ -338,6 +339,70 @@ class RunAttempt(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.clock_timestamp()
     )
+
+
+class Artifact(Base):
+    __tablename__ = "artifacts"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["conversation_id", "system_id", "tenant_id"],
+            [
+                "xiaohe.conversations.id",
+                "xiaohe.conversations.system_id",
+                "xiaohe.conversations.tenant_id",
+            ],
+        ),
+        UniqueConstraint("id", "system_id", "tenant_id", name="uq_artifacts_id_tenant"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    conversation_id: Mapped[UUID]
+    system_id: Mapped[str]
+    tenant_id: Mapped[int] = mapped_column(BigInteger)
+    creation_key: Mapped[str] = mapped_column(String(64), unique=True)
+    latest_version: Mapped[int] = mapped_column(server_default="0")
+
+
+class ArtifactVersion(Base):
+    __tablename__ = "artifact_versions"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["artifact_id", "system_id", "tenant_id"],
+            ["xiaohe.artifacts.id", "xiaohe.artifacts.system_id", "xiaohe.artifacts.tenant_id"],
+        ),
+        ForeignKeyConstraint(
+            ["run_id", "system_id", "tenant_id"],
+            ["xiaohe.runs.id", "xiaohe.runs.system_id", "xiaohe.runs.tenant_id"],
+        ),
+        UniqueConstraint("artifact_id", "version", name="uq_artifact_version"),
+        UniqueConstraint(
+            "artifact_id", "run_id", "content_digest", name="uq_artifact_content_retry"
+        ),
+        CheckConstraint("version > 0"),
+        CheckConstraint("status IN ('pending','ready','failed')"),
+        CheckConstraint(
+            "status <> 'ready' OR (uploaded_at IS NOT NULL AND verified_digest IS NOT NULL AND verified_digest=content_digest AND bytes_size IS NOT NULL AND bytes_size >= 0 AND NOT cleanup_pending)"
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    artifact_id: Mapped[UUID]
+    system_id: Mapped[str]
+    tenant_id: Mapped[int] = mapped_column(BigInteger)
+    version: Mapped[int]
+    run_id: Mapped[UUID]
+    producer_attempt: Mapped[int]
+    producer_epoch: Mapped[int]
+    title: Mapped[str] = mapped_column(String(256))
+    media_type: Mapped[str] = mapped_column(String(128))
+    content_digest: Mapped[str] = mapped_column(String(64))
+    object_key: Mapped[str] = mapped_column(unique=True, default=lambda: "xiaohe/" + uuid4().hex)
+    status: Mapped[str] = mapped_column(server_default="pending")
+    uploaded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    verified_digest: Mapped[str | None] = mapped_column(String(64))
+    bytes_size: Mapped[int | None] = mapped_column(BigInteger)
+    preview: Mapped[dict] = mapped_column(
+        JSONB, server_default=text('\'{"format":"download_only"}\'::jsonb')
+    )
+    cleanup_pending: Mapped[bool] = mapped_column(server_default=text("true"))
 
 
 class EventTombstone(Base):

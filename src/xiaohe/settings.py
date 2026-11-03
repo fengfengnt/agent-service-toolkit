@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     toolkit_base_url: str = Field(validation_alias="TOOLKIT_BASE_URL")
     auth_secret: SecretStr = Field(validation_alias="AUTH_SECRET")
     database_url: SecretStr | None = Field(default=None, validation_alias="XIAOHE_DATABASE_URL")
+    minio_endpoint: str | None = Field(default=None, validation_alias="XIAOHE_MINIO_ENDPOINT")
+    minio_bucket: str | None = Field(default=None, validation_alias="XIAOHE_MINIO_BUCKET")
+    minio_access_key: SecretStr | None = Field(
+        default=None, validation_alias="XIAOHE_MINIO_ACCESS_KEY"
+    )
+    minio_secret_key: SecretStr | None = Field(
+        default=None, validation_alias="XIAOHE_MINIO_SECRET_KEY"
+    )
     trusted_proxy_cidrs: list[str] = Field(
         default_factory=list, validation_alias="XIAOHE_TRUSTED_PROXY_CIDRS"
     )
@@ -58,4 +66,18 @@ class Settings(BaseSettings):
         secret = value.get_secret_value()
         if not secret.strip() or any(ord(char) <= 32 or ord(char) >= 127 for char in secret):
             raise ValueError("AUTH_SECRET must be a nonempty ASCII bearer credential")
+        return value
+
+    @field_validator("minio_endpoint")
+    @classmethod
+    def minio_origin(cls, value):
+        return cls.internal_origin(value) if value is not None else None
+
+    @field_validator("minio_bucket")
+    @classmethod
+    def bucket_name(cls, value):
+        import re
+
+        if value is not None and re.fullmatch(r"[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]", value) is None:
+            raise ValueError("invalid bucket name")
         return value

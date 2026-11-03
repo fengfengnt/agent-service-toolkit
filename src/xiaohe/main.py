@@ -7,6 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from xiaohe.api import create_public_router, install_error_handlers
+from xiaohe.artifacts import ArtifactService
 from xiaohe.database import create_database_engine
 from xiaohe.graph import build_graph
 from xiaohe.settings import Settings
@@ -73,12 +74,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             else:
                 agents["xiaohe"] = previous
             _active_app = None
+            await app.state.xiaohe_artifacts.close()
             await engine.dispose()
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.xiaohe_settings = settings
     app.state.xiaohe_factory = factory
     app.state.xiaohe_engine = engine
+    app.state.xiaohe_artifacts = ArtifactService(factory, settings)
     install_error_handlers(app)
     app.include_router(create_public_router(factory))
     app.include_router(internal)

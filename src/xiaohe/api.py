@@ -1,3 +1,4 @@
+from urllib.parse import quote
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, FastAPI, Request, Response
@@ -98,6 +99,15 @@ async def _actor(request, db):
 def create_public_router(factory):
     router = APIRouter(prefix="/ai-api/v1")
 
+    def artifacts(request):
+        from xiaohe.artifacts import ArtifactService
+
+        if not hasattr(request.app.state, "xiaohe_artifacts"):
+            request.app.state.xiaohe_artifacts = ArtifactService(
+                factory, request.app.state.xiaohe_settings
+            )
+        return request.app.state.xiaohe_artifacts
+
     @router.post("/session")
     async def session(request: Request, response: Response):
         await _body(request, EmptyBody)
@@ -161,5 +171,32 @@ def create_public_router(factory):
         async with factory.begin() as db:
             await logout_session(request, response, db)
         return response
+
+    @router.get("/artifacts/{artifact_id}/versions/{version}")
+    async def artifact(artifact_id: UUID, version: int, request: Request):
+        if version < 1:
+            raise ServiceError("INPUT_INVALID", 422)
+        async with factory.begin() as db:
+            actor = await _actor(request, db)
+        return await artifacts(request).read_artifact(actor, artifact_id, version)
+
+    @router.get("/artifacts/{artifact_id}/versions/{version}/download")
+    async def download(artifact_id: UUID, version: int, request: Request):
+        if version < 1:
+            raise ServiceError("INPUT_INVALID", 422)
+        async with factory.begin() as db:
+            actor = await _actor(request, db)
+        service = artifacts(request)
+        view = await service.read_artifact(actor, artifact_id, version)
+        stream = await service.download_artifact(actor, artifact_id, version)
+        return StreamingResponse(
+            stream,
+            media_type=view.media_type,
+            headers={
+                "Cache-Control": "private, no-store",
+                "X-Content-Type-Options": "nosniff",
+                "Content-Disposition": "attachment; filename*=UTF-8''" + quote(view.title, safe=""),
+            },
+        )
 
     return router

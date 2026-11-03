@@ -112,7 +112,7 @@ extend-select = ["I", "U"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 asyncio_default_fixture_loop_scope = "function"
-markers = ["pg: 需要显式提供隔离 PostgreSQL 测试库"]
+markers = ["pg: 需要显式提供隔离 PostgreSQL 测试库", "minio: 需要显式提供隔离 MinIO 测试配置"]
 
 [tool.pytest_env]
 OPENAI_API_KEY = "sk-fake-openai-key"
