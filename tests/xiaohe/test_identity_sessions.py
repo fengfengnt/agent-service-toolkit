@@ -168,7 +168,11 @@ async def test_global_user_has_one_tenant_and_system(pg_factory):
     async with pg_factory.begin() as db:
         with pytest.raises(IntegrityError):
             async with db.begin_nested():
-                await db.execute(update(User).values(system_id="other", tenant_id=2))
+                await db.execute(
+                    update(User)
+                    .where(User.user_id == "opaque-existing-ai-user")
+                    .values(system_id="other", tenant_id=2)
+                )
 
 
 async def test_other_users_thread_rejected_before_toolkit_call(pg_factory):
@@ -214,6 +218,8 @@ async def test_user_session_absolute_28800_seconds_never_slides(pg_factory, monk
     monkeypatch.setattr(identity, "database_now", clock)
     original, _, _ = await bootstrap(pg_factory, token)
     await actor(pg_factory, token)
+    async with pg_factory.begin() as db:
+        await resolve_actor(request(token, csrf=original.csrf.token), system(), db)
     again, _, _ = await bootstrap(pg_factory, token)
     assert original == again
     clock.return_value = record.created_at + timedelta(seconds=28800)
