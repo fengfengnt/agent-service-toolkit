@@ -60,6 +60,7 @@ dependencies = [
     "certifi>=2026.10.19",
     "sqlalchemy[asyncio]>=2.1.5,<2.2",
     "alembic>=1.17,<2",
+    "procrastinate==3.10.0",
 ]
 
 [project.optional-dependencies]

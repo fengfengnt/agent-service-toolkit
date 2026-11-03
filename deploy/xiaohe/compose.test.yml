@@ -1,0 +1,19 @@
+name: xiaohe-agent-test
+services:
+  postgres:
+    image: postgres@sha256:3b0cda93be7c8dba2ed484d19393d93845dc3dafb88973e248ba8e6d99d784e1
+    container_name: xiaohe-agent-test-pg17
+    labels:
+      codex.task: xiaohe-agent-test
+    ports:
+      - "127.0.0.1:35417:5432"
+    environment:
+      POSTGRES_DB: test_xiaohe_agent
+      POSTGRES_HOST_AUTH_METHOD: trust
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d test_xiaohe_agent"]
+      interval: 1s
+      timeout: 3s
+      retries: 30

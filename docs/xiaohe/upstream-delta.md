@@ -20,3 +20,5 @@ P1 新增 `src/xiaohe/{database,models,identity,conversations}.py`、业务 Alem
 未跟踪的 `.codegraph/` 是执行前已有资料，保留且不加入提交；`.superpowers/sdd/` 仅放本计划自忽略的临时证据，不提交。父目录设计、计划和共享合同不属于本 Git 仓库；不声称它们随本代码提交。
 
 后续复用而非重复实现：`core.get_model`/已有模型枚举、Agent registry、上游 app/verify_bearer/lifespan、PostgreSQL saver/store。P0 没有改模型调用、启动方式或上游认证规则。新增内部端点、注册小鹤图和公开业务入口仍待后续任务。
+
+P2新增jobs.py、独立PG17测试Compose与真实进程探针；依赖增量锁定Procrastinate3.10.0/asgiref3.12.1。复用既有ORM事务连接，不改上游服务/Agent/模型/存储源码。框架验证与实际恢复测量见 [P2验证门](testing/durable-worker-gate.md)。
