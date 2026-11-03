@@ -1,0 +1,95 @@
+[
+  {
+    "eventId": "fixture-opaque-E1",
+    "conversationId": "fixture-C1",
+    "runId": "fixture-R1",
+    "type": "message.delta",
+    "payload": {
+      "messageId": "fixture-M2",
+      "delta": "模拟😀"
+    }
+  },
+  {
+    "eventId": "fixture-opaque-E2",
+    "conversationId": "fixture-C1",
+    "runId": null,
+    "type": "message.upsert",
+    "payload": {
+      "message": {
+        "id": "fixture-M1",
+        "role": "user",
+        "createdAt": "2026-11-03T00:00:00Z",
+        "parts": [
+          {
+            "type": "text",
+            "text": "模拟采购咨询"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "eventId": "fixture-opaque-E3",
+    "conversationId": "fixture-C1",
+    "runId": "fixture-R1",
+    "type": "run.updated",
+    "payload": {
+      "run": {
+        "id": "fixture-R1",
+        "status": "waiting_input"
+      }
+    }
+  },
+  {
+    "eventId": "fixture-opaque-E4",
+    "conversationId": "fixture-C1",
+    "runId": null,
+    "type": "artifact.updated",
+    "payload": {
+      "artifactId": "fixture-A1",
+      "version": 1,
+      "status": "ready"
+    }
+  },
+  {
+    "eventId": "fixture-opaque-E5",
+    "conversationId": "fixture-C1",
+    "runId": null,
+    "type": "viewer.updated",
+    "payload": {
+      "viewer": {
+        "kind": "guest",
+        "guestId": "fixture-guest",
+        "systemId": "portal",
+        "tenantId": 1,
+        "messageCount": 0,
+        "messageLimit": 100,
+        "retentionSeconds": 14400,
+        "expiresAt": "2026-11-03T04:00:00Z"
+      }
+    }
+  },
+  {
+    "eventId": "fixture-opaque-E6",
+    "conversationId": "fixture-C1",
+    "runId": null,
+    "type": "viewer.expired",
+    "payload": {
+      "code": "VISITOR_EXPIRED"
+    }
+  },
+  {
+    "eventId": "fixture-opaque-E7",
+    "conversationId": "fixture-C1",
+    "runId": null,
+    "type": "error",
+    "payload": {
+      "error": {
+        "code": "UPSTREAM_UNAVAILABLE",
+        "message": "服务暂不可用，请稍后重试。",
+        "retryable": true
+      },
+      "requestId": "fixture-request"
+    }
+  }
+]

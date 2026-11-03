@@ -1,0 +1,27 @@
+{
+  "message": {
+    "id": "fixture-M1",
+    "role": "user",
+    "createdAt": "2026-11-03T00:00:00Z",
+    "parts": [
+      {
+        "type": "text",
+        "text": "模拟采购咨询"
+      }
+    ]
+  },
+  "run": {
+    "id": "fixture-R1",
+    "status": "queued"
+  },
+  "viewer": {
+    "kind": "guest",
+    "guestId": "fixture-guest",
+    "systemId": "portal",
+    "tenantId": 1,
+    "messageCount": 1,
+    "messageLimit": 100,
+    "retentionSeconds": 14400,
+    "expiresAt": "2026-11-03T04:00:00Z"
+  }
+}

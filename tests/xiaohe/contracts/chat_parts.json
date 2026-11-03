@@ -1,0 +1,43 @@
+[
+  {
+    "type": "text",
+    "text": "模拟答复"
+  },
+  {
+    "type": "choice",
+    "requestId": "fixture-Q1",
+    "prompt": "模拟方向？",
+    "options": [
+      {
+        "id": "supplier",
+        "label": "供应商"
+      }
+    ]
+  },
+  {
+    "type": "suggestions",
+    "items": [
+      {
+        "id": "intro",
+        "text": "介绍服务"
+      }
+    ]
+  },
+  {
+    "type": "input_request",
+    "requestId": "fixture-Q2",
+    "prompt": "模拟补充说明"
+  },
+  {
+    "type": "auth_request",
+    "intent": "login"
+  },
+  {
+    "type": "artifact_ref",
+    "artifactId": "fixture-A1",
+    "version": 1,
+    "title": "模拟产出物",
+    "mediaType": "text/plain",
+    "status": "ready"
+  }
+]

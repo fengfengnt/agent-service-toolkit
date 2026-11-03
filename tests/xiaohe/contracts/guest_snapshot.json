@@ -1,0 +1,21 @@
+{
+  "viewer": {
+    "kind": "guest",
+    "guestId": "fixture-guest",
+    "systemId": "portal",
+    "tenantId": 1,
+    "messageCount": 0,
+    "messageLimit": 100,
+    "retentionSeconds": 14400,
+    "expiresAt": "2026-11-03T04:00:00Z"
+  },
+  "csrf": {
+    "headerName": "X-Xiaohe-CSRF",
+    "token": "fixture-csrf"
+  },
+  "conversationId": "fixture-C1",
+  "messages": [],
+  "activeRun": null,
+  "cursor": null,
+  "merge": null
+}

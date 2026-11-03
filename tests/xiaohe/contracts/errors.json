@@ -1,0 +1,18 @@
+[
+  {
+    "error": {
+      "code": "UPSTREAM_UNAVAILABLE",
+      "message": "服务暂不可用，请稍后重试。",
+      "retryable": true
+    },
+    "requestId": "fixture-request"
+  },
+  {
+    "error": {
+      "code": "INPUT_INVALID",
+      "message": "输入格式无效。",
+      "retryable": false
+    },
+    "requestId": "fixture-invalid"
+  }
+]

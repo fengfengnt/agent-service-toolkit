@@ -1,0 +1,49 @@
+[
+  {
+    "operationId": "fixture-operation",
+    "stage": "PHONE_REQUIRED",
+    "expiresAt": "2026-11-03T00:10:00Z"
+  },
+  {
+    "operationId": "fixture-operation",
+    "stage": "AGREEMENT_REQUIRED",
+    "expiresAt": "2026-11-03T00:10:00Z",
+    "agreement": {
+      "version": "fixture-v1",
+      "url": "https://sso.lvh.me:8443/agreement"
+    }
+  },
+  {
+    "operationId": "fixture-operation",
+    "stage": "BROWSER_COMPLETION_REQUIRED",
+    "expiresAt": "2026-11-03T00:10:00Z",
+    "completion": {
+      "method": "POST",
+      "action": "https://sso.lvh.me:8443/sso/bridge/browser-completion",
+      "fields": {
+        "transactionId": "fixture-transaction",
+        "credential": "fixture-completion-credential"
+      }
+    }
+  },
+  {
+    "operationId": "fixture-operation",
+    "stage": "OIDC_REQUIRED",
+    "expiresAt": "2026-11-03T00:10:00Z"
+  },
+  {
+    "operationId": "fixture-operation",
+    "stage": "COMPLETED",
+    "expiresAt": "2026-11-03T00:10:00Z"
+  },
+  {
+    "operationId": "fixture-operation",
+    "stage": "FAILED",
+    "expiresAt": "2026-11-03T00:10:00Z"
+  },
+  {
+    "operationId": "fixture-operation",
+    "stage": "EXPIRED",
+    "expiresAt": "2026-11-03T00:10:00Z"
+  }
+]

@@ -1,0 +1,18 @@
+{
+  "viewer": {
+    "kind": "user",
+    "userId": "00000000-0000-4000-8000-000000000099",
+    "systemId": "portal",
+    "tenantId": 1,
+    "displayName": "模拟用户"
+  },
+  "csrf": {
+    "headerName": "X-Xiaohe-CSRF",
+    "token": "fixture-csrf"
+  },
+  "conversationId": "fixture-canonical",
+  "messages": [],
+  "activeRun": null,
+  "cursor": null,
+  "merge": null
+}

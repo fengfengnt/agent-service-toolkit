@@ -1,0 +1,8 @@
+{
+  "issuer": "https://sso.lvh.me:8443",
+  "sub": "member:1:fixture-opaque-sub",
+  "sourceTenantId": 1,
+  "authenticatedAt": "2026-11-03T00:00:00Z",
+  "portalClientId": "app_localportal",
+  "transactionId": "fixture-transaction"
+}
