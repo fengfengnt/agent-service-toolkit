@@ -29,6 +29,11 @@ async def send(factory, who, conversation_id, key, value="了解采购服务"):
 async def finish(factory, run_id):
     async with factory.begin() as db:
         await db.execute(
+            update(Command)
+            .where(Command.run_id == UUID(str(run_id)))
+            .values(completed_at=func.clock_timestamp())
+        )
+        await db.execute(
             update(Run)
             .where(Run.id == UUID(str(run_id)))
             .values(status="completed", holds_slot=False)
@@ -114,6 +119,11 @@ async def test_action_resumes_same_run(pg_factory, job_app):
         "options": [{"id": "intro", "label": "服务介绍"}],
     }
     async with pg_factory.begin() as db:
+        await db.execute(
+            update(Command)
+            .where(Command.run_id == UUID(original.run.id))
+            .values(completed_at=func.clock_timestamp())
+        )
         await db.execute(
             update(Run)
             .where(Run.id == UUID(original.run.id))
@@ -256,6 +266,11 @@ async def test_old_waiter_cannot_take_a_busy_slot(pg_factory, job_app):
     who, conversation = await visitor(pg_factory)
     first = await send(pg_factory, who, conversation, "first")
     async with pg_factory.begin() as db:
+        await db.execute(
+            update(Command)
+            .where(Command.run_id == UUID(first.run.id))
+            .values(completed_at=func.clock_timestamp())
+        )
         await db.execute(
             update(Run)
             .where(Run.id == UUID(first.run.id))

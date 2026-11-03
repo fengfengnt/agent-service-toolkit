@@ -110,6 +110,7 @@ async def _accept(
             .execution_options(populate_existing=True)
         )
         request_id = None
+        question = None
         if kind == "message":
             if active is not None:
                 raise ServiceError("RUN_ACTIVE", 409)
@@ -167,6 +168,9 @@ async def _accept(
                 system_id=actor.system.system_id,
                 tenant_id=actor.system.tenant_id,
                 session_id=actor.session_id,
+                user_id=actor.user_id,
+                guest_id=actor.guest_id,
+                execution_expires_at=session.expires_at,
                 initial_message_id=message.id,
                 status="queued",
                 holds_slot=True,
@@ -176,6 +180,12 @@ async def _accept(
         else:
             run.status, run.holds_slot, run.pending_request = "queued", True, None
             run.updated_at = func.clock_timestamp()
+            run.user_id, run.guest_id, run.session_id = (
+                actor.user_id,
+                actor.guest_id,
+                actor.session_id,
+            )
+            run.ownership_epoch = conversation.ownership_epoch
         command = Command(
             conversation_id=conversation.id,
             system_id=actor.system.system_id,
@@ -184,6 +194,7 @@ async def _accept(
             client_key=key,
             payload_digest=digest,
             payload=payload,
+            question=question,
             message_id=message.id,
             run_id=run.id,
             request_id=request_id,
@@ -213,6 +224,7 @@ async def _accept(
                 await require_session(db, actor)
                 raise ServiceError("VISITOR_LIMIT_REACHED", 429)
         result = await _result(db, actor, command)
+        run.execution_expires_at = session.expires_at
         record_event(
             db,
             conversation,

@@ -229,6 +229,7 @@ class Run(Base):
         CheckConstraint("NOT holds_slot OR status IN ('queued','running','waiting_input')"),
         CheckConstraint("status NOT IN ('queued','running') OR holds_slot"),
         CheckConstraint("attempt >= 0 AND ownership_epoch >= 0"),
+        CheckConstraint("(user_id IS NULL) <> (guest_id IS NULL)", name="ck_run_owner"),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -236,6 +237,11 @@ class Run(Base):
     system_id: Mapped[str]
     tenant_id: Mapped[int] = mapped_column(BigInteger)
     session_id: Mapped[UUID]
+    user_id: Mapped[str | None]
+    guest_id: Mapped[UUID | None]
+    execution_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    thread_id: Mapped[str | None]
+    outcome: Mapped[dict | None] = mapped_column(JSONB)
     initial_message_id: Mapped[UUID]
     status: Mapped[str] = mapped_column(server_default="queued")
     holds_slot: Mapped[bool] = mapped_column(server_default=text("true"))
@@ -292,10 +298,42 @@ class Command(Base):
     client_key: Mapped[str] = mapped_column(String(128))
     payload_digest: Mapped[str] = mapped_column(String(64))
     payload: Mapped[dict] = mapped_column(JSONB)
+    question: Mapped[dict | None] = mapped_column(JSONB)
     message_id: Mapped[UUID]
     run_id: Mapped[UUID]
     request_id: Mapped[str | None] = mapped_column(String(128))
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(server_default="0")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.clock_timestamp()
+    )
+
+
+class RunAttempt(Base):
+    __tablename__ = "run_attempts"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["run_id", "conversation_id", "system_id", "tenant_id"],
+            [
+                "xiaohe.runs.id",
+                "xiaohe.runs.conversation_id",
+                "xiaohe.runs.system_id",
+                "xiaohe.runs.tenant_id",
+            ],
+        ),
+    )
+
+    run_id: Mapped[UUID] = mapped_column(primary_key=True)
+    attempt: Mapped[int] = mapped_column(primary_key=True)
+    conversation_id: Mapped[UUID]
+    system_id: Mapped[str]
+    tenant_id: Mapped[int] = mapped_column(BigInteger)
+    thread_id: Mapped[str]
+    graph_run_id: Mapped[UUID] = mapped_column(unique=True, default=uuid4)
+    status: Mapped[str] = mapped_column(server_default="running")
+    graph_stopped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.clock_timestamp()
     )
@@ -347,6 +385,12 @@ Index(
     Command.request_id,
     unique=True,
     postgresql_where=Command.request_id.is_not(None),
+)
+Index(
+    "uq_inflight_command",
+    Command.run_id,
+    unique=True,
+    postgresql_where=Command.completed_at.is_(None),
 )
 
 

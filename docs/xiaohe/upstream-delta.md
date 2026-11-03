@@ -24,3 +24,5 @@ P1 新增 `src/xiaohe/{database,models,identity,conversations}.py`、业务 Alem
 P2新增jobs.py、独立PG17测试Compose与真实进程探针；依赖增量锁定Procrastinate3.10.0/asgiref3.12.1。复用既有ORM事务连接，不改上游服务/Agent/模型/存储源码。框架验证与实际恢复测量见 [P2验证门](testing/durable-worker-gate.md)。
 
 P3新增admission.py、最小events.py及0002迁移，扩展业务models/conversations和测试。job_app测试fixture提升到共用业务conftest，清理仅限已明确选择的测试库及业务metadata列出的表，不用CASCADE；上游测试配置不改。标准迁移模板补齐，无新增依赖。见 [P3记录](admission.md)。
+
+P4新增runs/worker/graph/toolkit_runtime、0002b增量迁移和真实HTTP进程探针；仅扩展业务models/admission/jobs及业务fixture。框架最终丢失回调用于释放业务占用，无新增依赖。0001/0002既有迁移不改；原上游代码及Compose继续保持。内部执行端点尚待P6产品装配，见 [P4恢复规则](execution-recovery.md)。

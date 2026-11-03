@@ -54,7 +54,10 @@ async def defer_run(db: AsyncSession, run_id: UUID, lock_key: str) -> int:
 
 
 async def recover_stalled_jobs(
-    app: App, *, seconds_since_heartbeat: float = STALLED_SECONDS
+    app: App,
+    *,
+    seconds_since_heartbeat: float = STALLED_SECONDS,
+    on_exhausted: Callable[[UUID], Awaitable[bool]] | None = None,
 ) -> int:
     # A transaction mutex releases on death; a stalled scan must not lock its successor.
     async with app.connector.pool.connection() as guard, guard.transaction():
@@ -84,6 +87,10 @@ async def recover_stalled_jobs(
                 job=job,
             )
             if decision is None:
+                if on_exhausted is not None and not await on_exhausted(
+                    UUID(job.task_kwargs["run_id"])
+                ):
+                    continue
                 await app.job_manager.finish_job(job, status=Status.FAILED, delete_job=False)
             else:
                 await app.job_manager.retry_job(job, retry_at=decision.retry_at)
@@ -92,7 +99,10 @@ async def recover_stalled_jobs(
 
 
 def build_job_app(
-    database_url: str | SecretStr, execute_run: Callable[[UUID], Awaitable[None]]
+    database_url: str | SecretStr,
+    execute_run: Callable[[UUID], Awaitable[None]],
+    *,
+    on_exhausted: Callable[[UUID], Awaitable[bool]] | None = None,
 ) -> App:
     value = database_url.get_secret_value() if isinstance(database_url, SecretStr) else database_url
     url = make_url(value)
@@ -120,6 +130,6 @@ def build_job_app(
     @app.periodic(cron=RECOVERY_CRON)
     @app.task(name=RECOVERY_TASK, queue=MAINTENANCE_QUEUE, queueing_lock="xiaohe.recovery.scan")
     async def recovery(timestamp: int):
-        await recover_stalled_jobs(app)
+        await recover_stalled_jobs(app, on_exhausted=on_exhausted)
 
     return app
