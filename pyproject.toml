@@ -58,6 +58,8 @@ dependencies = [
     "ddgs>=9.14.4",
     "ag-ui-langgraph~=0.0.42",
     "certifi>=2026.10.19",
+    "sqlalchemy[asyncio]>=2.1.5,<2.2",
+    "alembic>=1.17,<2",
 ]
 
 [project.optional-dependencies]
@@ -109,6 +111,7 @@ extend-select = ["I", "U"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 asyncio_default_fixture_loop_scope = "function"
+markers = ["pg: 需要显式提供隔离 PostgreSQL 测试库"]
 
 [tool.pytest_env]
 OPENAI_API_KEY = "sk-fake-openai-key"

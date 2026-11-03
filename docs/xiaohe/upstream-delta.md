@@ -1,6 +1,8 @@
 # 上游差异清单
 
-基线：`836649674568320c0cc994553a8a930ed82398d0`，开发分支 `dev-fengfeng`。本次只执行 P0。
+上游基线：`836649674568320c0cc994553a8a930ed82398d0`，开发分支 `dev-fengfeng`。P0 提交 `e82a8ae`；当前增量执行 P1。
+
+P1 新增 `src/xiaohe/{database,models,identity,conversations}.py`、业务 Alembic 配置/初始迁移、pg 会话测试及[说明](identity-sessions.md)。仅改既有业务 settings/conftest、增量 pyproject 依赖和 pg marker，以及相应 uv.lock；已有锁定版本未升级，新增 Alembic/Greenlet/Mako。上游源码及顶层测试配置继续保持原样。以下为 P0 历史差异与复用边界：
 
 | 位置 | 本次新增 | 用途 |
 | --- | --- | --- |
@@ -11,7 +13,7 @@
 | `tests/xiaohe/` | 受控测试与八份模拟 fixture | 契约、配置、敏感字段及内部传输边界 |
 | `docs/xiaohe/` | 冻结和差异记录 | 说明已实现层次与后续未实现门 |
 
-保护路径 `src/service`、`src/schema`、`src/core`、`src/memory`、`src/client`、`src/agents` 均不改。原 `pyproject.toml`、`uv.lock`、`.gitignore`、顶层 `tests/conftest.py`、README、Docker/Compose 原样保留。
+保护路径 `src/service`、`src/schema`、`src/core`、`src/memory`、`src/client`、`src/agents` 均不改。P0 时 `pyproject.toml/uv.lock` 原样保留，P1 按上述清单增量修改；`.gitignore`、顶层 `tests/conftest.py`、README、Docker/Compose 继续原样保留。
 
 不追加依赖，直接用锁内 HTTPX、Pydantic、pydantic-settings、pytest、Ruff。目标 Python 3.14.7 已安装并核验锁；不新增 `.python-version`，执行命令显式选版本。`.venv` 是被原规则忽略的本地环境。
 

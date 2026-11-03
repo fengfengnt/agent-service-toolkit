@@ -1,3 +1,4 @@
+from ipaddress import ip_network
 from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator
@@ -19,6 +20,14 @@ class Settings(BaseSettings):
     toolkit_base_url: str = Field(validation_alias="TOOLKIT_BASE_URL")
     auth_secret: SecretStr = Field(validation_alias="AUTH_SECRET")
     database_url: SecretStr | None = Field(default=None, validation_alias="XIAOHE_DATABASE_URL")
+    trusted_proxy_cidrs: list[str] = Field(
+        default_factory=list, validation_alias="XIAOHE_TRUSTED_PROXY_CIDRS"
+    )
+
+    @field_validator("trusted_proxy_cidrs")
+    @classmethod
+    def valid_networks(cls, value: list[str]) -> list[str]:
+        return [str(ip_network(item, strict=False)) for item in value]
 
     @field_validator("toolkit_base_url")
     @classmethod
