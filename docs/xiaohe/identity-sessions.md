@@ -2,6 +2,8 @@
 
 日期：2026-11-03。用户授权在 `dev-fengfeng` 执行 P1，基线为 P0 提交 `e82a8ae`；P2–P12 尚未执行。本文描述业务函数及隔离验证，不表示公开服务、真实 SSO 或代理配置已经上线。
 
+后续P3更新：已补迁移生成模板；snapshot现读取真实activeRun/cursor，受理/额度及事件原子性见 [P3记录](admission.md)。下文保留P1阶段事实，不能据此认为P6/P8已装配。
+
 ## 已实现边界
 
 新增 `database.py`、`models.py`、`identity.py`、`conversations.py` 及 Alembic 初始迁移。上游 `service/schema/core/memory/client/agents` 和顶层测试配置不改。

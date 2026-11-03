@@ -3,9 +3,18 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from xiaohe.contracts import Actor, ChatMessage, ChatSnapshot, GuestViewer, ServiceError, UserViewer
+from xiaohe.contracts import (
+    Actor,
+    ChatMessage,
+    ChatSnapshot,
+    GuestViewer,
+    RunRef,
+    ServiceError,
+    UserViewer,
+    Viewer,
+)
 from xiaohe.identity import CSRF_HEADER, require_session
-from xiaohe.models import Conversation, Message, Project, User
+from xiaohe.models import Conversation, Event, Message, Project, Run, User
 
 
 async def default_conversation(db: AsyncSession, actor: Actor) -> Conversation:
@@ -95,6 +104,43 @@ async def load_snapshot(db: AsyncSession, actor: Actor, conversation_id: UUID) -
         )
     ).all()
     session = await require_session(db, actor)
+    viewer = await load_viewer(db, actor)
+    active = await db.scalar(
+        select(Run)
+        .where(
+            Run.conversation_id == conversation.id,
+            Run.status.in_(("queued", "running", "waiting_input")),
+        )
+        .order_by(Run.holds_slot.desc(), Run.updated_at.desc(), Run.id)
+        .limit(1)
+    )
+    cursor = await db.scalar(
+        select(Event.id)
+        .where(Event.conversation_id == conversation.id)
+        .order_by(Event.sequence.desc())
+        .limit(1)
+    )
+    return ChatSnapshot(
+        viewer=viewer,
+        csrf={"headerName": CSRF_HEADER, "token": session.csrf_token},
+        conversation_id=str(conversation.id),
+        messages=[
+            ChatMessage(
+                id=str(row.id),
+                role=row.role,
+                created_at=row.created_at,
+                parts=row.parts,
+            )
+            for row in messages
+        ],
+        active_run=RunRef(id=str(active.id), status=active.status) if active else None,
+        cursor=str(cursor) if cursor else None,
+        merge=None,
+    )
+
+
+async def load_viewer(db: AsyncSession, actor: Actor) -> Viewer:
+    session = await require_session(db, actor)
     if actor.user_id is None:
         viewer = GuestViewer(
             kind="guest",
@@ -115,20 +161,4 @@ async def load_snapshot(db: AsyncSession, actor: Actor, conversation_id: UUID) -
             tenant_id=actor.system.tenant_id,
             display_name=user.display_name,
         )
-    return ChatSnapshot(
-        viewer=viewer,
-        csrf={"headerName": CSRF_HEADER, "token": session.csrf_token},
-        conversation_id=str(conversation.id),
-        messages=[
-            ChatMessage(
-                id=str(row.id),
-                role=row.role,
-                created_at=row.created_at,
-                parts=row.parts,
-            )
-            for row in messages
-        ],
-        active_run=None,
-        cursor=None,
-        merge=None,
-    )
+    return viewer

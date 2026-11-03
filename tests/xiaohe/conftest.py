@@ -39,19 +39,15 @@ async def pg_factory(pg_url):
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
     from xiaohe.database import create_database_engine
-    from xiaohe.models import System
+    from xiaohe.models import Base, System
 
     engine = create_engine(pg_url, hide_parameters=True)
     with engine.begin() as connection:
         config = Config("alembic.ini")
         config.attributes["connection"] = connection
         command.upgrade(config, "head")
-        connection.execute(
-            text(
-                "TRUNCATE xiaohe.messages, xiaohe.conversations, xiaohe.projects, "
-                "xiaohe.sessions, xiaohe.users, xiaohe.systems"
-            )
-        )
+        tables = ", ".join(f'"xiaohe"."{table.name}"' for table in Base.metadata.sorted_tables)
+        connection.execute(text("TRUNCATE " + tables))
     engine.dispose()
     engine = create_database_engine(pg_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -76,3 +72,35 @@ async def pg_factory(pg_url):
         )
     yield factory
     await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def job_app(pg_factory, pg_url):
+    from sqlalchemy import text
+
+    from xiaohe.jobs import build_job_app
+
+    async def execute(run_id):
+        raise AssertionError("fixture must not execute business tasks")
+
+    app = build_job_app(pg_url, execute)
+    async with app.open_async():
+        async with pg_factory.begin() as db:
+            exists = await db.scalar(text("SELECT to_regclass('public.procrastinate_jobs')"))
+        if not exists:
+            await app.schema_manager.apply_schema_async()
+        async with pg_factory.begin() as db:
+            await db.execute(
+                text(
+                    "TRUNCATE public.procrastinate_events, public.procrastinate_periodic_defers, "
+                    "public.procrastinate_jobs, public.procrastinate_workers"
+                )
+            )
+            await db.execute(
+                text(
+                    "CREATE TABLE IF NOT EXISTS public.xiaohe_probe_effects "
+                    "(run_id uuid PRIMARY KEY, invocations int NOT NULL)"
+                )
+            )
+            await db.execute(text("TRUNCATE public.xiaohe_probe_effects"))
+        yield app

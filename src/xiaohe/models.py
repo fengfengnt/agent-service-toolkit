@@ -75,6 +75,7 @@ class Session(Base):
             ["xiaohe.users.user_id", "xiaohe.users.system_id", "xiaohe.users.tenant_id"],
         ),
         UniqueConstraint("guest_id", "system_id", "tenant_id"),
+        UniqueConstraint("id", "system_id", "tenant_id", name="uq_sessions_id_scope"),
         CheckConstraint("(user_id IS NULL) <> (guest_id IS NULL)"),
         CheckConstraint("message_count >= 0 AND message_limit > 0 AND retention_seconds > 0"),
         CheckConstraint("user_id IS NULL OR expires_at = created_at + interval '8 hours'"),
@@ -158,6 +159,8 @@ class Conversation(Base):
     thread_id: Mapped[str] = mapped_column(unique=True, default=lambda: str(uuid4()))
     direction: Mapped[str] = mapped_column(server_default="unknown")
     ownership_epoch: Mapped[int] = mapped_column(server_default="0")
+    event_sequence: Mapped[int] = mapped_column(BigInteger, server_default="0")
+    merge_pending: Mapped[bool] = mapped_column(server_default=text("false"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.clock_timestamp()
     )
@@ -176,6 +179,9 @@ class Message(Base):
         ),
         CheckConstraint("role IN ('user', 'assistant')"),
         UniqueConstraint("conversation_id", "client_message_id"),
+        UniqueConstraint(
+            "id", "conversation_id", "system_id", "tenant_id", name="uq_messages_id_scope"
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -188,6 +194,160 @@ class Message(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.clock_timestamp()
     )
+
+
+class Run(Base):
+    __tablename__ = "runs"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["conversation_id", "system_id", "tenant_id"],
+            [
+                "xiaohe.conversations.id",
+                "xiaohe.conversations.system_id",
+                "xiaohe.conversations.tenant_id",
+            ],
+        ),
+        ForeignKeyConstraint(
+            ["session_id", "system_id", "tenant_id"],
+            ["xiaohe.sessions.id", "xiaohe.sessions.system_id", "xiaohe.sessions.tenant_id"],
+        ),
+        ForeignKeyConstraint(
+            ["initial_message_id", "conversation_id", "system_id", "tenant_id"],
+            [
+                "xiaohe.messages.id",
+                "xiaohe.messages.conversation_id",
+                "xiaohe.messages.system_id",
+                "xiaohe.messages.tenant_id",
+            ],
+        ),
+        UniqueConstraint(
+            "id", "conversation_id", "system_id", "tenant_id", name="uq_runs_id_scope"
+        ),
+        CheckConstraint(
+            "status IN ('queued','running','waiting_input','completed','failed','cancelled','expired')"
+        ),
+        CheckConstraint("NOT holds_slot OR status IN ('queued','running','waiting_input')"),
+        CheckConstraint("status NOT IN ('queued','running') OR holds_slot"),
+        CheckConstraint("attempt >= 0 AND ownership_epoch >= 0"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    conversation_id: Mapped[UUID]
+    system_id: Mapped[str]
+    tenant_id: Mapped[int] = mapped_column(BigInteger)
+    session_id: Mapped[UUID]
+    initial_message_id: Mapped[UUID]
+    status: Mapped[str] = mapped_column(server_default="queued")
+    holds_slot: Mapped[bool] = mapped_column(server_default=text("true"))
+    attempt: Mapped[int] = mapped_column(server_default="0")
+    ownership_epoch: Mapped[int] = mapped_column(server_default="0")
+    pending_request: Mapped[dict | None] = mapped_column(JSONB)
+    job_id: Mapped[int | None] = mapped_column(BigInteger)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.clock_timestamp()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.clock_timestamp()
+    )
+
+
+class Command(Base):
+    __tablename__ = "commands"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["conversation_id", "system_id", "tenant_id"],
+            [
+                "xiaohe.conversations.id",
+                "xiaohe.conversations.system_id",
+                "xiaohe.conversations.tenant_id",
+            ],
+        ),
+        ForeignKeyConstraint(
+            ["message_id", "conversation_id", "system_id", "tenant_id"],
+            [
+                "xiaohe.messages.id",
+                "xiaohe.messages.conversation_id",
+                "xiaohe.messages.system_id",
+                "xiaohe.messages.tenant_id",
+            ],
+        ),
+        ForeignKeyConstraint(
+            ["run_id", "conversation_id", "system_id", "tenant_id"],
+            [
+                "xiaohe.runs.id",
+                "xiaohe.runs.conversation_id",
+                "xiaohe.runs.system_id",
+                "xiaohe.runs.tenant_id",
+            ],
+        ),
+        UniqueConstraint("conversation_id", "kind", "client_key", name="uq_command_idempotency"),
+        CheckConstraint("kind IN ('message','action')"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    conversation_id: Mapped[UUID]
+    system_id: Mapped[str]
+    tenant_id: Mapped[int] = mapped_column(BigInteger)
+    kind: Mapped[str]
+    client_key: Mapped[str] = mapped_column(String(128))
+    payload_digest: Mapped[str] = mapped_column(String(64))
+    payload: Mapped[dict] = mapped_column(JSONB)
+    message_id: Mapped[UUID]
+    run_id: Mapped[UUID]
+    request_id: Mapped[str | None] = mapped_column(String(128))
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.clock_timestamp()
+    )
+
+
+class Event(Base):
+    __tablename__ = "events"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["conversation_id", "system_id", "tenant_id"],
+            [
+                "xiaohe.conversations.id",
+                "xiaohe.conversations.system_id",
+                "xiaohe.conversations.tenant_id",
+            ],
+        ),
+        ForeignKeyConstraint(
+            ["run_id", "conversation_id", "system_id", "tenant_id"],
+            [
+                "xiaohe.runs.id",
+                "xiaohe.runs.conversation_id",
+                "xiaohe.runs.system_id",
+                "xiaohe.runs.tenant_id",
+            ],
+        ),
+        UniqueConstraint("conversation_id", "sequence", name="uq_event_sequence"),
+        CheckConstraint("sequence > 0"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    conversation_id: Mapped[UUID]
+    system_id: Mapped[str]
+    tenant_id: Mapped[int] = mapped_column(BigInteger)
+    sequence: Mapped[int] = mapped_column(BigInteger)
+    run_id: Mapped[UUID | None]
+    event_type: Mapped[str]
+    payload: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.clock_timestamp()
+    )
+
+
+Index(
+    "uq_run_write_slot", Run.conversation_id, unique=True, postgresql_where=Run.holds_slot.is_(True)
+)
+Index(
+    "uq_consumed_question",
+    Command.run_id,
+    Command.request_id,
+    unique=True,
+    postgresql_where=Command.request_id.is_not(None),
+)
 
 
 Index(
