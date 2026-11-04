@@ -21,9 +21,21 @@ BUCKET = "xiaohe-copilot-candidate-20261105"
 def load_settings(path):
     path = Path(path)
     data = _read_private(path)
-    if any(key.startswith("sso_bridge_") and key != "sso_bridge_enabled" for key in data):
+    aliases = {
+        name: field.validation_alias
+        for name, field in Settings.model_fields.items()
+        if name.startswith("sso_bridge_")
+    }
+    if any(
+        (key.startswith("sso_bridge_") and key != "sso_bridge_enabled") or key in aliases.values()
+        for key in data
+    ):
         raise ValueError("candidate Bridge values require the owner's private mount")
-    if data.get("sso_bridge_enabled") is True:
+    enabled = data.pop("sso_bridge_enabled", False)
+    if type(enabled) is not bool:
+        raise ValueError("candidate SSO opt-in must be an explicit boolean")
+    bridge = {name: None for name in aliases if name != "sso_bridge_enabled"}
+    if enabled:
         source, ca = path.with_name("sso-bridge.json"), path.with_name("public-ca.pem")
         if not source.is_file() or not ca.is_file():
             raise ValueError("candidate requires private Bridge and public CA mounts")
@@ -48,9 +60,14 @@ def load_settings(path):
             ssl.create_default_context(cafile=str(ca))
         except (OSError, ValueError):
             raise ValueError("candidate public CA is invalid or unreadable") from None
-        data.update(bridge, sso_bridge_ca_file=str(ca))
-    elif data.get("sso_bridge_enabled", False) is not False:
-        raise ValueError("candidate SSO opt-in must be an explicit boolean")
+        bridge["sso_bridge_ca_file"] = str(ca)
+    # 显式提供所有受保护别名，禁止 BaseSettings 从继承环境补入认证配置。
+    data.update(
+        {
+            alias: enabled if name == "sso_bridge_enabled" else bridge[name]
+            for name, alias in aliases.items()
+        }
+    )
     settings = Settings.model_validate(data)
     target = make_url(settings.database_url.get_secret_value())
     if (

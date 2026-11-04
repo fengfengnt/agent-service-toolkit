@@ -120,3 +120,54 @@ def test_candidate_base_json_cannot_override_private_bridge(tmp_path):
     )
     with pytest.raises(ValueError):
         load_settings(path)
+
+
+@pytest.mark.parametrize(
+    "alias",
+    [
+        "SSO_XIAOHE_BRIDGE_ENABLED",
+        "XIAOHE_SSO_BASE_URL",
+        "XIAOHE_SSO_APPLICATION_ID",
+        "XIAOHE_SSO_APPLICATION_SECRET",
+        "XIAOHE_SSO_CA_FILE",
+        "XIAOHE_SSO_REDIRECT_URI",
+    ],
+)
+def test_candidate_json_rejects_bridge_aliases(tmp_path, alias):
+    value = True if alias == "SSO_XIAOHE_BRIDGE_ENABLED" else "inline-must-not-pass"
+    path = write_private(tmp_path / "candidate.json", configuration() | {alias: value})
+    with pytest.raises(ValueError):
+        load_settings(path)
+
+
+def test_candidate_default_off_does_not_inherit_sso_environment(tmp_path, monkeypatch):
+    for key, value in {
+        "SSO_XIAOHE_BRIDGE_ENABLED": "true",
+        "XIAOHE_SSO_BASE_URL": "https://wrong.example",
+        "XIAOHE_SSO_APPLICATION_ID": "wrong-app",
+        "XIAOHE_SSO_APPLICATION_SECRET": "fixture-environment-secret",
+        "XIAOHE_SSO_CA_FILE": "/wrong/ca.pem",
+        "XIAOHE_SSO_REDIRECT_URI": "https://wrong.example/callback",
+    }.items():
+        monkeypatch.setenv(key, value)
+    path = write_private(tmp_path / "candidate.json", configuration())
+    settings = load_settings(path)
+    assert not settings.sso_bridge_enabled
+    assert settings.sso_bridge_base_url is settings.sso_bridge_application_id is None
+    assert settings.sso_bridge_secret is settings.sso_bridge_ca_file is None
+    assert settings.sso_bridge_redirect_uri is None
+
+
+def test_candidate_validated_mount_wins_over_sso_environment(tmp_path, monkeypatch):
+    path = setup_bridge(tmp_path)
+    monkeypatch.setenv("SSO_XIAOHE_BRIDGE_ENABLED", "false")
+    monkeypatch.setenv("XIAOHE_SSO_BASE_URL", "https://wrong.example")
+    monkeypatch.setenv("XIAOHE_SSO_APPLICATION_SECRET", "fixture-environment-secret")
+    monkeypatch.setenv("XIAOHE_SSO_CA_FILE", "/wrong/ca.pem")
+    settings = load_settings(path)
+    assert settings.sso_bridge_enabled
+    assert settings.sso_bridge_base_url == "https://sso.lvh.me"
+    assert settings.sso_bridge_ca_file == str(tmp_path / "public-ca.pem")
+    assert (
+        settings.sso_bridge_secret.get_secret_value() == bridge_configuration()["sso_bridge_secret"]
+    )
