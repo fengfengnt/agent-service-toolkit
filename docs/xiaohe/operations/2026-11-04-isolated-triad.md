@@ -122,6 +122,20 @@ AI于UTC08:36:58在专用库执行显式READ ONLY事务，仅查询本基线的�
 
 原浏览器临时认证上下文若随窗口退出丢失，不通过DB或已知ID重造会话。后续在修好的测试窗口通过正常认证重试，新基线和新结果单独记载；原访客记录与自有服务保持，原中断不能被新成功覆盖。
 
+## 第二轮：中心已有验证记录，回调兑换未完成
+
+门户修好资料页document映射及资源异常处理后，在同一授权下准备第二轮新窗口helper69592。用户再次完成验证，当前窗口仍保留在/portal/auth/callback，页面空白；门户继续用无认证公开探针排查跨域重定向后的静态拦截，不复制或回放用户提供的一次性URL参数，也不再关闭合法context。
+
+第二轮基线conversation50bcaedc-b8bf-4455-8e2a-5647dca053bf，三条消息于UTC08:40:17–19建立，artifact a972e4fa-d9fb-4b33-8b40-b75fb5ede9b9 v1。AI于UTC08:45:27显式READ ONLY核对：消息ID/时间仍在源会话，文件ready/原SHA一致；op f9f1f237-df37-4655-880a-fe4d68b7b650仍BROWSER_COMPLETION_REQUIRED、verified/bound/首次anchor均空，GuestClaim和对应userSessions均空。脱敏证据triad-member-retry-audit.json；尚未进行AI账号绑定/归并，不能验收刷新后的会员恢复。
+
+SSO Owner于UTC08:46:28（北京时间16:46:28）只读核对对应中心tx8c41752d-4269-4976-88c4-40873f9a450f：AUTHORIZING，身份验证/source identity/中心Session/authorization关联布尔均true；code_exchange_recorded=false、trusted_result_materialized=false，兑换和结果截止时间为空。中心验证码阶段已有记录，卡点在授权码兑换后才会产生的可信完成结果之前；不把用户确认或callback页面停留当作完成。
+
+中心契约600秒，按该操作UTC08:40:22创建推导预期截止约UTC08:50:22，AI自身09:00:22的截止不能延长中心期限。SSO SQL原expires_at时区解释有疑点，Owner没有把它直接标作UTC事实，本记录也仅将上述截止标作契约推导。保留当前合法浏览器context，若事务到期应经正常新restore复用该context的有效中心Session，不自动重发短信或从库提取凭据。
+
+随后AI于UTC08:49:09仅只读核对该operation的center_expires_at（真实中心create响应经适配器接收解析后存储的timestamptz），得到UTC08:50:22.803410，与AI created_at相差600.236323秒。这是适配器实际观察的中心UTC截止证据，与600秒契约吻合；不再仅依赖前述创建时刻推导，也不把原SQL客户端的时区显示差异当成已证实的应用期限错误。证据triad-member-center-deadline-audit.json，已同步双方，无需修改时间配置。
+
+门户继续修复跨域重定向后document/asset映射，在同一存活窗口让用户按正常“刷新／重新登录”入口恢复，优先复用已有中心Session。AI不并行操控窗口；截至本节证据时刻，尚无可信完成、用户绑定、归并或刷新后会员恢复的通过结果。
+
 ## 自有进程操作
 
 从Windows运行以下命令，脚本校验PID、内核启动时刻和专用runner路径，只操作自有API/worker；不改Nginx/SSO/存储服务：
