@@ -1,0 +1,13 @@
+*
+!Dockerfile
+!package.json
+!package-lock.json
+!tsconfig.json
+!tsconfig.build.json
+!src/**
+!contracts/**
+node_modules
+dist
+.env*
+*.pem
+*.key
