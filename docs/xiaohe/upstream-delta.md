@@ -1,6 +1,6 @@
 # 上游差异清单
 
-上游基线：`836649674568320c0cc994553a8a930ed82398d0`，开发分支 `dev-fengfeng`。P0 提交 `e82a8ae`；P0–P10核心与P11配置已实施，P12受控组合通过；各阶段增量见下文，真实三方联调尚未完成。
+上游基线：`836649674568320c0cc994553a8a930ed82398d0`，开发分支 `dev-fengfeng`。P0 提交 `e82a8ae`；P0–P12通用底座及本地隔离接入已验收，真实Portal/SSO/PG/MinIO与Task8边界记录见[组合验收](testing/xiaohe-backend-acceptance.md)。付费模型、三专业业务与正式部署仍属后续，不混为当前通过结论；各阶段原始差异保留如下。
 
 P1 新增 `src/xiaohe/{database,models,identity,conversations}.py`、业务 Alembic 配置/初始迁移、pg 会话测试及[说明](identity-sessions.md)。仅改既有业务 settings/conftest、增量 pyproject 依赖和 pg marker，以及相应 uv.lock；已有锁定版本未升级，新增 Alembic/Greenlet/Mako。上游源码及顶层测试配置继续保持原样。以下为 P0 历史差异与复用边界：
 

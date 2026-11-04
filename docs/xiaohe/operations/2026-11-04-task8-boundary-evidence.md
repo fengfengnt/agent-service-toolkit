@@ -2,6 +2,8 @@
 
 日期：2026-11-04。范围：复用已有证据，仅补本地隔离真实链路缺口；正式开关关闭、不替换部署、不自动发送短信、不调用付费模型。产品代码及原API/worker不变，新增执行代码仅为忽略目录内的测试脚本。会员前期证据见[三方运行记录](2026-11-04-isolated-triad.md)；门户负责最终验收汇总。
 
+最终状态：门户提交3318438已完成Task8汇总，计划50/50，本地隔离接入无剩余阻塞。新旧消息及两文件的原窗口GET-only人工校验亦已PASS，具体证据和仍未验证的正式/业务边界见[组合验收](../testing/xiaohe-backend-acceptance.md)。
+
 下列原始文件均位于 `D:/Code/yunhezhiyuan-agents/agent-service-toolkit/.superpowers/sdd/2026-11-03-xiaohe-ai-backend/`。JSON仅包含公有ID、时间、状态、计数及文件摘要，不包含Cookie、CSRF、手机号、验证码或凭据。
 
 ## 100/101 与四小时滚动
@@ -73,4 +75,6 @@ AI只读汇总：user消息100、assistant101（欢迎+100回复）、run100且�
 - 目标6条消息为旧3+新3；旧3的ID/时间与前期audit完全一致。新用户消息f31b43d1-8bbf-46f5-8312-47ddface788a具有指定client_message_id，创建早于新claim。
 - 原a972文件的v1、version_id、key指纹和摘要不变；新f66f29c5-06bc-4892-9e2b-e4eacde0f633也为v1/ready，其上传早于claim，新旧文件均归原canonical。
 
-这份DB审计证明已有历史追加和当前所有权，不替代原窗口实际HTTP读取、文件下载或自动刷新回归。AI未获取新来源的归并前公有receipt，不能独立声称新文件key/ID前后已逐字段比对；门户应以人工helper的公有receipt及用户操作证据补齐或明确此限制。没有读取正文/subject、Cookie或凭据，没有发起新登录、短信、用户退出或直接资料写入。
+这份DB审计证明已有历史追加和当前所有权，不替代原窗口实际HTTP读取、文件下载或自动刷新回归。随后门户在原窗口以公有receipt运行GET-only人工触发校验，用户明确回报PASS：原账号/canonical、新旧消息ID/时间及两份v1文件实际下载200/SHA均匹配；保留浏览器的脱敏观测另证快照200和两次下载200。独立结果为门户scratch `triad-browser/task8-final-manual-result.json`，manualReadOnlyPass/messageIdsAndTimesPreserved/sha256MatchesBeforeAndAfter均true、下载[200,200]、pageErrors=0、本轮新增SMS=0。该证据补齐先前DB审计无法独立判断的实际读取，不冒充新跑整套自动浏览器矩阵。
+
+回门户后的正常中心续接与新AI complete200有实际观测，成功context短信历史计数前后均1、无新增发送；门户scratch普通index已恢复，不再要求重复操作。AI没有读取正文/subject、Cookie或凭据，没有发起新登录、短信、用户退出或直接资料写入。本轮剩余未做项按组合验收单列，不能将本地接入完成解释为付费模型、专业业务或正式上线通过。
