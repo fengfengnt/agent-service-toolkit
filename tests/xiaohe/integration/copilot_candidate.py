@@ -1,15 +1,17 @@
-"""本次 Copilot 隔离候选入口；复用三方受控图、产品 worker 与迁移，不接真实会员。"""
+"""本次 Copilot 隔离候选入口；复用受控图、产品 worker 与 Owner 私有认证配置。"""
 
 import asyncio
 import hashlib
 import json
 import os
+import ssl
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from sqlalchemy.engine import make_url
 
+from integration.triad_runtime import _read_private
 from xiaohe.settings import Settings
 
 DATABASE = "xiaohe_copilot_candidate_20261105"
@@ -18,9 +20,38 @@ BUCKET = "xiaohe-copilot-candidate-20261105"
 
 def load_settings(path):
     path = Path(path)
-    if os.name == "posix" and path.stat().st_mode & 0o077:
-        raise ValueError("candidate configuration must be private")
-    settings = Settings.model_validate(json.loads(path.read_text("utf-8")))
+    data = _read_private(path)
+    if any(key.startswith("sso_bridge_") and key != "sso_bridge_enabled" for key in data):
+        raise ValueError("candidate Bridge values require the owner's private mount")
+    if data.get("sso_bridge_enabled") is True:
+        source, ca = path.with_name("sso-bridge.json"), path.with_name("public-ca.pem")
+        if not source.is_file() or not ca.is_file():
+            raise ValueError("candidate requires private Bridge and public CA mounts")
+        bridge = _read_private(source)
+        if (
+            set(bridge)
+            != {
+                "sso_bridge_base_url",
+                "sso_bridge_redirect_uri",
+                "sso_bridge_application_id",
+                "sso_bridge_secret",
+                "sso_bridge_ca_file",
+            }
+            or bridge["sso_bridge_base_url"] != "https://sso.lvh.me"
+            or bridge["sso_bridge_application_id"] != "31555063-bbe3-4907-8745-c553208fff23"
+            or bridge["sso_bridge_redirect_uri"] != "https://portal.lvh.me/portal/auth/callback"
+            or not isinstance(bridge["sso_bridge_secret"], str)
+            or not bridge["sso_bridge_secret"].strip()
+        ):
+            raise ValueError("candidate Bridge must match the existing registration")
+        try:
+            ssl.create_default_context(cafile=str(ca))
+        except (OSError, ValueError):
+            raise ValueError("candidate public CA is invalid or unreadable") from None
+        data.update(bridge, sso_bridge_ca_file=str(ca))
+    elif data.get("sso_bridge_enabled", False) is not False:
+        raise ValueError("candidate SSO opt-in must be an explicit boolean")
+    settings = Settings.model_validate(data)
     target = make_url(settings.database_url.get_secret_value())
     if (
         (target.drivername, target.host, target.port, target.database)
@@ -29,11 +60,9 @@ def load_settings(path):
         or settings.minio_endpoint != "http://127.0.0.1:35428"
         or settings.minio_bucket != BUCKET
         or settings.toolkit_base_url != "http://127.0.0.1:18111"
-        or settings.sso_bridge_enabled
-        or settings.sso_bridge_base_url is not None
         or settings.trusted_proxy_cidrs != ["127.0.0.1/32"]
     ):
-        raise ValueError("candidate requires its dedicated resources and disabled SSO")
+        raise ValueError("candidate requires its dedicated resources")
     return settings
 
 
