@@ -43,3 +43,9 @@ issuer保持`https://sso.lvh.me`；不改用户身份、`user_id`、来源租户
 聚合证据位于本仓库忽略目录`.superpowers/sdd/2026-11-03-xiaohe-ai-backend/`：`portal-443-cutover-result.json`、`portal-443-adapter-evidence.json`、`portal-443-postcheck.json`。本方已向门户Owner回传公开状态及限制，不升级为会员443验收。
 
 下一步如验证真人会员恢复，应在当前443入口正常新发起流程；旧Bridge版本0或旧9444的在途认证已失效，不改写或重放。原AI会话仍沿各自原8小时截止，不因地址切换重算；已经自然到期者不复活。本次未重跑真人登录、真实短信、付费模型、原窗口恢复或旧issuer整批验收。
+
+## 旧Portal端口关闭回执
+
+2026-11-04 22:00:26（北京时间），SSO Owner提供`D:/Code/deploy/local-deploy/docs/deployment/portal-443-no-9444-2026-11-04.json`。本方已读取并核对9项检查及Windows字段：旧Portal9444不再兼容或重定向，WSL无旧监听、Windows9444及原SSO8443拒绝连接；Portal443页面/回调页、SSO Discovery严格TLS均200，Portal HTML及公钥保持。NewAPI9443和容器内部443保留，不属于本次关闭范围。
+
+这是共享入口Owner的实测回执，本方未重复操作共享Nginx、重启AI或发起认证。AI此前已使用无端口Origin/callback，无需再改配置；21:22的AI匿名/身份保持证据与22:00的入口关闭证据分别保留。该回执自身未验证真人登录、RP发布或AI身份迁移，不覆盖本方已有独立证据，也不补足尚未执行的真人会员登录。
