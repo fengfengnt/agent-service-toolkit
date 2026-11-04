@@ -31,6 +31,8 @@ def write_config(tmp_path, data):
         {
             "database_url": "postgresql+psycopg://fixture@remote.example:35417/xiaohe_triad_local_20261104"
         },
+        {"database_url": fixture_config()["database_url"] + "?host=other-host.example"},
+        {"database_url": fixture_config()["database_url"] + "?dbname=other_database"},
         {"minio_bucket": "test-xiaohe-artifacts"},
         {"minio_endpoint": "https://storage.example"},
         {"toolkit_base_url": "http://0.0.0.0:18090"},

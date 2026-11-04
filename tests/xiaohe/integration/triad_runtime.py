@@ -51,6 +51,7 @@ def runtime_settings(path):
     if (
         (url.drivername, url.host, url.port, url.database)
         != ("postgresql+psycopg", "127.0.0.1", 35417, DB)
+        or url.query
         or settings.minio_bucket != BUCKET
         or settings.minio_endpoint != "http://127.0.0.1:35418"
         or settings.toolkit_base_url != "http://127.0.0.1:18090"
