@@ -81,6 +81,20 @@ SSO Owner确认Discovery/JWKS/continuation已恢复严格TLS200；此前11:57的
 
 后续仅待真实会员闭环：门户Owner提供可操作的隔离窗口及正常认证入口，由用户使用合法会员身份登录，再验证换码、绑定、对话/文件归并和固定绝对8小时。fresh隔离context不会自动共享普通浏览器的SSO Cookie；不通过导出Cookie/storageState或伪造身份绕过。无短信边界继续有效，如没有已有合法会话或其他已支持认证方式，则停留登录页并报告，不擅自发短信。正式包false、自有隔离进程继续保留。
 
+## 无短信会员登录的现有能力核对
+
+SSO Owner只读核对并回传：当前公开会员首登只有正常手机号短信验证码，密码/企业公开入口已退役，没有另一种现成免短信首登方式。AI随后只读查看当前`SsoLoginController.java`，确认POST /sso/login/password直接返回HTTP410及SSO_PUBLIC_FLOW_RETIRED，正常公开认证为/sso/login/sms/send和/sso/login/sms。本段是源码与Owner既有测试的证据，没有为此发起登录或HTTP410探针。
+
+因此，无短信恢复必须是同一浏览器context已持有有效中心会员Session。普通浏览器已有状态不自动进入fresh测试context；管理员后台或旧App MEMBER令牌不能代替中心会员Session。当前fresh窗口不能完成会员首次登录，不要求用户输入账号密码或导出Cookie。
+
+用户进一步要求准备可手动操作的隔离窗口；门户Owner在其现有测试harness中准备可见窗口，静态测试构建仅覆盖该context，API/SSO仍真实。窗口还须阻断中心/sso/login/sms/send及小鹤operation/sms发送请求，避免手工误点外发；不改产品、正式包或部署。窗口就绪情况及用户步骤以Owner回执为准，未就绪前不宣布已可操作。
+
+门户Owner后续回执确认窗口已实际打开并保留：真实Edge headed/fresh内存context，标题“小鹤隔离联调｜禁止短信”，地址https://portal.lvh.me:9444/portal/，小鹤已展开，黄色条为“隔离测试窗口·短信发送已阻断·使用受控模型”。现有browser.mjs只新增测试manual模式；helper PID38180，由门户Owner保持运行，不由AI另开或并行操控。仅该context覆盖静态GET及原callback，正式包仍false。
+
+窗口发送保护阻断POST /sso/login/sms/send及Portal /ai-api/v1/auth/operations/*/sms，context/续接不受影响。Owner报告3条纯路由断言通过、2个空载保护探测在转发前abort、pageerror0，没有记录请求体/手机号/Cookie/trace/storageState。脱敏就绪文件为上述门户scratch triad-browser/manual-ready.json。本AI仅核对回执/脱敏文件，没有代为操作可见窗口。
+
+用户操作顺序：在带黄色提示条的Edge窗口点击任一方向，体验受控聊天与文件；再点小鹤右上角×收起，在门户页头点“登录”，到正常手机号表单停止。本fresh context无合法中心会员Session；禁止短信条件下无法完成首次会员认证，发送按钮即使误触也会阻断。不能把普通浏览器已有登录态、管理员身份或本匿名体验当作会员换码/归并验收。窗口及隔离API/worker保持运行，等待用户手工操作；未来会员认证范围需另行明确。
+
 ## 自有进程操作
 
 从Windows运行以下命令，脚本校验PID、内核启动时刻和专用runner路径，只操作自有API/worker；不改Nginx/SSO/存储服务：
