@@ -210,7 +210,12 @@ async def test_hard_kill_after_real_object_delete_can_retry_same_cleanup(
         async with pg_factory() as db:
             assert await db.get(ArtifactVersion, version.id) is not None
             assert (await db.get(Session, who.session_id)).purged_at is None
-        assert await cleanup(pg_factory, who.guest_id, service)
+
+        async def retry_after_disconnect():
+            while not await cleanup(pg_factory, who.guest_id, service):
+                await asyncio.sleep(0.02)
+
+        await asyncio.wait_for(retry_after_disconnect(), 5)
         async with pg_factory() as db:
             assert await db.get(ArtifactVersion, version.id) is None
             assert (await db.get(Session, who.session_id)).purged_at is not None
@@ -265,6 +270,7 @@ async def test_overlapping_claim_and_real_delete_serialize_at_session_lock(
     pg_factory, job_app, minio_env, monkeypatch, claim_wins
 ):
     from datetime import UTC, datetime, timedelta
+
     from sqlalchemy import update
     from test_admission import finish, send
     from test_artifact_versions import digest
@@ -354,3 +360,133 @@ async def test_overlapping_claim_and_real_delete_serialize_at_session_lock(
                 if task is not None:
                     task.cancel()
                     await asyncio.gather(task, return_exceptions=True)
+
+
+@pytest.mark.parametrize("phase", ["guest", "receipt"])
+async def test_slow_storage_yields_single_worker_to_chat_and_next_recovery_scan(
+    pg_factory, pg_url, runtime_env, minio_env, monkeypatch, phase
+):
+    from test_admission import send, visitor
+
+    from xiaohe import expiry
+    from xiaohe.jobs import MAINTENANCE_QUEUE, RECOVERY_TASK, RUN_QUEUE, build_job_app
+    from xiaohe.models import GuestObjectTombstone, Run
+    from xiaohe.worker import RunWorker
+
+    service, who, fence, version = await staged(pg_factory, None, artifacts=minio_env.service)
+    await service.write_artifact_object(version.id, b"test-only")
+    await due(pg_factory, who)
+    if phase == "receipt":
+        assert await cleanup(pg_factory, who.guest_id, service)
+    entered = asyncio.Event()
+
+    async def slow_store(key):
+        entered.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(service, "delete_expired_object", slow_store)
+    budget = getattr(expiry, "CLEANUP_BUDGET_SECONDS", 5)
+    worker = RunWorker(pg_factory, runtime_env.client, artifacts=service)
+    scans = []
+
+    async def maintain():
+        scans.append(True)
+        await worker.maintain()
+
+    app = build_job_app(pg_url, worker.execute_run, on_maintenance=maintain)
+    async with app.open_async():
+        first_scan = await app.tasks[RECOVERY_TASK].defer_async(timestamp=0)
+        running = asyncio.create_task(
+            app.run_worker_async(
+                queues=[RUN_QUEUE, MAINTENANCE_QUEUE],
+                wait=False,
+                listen_notify=False,
+                concurrency=1,
+                install_signal_handlers=False,
+                shutdown_graceful_timeout=0,
+            )
+        )
+        try:
+            await asyncio.wait_for(entered.wait(), 5)
+            live, conversation = await visitor(pg_factory)
+            accepted = await send(pg_factory, live, conversation, "chat while storage is slow")
+            second_scan = await app.tasks[RECOVERY_TASK].defer_async(timestamp=1)
+
+            async def completed():
+                while True:
+                    async with pg_factory() as db:
+                        if (await db.get(Run, UUID(accepted.run.id))).status == "completed":
+                            return
+                    await asyncio.sleep(0.05)
+
+            await asyncio.wait_for(completed(), budget + 3)
+            await asyncio.wait_for(running, budget * 2 + 3)
+            assert len(scans) >= 2
+            async with pg_factory() as db:
+                from sqlalchemy import text
+
+                for job_id in (first_scan, second_scan):
+                    assert (
+                        await db.scalar(
+                            text("SELECT status FROM procrastinate_jobs WHERE id=:id"),
+                            {"id": job_id},
+                        )
+                        == "succeeded"
+                    )
+                if phase == "guest":
+                    record = await db.get(Session, who.session_id)
+                    assert record.purged_at is None and record.cleanup_checked_at is not None
+                else:
+                    assert (
+                        await db.get(GuestObjectTombstone, version.object_key)
+                    ).checked_at is not None
+            assert await exists(service, version.object_key) is (phase == "guest")
+        finally:
+            running.cancel()
+            await asyncio.gather(running, return_exceptions=True)
+
+
+async def test_large_guest_keeps_object_progress_when_its_time_budget_expires(
+    pg_factory, job_app, minio_env, monkeypatch
+):
+    from datetime import UTC, datetime
+
+    from test_artifact_versions import digest
+
+    from xiaohe import expiry
+
+    service, who, fence, first = await staged(pg_factory, job_app, artifacts=minio_env.service)
+    versions = [first]
+    for content in (b"second", b"third"):
+        async with pg_factory.begin() as db:
+            versions.append(
+                await service.stage_artifact(
+                    db,
+                    fence,
+                    "测试文件",
+                    "text/plain",
+                    digest(content),
+                    artifact_id=first.artifact_id,
+                )
+            )
+    for version, content in zip(versions, (b"test-only", b"second", b"third"), strict=True):
+        await service.write_artifact_object(version.id, content)
+    await due(pg_factory, who)
+    async with pg_factory.begin() as db:
+        await expiry.expire_guests(db, datetime.now(UTC), 100)
+    remove = service.delete_expired_object
+
+    async def delayed(key):
+        await asyncio.sleep(0.1)
+        await remove(key)
+
+    monkeypatch.setattr(service, "delete_expired_object", delayed)
+    monkeypatch.setattr(expiry, "CLEANUP_BUDGET_SECONDS", 0.16)
+    await expiry.purge_expired_guests(pg_factory, service)
+    async with pg_factory() as db:
+        assert (await db.get(Session, who.session_id)).purged_at is None
+    for _ in range(5):
+        await expiry.purge_expired_guests(pg_factory, service)
+    async with pg_factory() as db:
+        assert (await db.get(Session, who.session_id)).purged_at is not None
+    assert not any([await exists(service, version.object_key) for version in versions])

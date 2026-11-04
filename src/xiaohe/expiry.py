@@ -1,7 +1,9 @@
+import asyncio
 from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import delete, exists, func, select, text, update
+from sqlalchemy.dialects.postgresql import insert
 
 from xiaohe.database import database_now
 from xiaohe.events import record_event
@@ -21,6 +23,8 @@ from xiaohe.models import (
     Session,
 )
 from xiaohe.runs import TERMINAL
+
+CLEANUP_BUDGET_SECONDS = 5
 
 
 async def expire_guests(db, now: datetime, limit: int) -> list[UUID]:
@@ -181,8 +185,11 @@ async def _delete_guest_bodies(db, conversation_ids, run_ids):
 
 async def purge_expired_guest(factory, guest_id: UUID, artifacts) -> bool:
     async with factory.begin() as db:
+        # Exclude claim writers while allowing FK reads from durable object progress commits.
         session = await db.scalar(
-            select(Session).where(Session.guest_id == guest_id).with_for_update(skip_locked=True)
+            select(Session)
+            .where(Session.guest_id == guest_id)
+            .with_for_update(skip_locked=True, key_share=True)
         )
         if session is None or await database_now(db) < session.expires_at:
             return False
@@ -248,15 +255,32 @@ async def purge_expired_guest(factory, guest_id: UUID, artifacts) -> bool:
             # The session/conversation locks prevent claim ownership changes during deletion.
             if artifacts is None:
                 return False
-            db.add(
-                GuestObjectTombstone(
-                    object_key=version.object_key,
-                    guest_id=guest_id,
-                    system_id=session.system_id,
-                    tenant_id=session.tenant_id,
+            async with factory.begin() as progress:
+                await progress.execute(
+                    insert(GuestObjectTombstone)
+                    .values(
+                        object_key=version.object_key,
+                        guest_id=guest_id,
+                        system_id=session.system_id,
+                        tenant_id=session.tenant_id,
+                    )
+                    .on_conflict_do_nothing()
                 )
-            )
+                deleted_at = await progress.scalar(
+                    select(GuestObjectTombstone.checked_at).where(
+                        GuestObjectTombstone.object_key == version.object_key
+                    )
+                )
+            if deleted_at is not None:
+                continue
             await artifacts.delete_expired_object(version.object_key)
+            # Persist completed external work even when the guest's remaining budget expires.
+            async with factory.begin() as progress:
+                await progress.execute(
+                    update(GuestObjectTombstone)
+                    .where(GuestObjectTombstone.object_key == version.object_key)
+                    .values(checked_at=func.clock_timestamp())
+                )
         await _delete_guest_bodies(db, conversation_ids, run_ids)
         session.purged_at = await database_now(db)
         return True
@@ -283,9 +307,14 @@ async def purge_expired_guests(factory, artifacts, limit=100):
                 .limit(limit)
             )
         ).all()
+    deadline = asyncio.get_running_loop().time() + CLEANUP_BUDGET_SECONDS
     for guest_id in guests:
+        remaining = deadline - asyncio.get_running_loop().time()
+        if remaining <= 0:
+            break
         try:
-            await purge_expired_guest(factory, guest_id, artifacts)
+            async with asyncio.timeout(remaining):
+                await purge_expired_guest(factory, guest_id, artifacts)
         except Exception:
             # A failed object/DB operation keeps its durable rows for the next scan.
             async with factory.begin() as db:
@@ -303,6 +332,8 @@ async def _reap_late_objects(factory, artifacts, limit):
         keys = (
             await db.scalars(
                 select(GuestObjectTombstone.object_key)
+                .join(Session, Session.guest_id == GuestObjectTombstone.guest_id)
+                .where(Session.purged_at.is_not(None))
                 .order_by(
                     GuestObjectTombstone.checked_at.asc().nulls_first(),
                     GuestObjectTombstone.object_key,
@@ -310,9 +341,13 @@ async def _reap_late_objects(factory, artifacts, limit):
                 .limit(limit)
             )
         ).all()
+    deadline = asyncio.get_running_loop().time() + CLEANUP_BUDGET_SECONDS
     for key in keys:
+        remaining = deadline - asyncio.get_running_loop().time()
+        if remaining <= 0:
+            break
         try:
-            async with factory.begin() as db:
+            async with asyncio.timeout(remaining), factory.begin() as db:
                 locator = await db.get(GuestObjectTombstone, key)
                 session = await db.scalar(
                     select(Session)

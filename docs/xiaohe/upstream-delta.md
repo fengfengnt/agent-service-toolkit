@@ -41,4 +41,4 @@ P8/P9核心提交`afe08f4`新增authentication/auth_bridge/claim、0004/0005增�
 
 整批独立审查后，同一次修复补齐首次complete当前账号校验、退出当前未绑定上下文撤销、API ready前等待及Compose健康依赖；fixture与实际HTTP探针同步。最终业务/真实PG与MinIO/原client与threads288项通过；原全仓Streamlit失败仍独立保留。详见[本批审查](testing/2026-11-04-auth-deployment-review.md)。P10物理清理和P12真实联调尚未完成，不把新增迁移文件或fixture通过当作正式上线。
 
-P10/P12接续扩展自身expiry/artifacts/worker/models，新增0006清理时间和0007最小对象key记录，复用原维护/PG事务/官方saver删除API，未增加依赖。补齐未认领过期正文、checkpoint和私有对象删除，pending/merged保护、上传锁/取消、真实清理硬杀及迟到对象巡检。P12新增跨方向到已有用户归并的真实内部API/worker硬杀组合，公共适配仍为ASGI，中心仍fixture。309项完整业务回归加2项并发屏障通过，独立审查后最终结果见[接续验收](testing/2026-11-04-cleanup-journey.md)；正式环境未变。
+P10/P12接续扩展自身expiry/artifacts/worker/models，新增0006清理时间和0007最小对象key记录，复用原维护/PG事务/官方saver删除API，未增加依赖。补齐未认领过期正文、checkpoint和私有对象删除，pending/merged保护、上传锁/取消、真实清理硬杀及迟到对象巡检。P12新增跨方向到已有用户归并的真实内部API/worker硬杀组合，公共适配仍为ASGI，中心仍fixture。独立审查后补清理/巡检各5秒预算和已完成对象进度独立提交，最终314项完整所选回归通过，见[接续验收](testing/2026-11-04-cleanup-journey.md)；正式环境未变。
