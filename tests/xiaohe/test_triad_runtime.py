@@ -46,7 +46,8 @@ def test_triad_loader_rejects_nonisolated_targets(tmp_path, changes):
         runtime_settings(write_config(tmp_path, fixture_config() | changes))
 
 
-def test_only_private_owner_bridge_file_enables_real_adapter(tmp_path):
+@pytest.mark.parametrize("issuer", ["https://sso.lvh.me", "https://sso.lvh.me:8443"])
+def test_only_private_owner_bridge_file_enables_real_adapter(tmp_path, issuer):
     from integration.triad_runtime import runtime_settings
 
     config = write_config(tmp_path, fixture_config())
@@ -55,7 +56,7 @@ def test_only_private_owner_bridge_file_enables_real_adapter(tmp_path):
     bridge.write_text(
         json.dumps(
             {
-                "sso_bridge_base_url": "https://sso.lvh.me:8443",
+                "sso_bridge_base_url": issuer,
                 "sso_bridge_redirect_uri": "https://portal.lvh.me:9444/portal/auth/callback",
                 "sso_bridge_application_id": "fixture-existing-app",
                 "sso_bridge_secret": "fixture-existing-secret",
@@ -65,6 +66,10 @@ def test_only_private_owner_bridge_file_enables_real_adapter(tmp_path):
         encoding="utf-8",
     )
     bridge.chmod(0o600)
+    if issuer != "https://sso.lvh.me":
+        with pytest.raises(ValueError, match="existing registration"):
+            runtime_settings(config)
+        return
     settings = runtime_settings(config)
     assert settings.sso_bridge_enabled
     assert "fixture-existing-secret" not in repr(settings)

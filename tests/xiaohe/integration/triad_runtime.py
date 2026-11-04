@@ -16,7 +16,7 @@ from xiaohe.settings import Settings
 
 DB = "xiaohe_triad_local_20261104"
 BUCKET = "xiaohe-triad-local-20261104"
-ISSUER = "https://sso.lvh.me:8443"
+ISSUER = "https://sso.lvh.me"
 CALLBACK = "https://portal.lvh.me:9444/portal/auth/callback"
 
 
