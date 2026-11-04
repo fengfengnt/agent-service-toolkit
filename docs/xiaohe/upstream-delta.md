@@ -34,3 +34,5 @@ P6新增api/main、扩展events/models/worker及0002c迁移，业务REST/SSE与�
 P7新增artifacts及0003迁移、固定镜像清单、隔离MinIO fixture；扩展自身settings/API/worker/main完成配置、读取下载、生命周期和ready引用校验。复用锁内boto3，不新增依赖；pyproject只加minio测试marker。原Compose不改，仅业务测试Compose增加独立profile/私有服务/专用volume。真实MinIO权限、摘要、到期和重启门见 [P7产出物记录](artifacts.md)。
 
 P2–P7整批独立评审后，在自身worker/admission/runtime/streaming补齐活锁接管、凭据受理/历史checkpoint过滤和断流关闭。12项先RED后GREEN，完整231项及正式参数恢复132.00秒通过，见 [复核记录](continuous-review.md)。P8在跨工程契约交接点暂停，具体补充见 [认证契约建议](integrations/p8-auth-contract-proposal.md)。
+
+P11新增业务Docker/Compose/代理/启动校验及内部健康检查，真实临时Nginx隔离验证通过；原Docker/Compose不变。P10独立部分接原维护任务停止过期匿名run，未开始物理删除；P12加入真实PG/MinIO已有能力组合旅程。全仓426通过/4跳过/1原Streamlit测试失败，详见[验收记录](testing/xiaohe-backend-acceptance.md)。共享v1.0.2由门户owner获用户授权更新，契约阻塞解除；本聊天接续P8/P9，正式开关保持关闭。
