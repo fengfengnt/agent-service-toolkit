@@ -33,9 +33,9 @@
 
 **Interfaces:** `load_settings(path)` 保持原签名及所有资源限制。基础 JSON 仅控制 `sso_bridge_enabled`，不接收其余 Bridge 字段；启用时读取相邻固定 `sso-bridge.json`，仅接受现行五字段，对相邻 `public-ca.pem` 建立严格 SSL context 后覆盖旧来源 CA 路径。禁用时不读取秘密来源。
 
-- [ ] 写允许合法 opt-in 的失败测试，并补 metadata 错误、缺配置/CA、inline 覆盖、默认关闭不读取来源的边界。
-- [ ] 运行并观察 RED，最小修改启动器，保留 DB/桶/代理限制及短信拦截。
-- [ ] 运行 `uv run --frozen --python 3.14.7 pytest tests/xiaohe/test_copilot_candidate.py tests/xiaohe/test_triad_runtime.py -q --tb=short` 和 Ruff，通过后精确提交。
+- [x] 写允许合法 opt-in 的失败测试，并补 metadata 错误、缺配置/CA、inline 覆盖、默认关闭不读取来源的边界。
+- [x] 运行并观察 RED，最小修改启动器，保留 DB/桶/代理限制及短信拦截。
+- [x] 运行 `uv run --frozen --python 3.14.7 pytest tests/xiaohe/test_copilot_candidate.py tests/xiaohe/test_triad_runtime.py -q --tb=short` 和 Ruff，通过后精确提交。
 
 ### Task 2: A6 — 私有只读挂载、登记与无短信适配验证
 
@@ -43,8 +43,8 @@
 
 **Interfaces:** Owner 内部确认现有挂载源的文件模式及公开字段白名单（不输出密钥），给候选 API/worker增加原 `sso-bridge.json` 和公共 CA 只读挂载；只修改候选私有 JSON 的 opt-in 与候选 portal client 行。构建不可变 `spike-<commit>` 候选 Python 镜像，仅 recreate 这两个服务。
 
-- [ ] 先静态核对来源元数据/路径，不读取密钥到 Agent；来源缺失则准确记录，不生成替代凭据。
-- [ ] 按 A5 的准确配置准备新候选镜像/只读挂载、保存当前候选配置与旧镜像身份；以候选 DB guards 更新 portal 的 client/issuer/origin，tenant 不变。
-- [ ] 从候选进程用严格 TLS、合法现有应用认证做无短信受控流程探针，实测套接字出口 peer，证明不是猜测 host 网络。验证旧 Origin 拒绝、sms 路由仍503；取消只属于本探针的 operation。
-- [ ] 核对旧容器 ID/正式部署配置未变，候选受控消息仍工作；写入公开版本/路径/peer证据和回调、真实会员未验范围，交门户继续。
-- [ ] 通过后提交公开文档，做一次本批只读最终审阅；保留证据及分支，不合并/推送。
+- [x] 先静态核对来源元数据/路径，不读取密钥到 Agent；来源缺失则准确记录，不生成替代凭据。
+- [x] 按 A5 的准确配置准备新候选镜像/只读挂载、保存当前候选配置与旧镜像身份；以候选 DB guards 更新 portal 的 client/issuer/origin，tenant 不变。
+- [x] 从候选进程用严格 TLS、合法现有应用认证做无短信受控流程探针，实测套接字出口 peer，证明不是猜测 host 网络。验证旧 Origin 拒绝、sms 路由仍503；取消只属于本探针的 operation。
+- [x] 核对旧容器 ID/正式部署配置未变，候选受控消息仍工作；写入公开版本/路径/peer证据和回调、真实会员未验范围，交门户继续。
+- [x] 通过后提交公开文档，做一次本批只读最终审阅；保留证据及分支，不合并/推送。
