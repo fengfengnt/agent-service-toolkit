@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from xiaohe.agui import create_agui_router
 from xiaohe.api import create_public_router, install_error_handlers
 from xiaohe.artifacts import ArtifactService
 from xiaohe.database import create_database_engine
@@ -117,6 +118,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     install_error_handlers(app)
     app.include_router(create_public_router(factory))
+    app.include_router(create_agui_router(factory))
     app.include_router(internal)
     app.mount("/internal/toolkit", upstream_app)
     return app
