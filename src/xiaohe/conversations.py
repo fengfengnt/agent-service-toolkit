@@ -1,4 +1,4 @@
-from uuid import UUID
+from uuid import UUID, uuid5
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -88,6 +88,55 @@ async def require_conversation(
         raise ServiceError("FORBIDDEN", 403)
     await require_session(db, actor)
     return record
+
+
+async def ensure_welcome(db: AsyncSession, conversation: Conversation) -> None:
+    from xiaohe.events import record_event
+
+    await db.scalar(
+        select(Conversation).where(Conversation.id == conversation.id).with_for_update()
+    )
+    if conversation.direction != "unknown" or await db.scalar(
+        select(Message.id).where(Message.conversation_id == conversation.id).limit(1)
+    ):
+        return
+    welcome = Message(
+        id=uuid5(conversation.id, "xiaohe.portal.welcome"),
+        conversation_id=conversation.id,
+        system_id=conversation.system_id,
+        tenant_id=conversation.tenant_id,
+        role="assistant",
+        parts=[
+            {"type": "text", "text": "您好，我是小鹤。请选择服务方向，或直接告诉我您的问题。"},
+            {
+                "type": "suggestions",
+                "items": [
+                    {"id": key, "text": label}
+                    for key, label in (
+                        ("buyer", "采购方"),
+                        ("organization", "社群组织"),
+                        ("supplier", "供应商"),
+                    )
+                ],
+            },
+        ],
+    )
+    db.add(welcome)
+    await db.flush()
+    record_event(
+        db,
+        conversation,
+        "message.upsert",
+        {
+            "message": ChatMessage(
+                id=str(welcome.id),
+                role=welcome.role,
+                created_at=welcome.created_at,
+                parts=welcome.parts,
+            ).model_dump(mode="json", by_alias=True)
+        },
+    )
+    await db.flush()
 
 
 async def load_snapshot(db: AsyncSession, actor: Actor, conversation_id: UUID) -> ChatSnapshot:

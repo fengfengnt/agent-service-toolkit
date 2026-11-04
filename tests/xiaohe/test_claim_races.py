@@ -36,7 +36,9 @@ async def test_parallel_first_completion_has_one_identity_claim_and_absolute_anc
                 await db.scalars(select(Session.created_at).where(Session.user_id.is_not(None)))
             ).all()
             assert len(set(anchors)) == 1
-            assert await db.scalar(select(func.count()).select_from(Message)) == 1
+            assert await db.scalar(select(func.count()).select_from(Message)) == 1 + len(
+                guest["messages"]
+            )
 
 
 async def test_original_context_recovery_rejects_other_account_and_fixed_deadlines(
@@ -192,7 +194,7 @@ async def test_claim_blocked_until_after_deadline_skips_expired_source(pg_factor
     async with client_for(pg_factory) as (client, app):
         guest = await session(client)
         who = await actor(pg_factory, client.cookies.get("__Host-XIAOHESESSION"))
-        await send(pg_factory, who, UUID(guest["conversationId"]), "first")
+        turn = await send(pg_factory, who, UUID(guest["conversationId"]), "first")
         operation_id, calls = await prepare(client, app)
         async with pg_factory.begin() as db:
             await db.execute(
@@ -212,7 +214,11 @@ async def test_claim_blocked_until_after_deadline_skips_expired_source(pg_factor
                 assert not pending.done()
             result = await asyncio.wait_for(pending, 5)
         assert result.status_code == 200 and result.json()["merge"]["status"] == "SKIPPED_EXPIRED"
-        assert result.json()["messages"] == [] and len(calls) == 1
+        messages = result.json()["messages"]
+        source_ids = {turn.message.id, *[m["id"] for m in guest["messages"]]}
+        assert len(messages) == 1 and messages[0]["role"] == "assistant"
+        assert messages[0]["id"] not in source_ids and len(calls) == 1
+        assert any(p["type"] == "suggestions" for p in messages[0]["parts"])
 
 
 async def test_local_commit_failure_reuses_verified_result_and_keeps_source_intact(

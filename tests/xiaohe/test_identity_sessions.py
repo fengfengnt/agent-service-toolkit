@@ -330,7 +330,9 @@ async def test_snapshot_reads_private_persistent_messages_and_rechecks_revocatio
         )
     async with pg_factory.begin() as db:
         loaded = await load_snapshot(db, current, UUID(snapshot.conversation_id))
-        assert loaded.messages[0].parts[0].text == "本人历史"
+        assert loaded.messages[0] == snapshot.messages[0]
+        assert len(loaded.messages) == len(snapshot.messages) + 1
+        assert loaded.messages[-1].parts[0].text == "本人历史"
         await db.execute(
             update(Session).where(Session.id == row.id).values(revoked_at=func.clock_timestamp())
         )

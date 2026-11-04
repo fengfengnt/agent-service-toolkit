@@ -120,8 +120,10 @@ def _explicit_direction(text):
             "organization": "协会(?:组织)?|组织机构|社群组织",
             "supplier": "供应商|供方",
         }[direction]
-        if text.strip() in (direction, label) or re.search(
-            rf"(?:我是|我代表|切换到|选择|当前按)\s*(?:{aliases})", text
+        if (
+            text.strip() in (direction, label)
+            or re.fullmatch(aliases, text.strip())
+            or re.search(rf"(?:我是|我代表|切换到|选择|当前按)\s*(?:{aliases})", text)
         ):
             return direction
     return None

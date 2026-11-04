@@ -68,7 +68,9 @@ async def test_first_identity_claim_moves_stable_messages_and_retry_recovers_los
         assert first.status_code == 200, first.text
         value = first.json()
         assert value["viewer"]["kind"] == "user" and value["merge"]["status"] == "MERGED"
-        assert [m["id"] for m in value["messages"]] == [turn.message.id]
+        expected_ids = [m["id"] for m in guest["messages"]] + [turn.message.id]
+        assert [m["id"] for m in value["messages"]] == expected_ids
+        assert value["messages"][0] == guest["messages"][0]
         user_id = value["viewer"]["userId"]
         async with pg_factory() as db:
             operation = await db.get(AuthOperationRecord, UUID(operation_id))
@@ -77,6 +79,7 @@ async def test_first_identity_claim_moves_stable_messages_and_retry_recovers_los
         client.cookies = original_cookies
         again = await client.post(path, json={})
         assert again.status_code == 200 and again.json()["viewer"]["userId"] == user_id
+        assert [m["id"] for m in again.json()["messages"]] == expected_ids
         assert len(calls) == 1
         restored = await actor(pg_factory, client.cookies.get("__Host-XIAOHESESSION"))
         async with pg_factory() as db:
@@ -85,7 +88,7 @@ async def test_first_identity_claim_moves_stable_messages_and_retry_recovers_los
                 new_session.created_at == anchor
                 and new_session.expires_at == anchor + timedelta(hours=8)
             )
-            assert len((await db.scalars(select(Message))).all()) == 1
+            assert len((await db.scalars(select(Message))).all()) == len(expected_ids)
             assert len((await db.scalars(select(User))).all()) == 1
 
 
@@ -127,7 +130,11 @@ async def test_target_active_claim_is_durable_and_auto_finishes_without_oidc(
         await runtime_env.worker.maintain()
         final = await client.post(path, json={})
         assert final.status_code == 200 and final.json()["merge"]["status"] == "MERGED"
-        assert {m["id"] for m in final.json()["messages"]} == {target.message.id, turn.message.id}
+        assert {m["id"] for m in final.json()["messages"]} == {
+            target.message.id,
+            turn.message.id,
+            *[m["id"] for m in guest["messages"]],
+        }
         assert len(calls) == 1
 
 
@@ -140,7 +147,11 @@ async def test_expired_source_is_skipped_without_resurrection(pg_factory, job_ap
         await due(pg_factory, who)
         result = await client.post(f"/ai-api/v1/auth/operations/{operation_id}/complete", json={})
         assert result.status_code == 200 and result.json()["merge"]["status"] == "SKIPPED_EXPIRED"
-        assert result.json()["messages"] == []
+        messages = result.json()["messages"]
+        source_ids = {turn.message.id, *[m["id"] for m in guest["messages"]]}
+        assert len(messages) == 1 and messages[0]["role"] == "assistant"
+        assert messages[0]["id"] not in source_ids
+        assert any(p["type"] == "suggestions" for p in messages[0]["parts"])
         async with pg_factory() as db:
             assert (await db.get(Message, UUID(turn.message.id))).conversation_id == UUID(
                 guest["conversationId"]

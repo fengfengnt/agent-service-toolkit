@@ -75,7 +75,8 @@ async def test_guest_directions_reconnect_private_artifact_and_expiry(
         client.cookies = cookies
         restored = await session(client)
         assert restored["conversationId"] == initial["conversationId"]
-        assert len(restored["messages"]) == 2
+        assert len(restored["messages"]) == len(initial["messages"]) + 2
+        assert restored["messages"][0] == initial["messages"][0]
         async with pg_factory() as db:
             assert (
                 await db.get(Conversation, UUID(initial["conversationId"]))
@@ -92,7 +93,7 @@ async def test_guest_directions_reconnect_private_artifact_and_expiry(
         assert switched.status_code == 202
         await run_pending()
         final = (await client.get(path)).json()
-        assert len(final["messages"]) == 4
+        assert len(final["messages"]) == len(initial["messages"]) + 4
         async with pg_factory() as db:
             assert (
                 await db.get(Conversation, UUID(initial["conversationId"]))
@@ -242,7 +243,7 @@ async def test_guest_to_existing_user_with_process_restart_and_artifact(
             assert restored["viewer"]["messageCount"] == 2
             duplicate = await client.post(path + "/messages", json=second_body)
             assert duplicate.json()["run"]["id"] == str(run_id)
-            assert len(restored["messages"]) == 4
+            assert len(restored["messages"]) == len(guest["messages"]) + 4
             before = [(m["id"], m["createdAt"]) for m in restored["messages"]]
             async with pg_factory() as db:
                 assert (

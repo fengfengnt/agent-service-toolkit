@@ -7,7 +7,7 @@ from sqlalchemy import delete, func, select, text, update
 
 from xiaohe.authentication import bound_operation
 from xiaohe.contracts import Actor, ChatMessage, ServiceError, VerifiedCompletion
-from xiaohe.conversations import default_conversation, load_snapshot
+from xiaohe.conversations import default_conversation, ensure_welcome, load_snapshot
 from xiaohe.database import database_now
 from xiaohe.events import record_event
 from xiaohe.identity import _cookie, _new_session, _request_session, bind_user, set_session_cookie
@@ -358,6 +358,7 @@ async def complete_auth_operation(factory, request, response, operation_id):
         await db.flush()
         await bound_operation(db, request, operation_id, lock=False)
         operation.bound_user_id = user_session.user_id
+        await ensure_welcome(db, target)
         snapshot = await load_snapshot(db, actor, target.id)
         if claim is not None and claim.status == "pending":
             from xiaohe.jobs import defer_claim

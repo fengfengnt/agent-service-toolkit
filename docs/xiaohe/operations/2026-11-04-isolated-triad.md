@@ -1,6 +1,6 @@
 # 本地三方隔离联调运行记录
 
-用户已在门户聊天明确批准按隔离方案启动API、worker、专用数据库和bucket，继续三方协调；正式开关关闭、不替换现有部署、不发短信或调用付费模型。AI在执行前通过read_thread核验真实用户原话，未再次索取同范围确认。基线dev-fengfeng/9b79b51，本轮只新增测试专用启动器，不改上游产品源码、Windows .venv、依赖锁、共享合同或其他工程。
+用户已在门户聊天明确批准按隔离方案启动API、worker、专用数据库和bucket，继续三方协调；正式开关关闭、不替换现有部署、不发短信或调用付费模型。AI在执行前通过read_thread核验真实用户原话，未再次索取同范围确认。基线dev-fengfeng/9b79b51，本轮新增测试专用启动器，并补齐原总设计已有的首屏欢迎功能；不改上游产品源码、Windows .venv、依赖锁、共享合同或其他工程。
 
 ## 专用资源
 
@@ -39,7 +39,21 @@
 
 SSO Owner确认Discovery/JWKS/continuation已恢复严格TLS200；此前11:57的502是历史快照。实际WSL公开探针UTC07:10:34为127.0.0.1:46050→127.0.0.1:8443/HTTP200，后续UTC07:13:09为127.0.0.1:47046→同8443/HTTP200；使用HTTPX network_stream实际地址，连接保持供Owner只读对照。现Nginx access_log off，未为探针开启日志或重载；不能声称按query命中过日志。公开peer不等于私有bridge鉴权通过。
 
-真实身份绑定仍要求中心受信claim；无既有中心会员会话时由用户正常登录，不能用fixture或前端成功标记冒充。正式Portal包保持false；只有门户Owner的独立浏览器context覆盖静态GET/原callback使用测试包，API/SSO走真实网络。当前已获私有配置，加载/真实事务及浏览器闭环结果后续续记，不提前标完整联调通过。
+真实身份绑定仍要求中心受信claim；无既有中心会员会话时由用户正常登录，不能用fixture或前端成功标记冒充。正式Portal包保持false；只有门户Owner的独立浏览器context覆盖静态GET/原callback使用测试包，API/SSO走真实网络。
+
+加载Owner私有配置后，AI实测auth/context 200、真实中心create经AI 201、未换码complete 409 AUTH_NOT_READY且无用户Cookie、浏览器顶层POST 303、中心续接页面/READY JSON 200、CSRF CONTINUE 200并限定同issuer、cancel 204。未登录会员、未换码或完成claim，未发送短信。最初探针误用browserCompletion字段及LOGIN_REQUIRED枚举，按原completion/READY修正，仅脚本变化。首个公开探针46050的四元组由Owner在edge实测匹配；第二47046未捕获，不能混用。backend peer172.24.0.1是独立诊断证据。
+
+门户Owner独立真实浏览器已验证三方向消息/文件摘要、SSE、重开和整页刷新不重复计数；fresh context还验证顶层POST、中心续接、authorize至正常手机号登录表单，pageerror和SMS均为0。其结果是门户Owner提供的证据，AI不冒充自己执行。完整会员认证、换码、身份绑定及归并仍待合法会员会话。
+
+## 首屏欢迎漏项与修复
+
+真实浏览器首次初始化返回messages=[]，保留为失败证据。总设计§2规则5要求方向未知时展示欢迎及采购方、社群组织、供应商选择，故补齐既有需求，不增加专业业务流程。
+
+服务端在bootstrap及认证完成后的空会话中，持久化一条assistant欢迎消息，复用suggestions和message.upsert；行锁与固定消息ID防止并发重复。无run、command或任务、额度消耗及会话续期；点击三个入口才走正常/messages。已有非空历史不补插欢迎。归并保留源欢迎消息的ID、内容和创建时间；来源过期时不迁移，目标空会话只生成自己的新欢迎。裸“社群组织”与既有alias一致，确定性识别为organization，无需模型猜测。
+
+欢迎4项专项先RED（空首屏），再暴露裸社群组织路由错误，修复后GREEN。9个旧测试因欢迎改变空历史或数量预期而失败，按实际消息身份/内容调整，保留原隐私、过期、并发及8小时锚点检查；相关47项回归通过。完整业务回归、独立审查和切换后的浏览器复测结果后续追加，不以旧314项通过覆盖新修复。
+
+运行源码使用Git tracked文件的私有固定快照，未复制.env、untracked或凭据，避免工作区开发期间Python延迟import混用版本。欢迎修复经验证后在门户已确认的无活动窗口，切换自有API及worker到同一新快照；不操作其他进程。
 
 ## 自有进程操作
 

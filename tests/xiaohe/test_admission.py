@@ -5,7 +5,7 @@ from uuid import UUID
 
 import pytest
 from sqlalchemy import func, select, text, update
-from test_identity_sessions import actor, bootstrap, login
+from test_identity_sessions import actor, bootstrap, login, system
 
 from xiaohe import admission
 from xiaohe.admission import accept_action, accept_message
@@ -17,8 +17,15 @@ pytestmark = [pytest.mark.pg, pytest.mark.asyncio]
 
 
 async def visitor(factory):
-    snapshot, token, _ = await bootstrap(factory)
-    return await actor(factory, token), UUID(snapshot.conversation_id)
+    from xiaohe.conversations import default_conversation
+    from xiaohe.identity import _actor, _new_session
+
+    # Domain fixtures start before presentation bootstrap; HTTP tests cover the welcome.
+    async with factory.begin() as db:
+        record, _ = await _new_session(db, system())
+        who = _actor(record, system())
+        conversation = await default_conversation(db, who)
+    return who, conversation.id
 
 
 async def send(factory, who, conversation_id, key, value="了解采购服务"):

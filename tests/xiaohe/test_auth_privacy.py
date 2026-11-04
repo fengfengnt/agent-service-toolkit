@@ -133,7 +133,7 @@ async def test_verify_agreement_credential_is_response_only_and_not_chat(pg_fact
     from xiaohe.models import Message
 
     async with client_for(pg_factory) as (client, app):
-        await session(client)
+        initial = await session(client)
         await auth_setup(client, app)
         op = (
             await client.post("/ai-api/v1/auth/operations", json=operation_body("register"))
@@ -175,7 +175,9 @@ async def test_verify_agreement_credential_is_response_only_and_not_chat(pg_fact
         )
         assert "browserVerifier" not in completed.json()["completion"]["fields"]
         async with pg_factory() as db:
-            assert not (await db.scalars(select(Message))).all()
+            messages = (await db.scalars(select(Message))).all()
+            assert [str(m.id) for m in messages] == [m["id"] for m in initial["messages"]]
+            assert messages[0].parts == initial["messages"][0]["parts"]
             saved = "".join(
                 (
                     await db.execute(text("SELECT to_jsonb(a)::text FROM xiaohe.auth_operations a"))

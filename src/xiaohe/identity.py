@@ -275,7 +275,7 @@ async def create_user_session(
 
 
 async def bootstrap_session(request: Request, response: Response, db: AsyncSession) -> ChatSnapshot:
-    from xiaohe.conversations import default_conversation, load_snapshot
+    from xiaohe.conversations import default_conversation, ensure_welcome, load_snapshot
 
     if request.method != "POST":
         raise ServiceError("FORBIDDEN", 403)
@@ -294,6 +294,7 @@ async def bootstrap_session(request: Request, response: Response, db: AsyncSessi
         record = await _request_session(request, system, db, csrf_required=False)
     actor = _actor(record, system)
     conversation = await default_conversation(db, actor)
+    await ensure_welcome(db, conversation)
     return await load_snapshot(db, actor, conversation.id)
 
 
