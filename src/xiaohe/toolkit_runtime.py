@@ -396,10 +396,11 @@ def create_execution_router(factory, settings: Settings) -> APIRouter:
                     + "\n"
                 )
             finally:
-                try:
-                    await _stopped(factory, context)
-                except Exception:
-                    pass
+                with anyio.CancelScope(shield=True):
+                    try:
+                        await _stopped(factory, context)
+                    except Exception:
+                        pass
 
         return StreamingResponse(body(), media_type="application/x-ndjson")
 

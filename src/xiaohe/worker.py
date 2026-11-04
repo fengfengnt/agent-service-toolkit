@@ -27,6 +27,16 @@ class RunWorker:
     def __init__(self, factory, client: ToolkitClient):
         self.factory, self.client = factory, client
 
+    async def maintain(self):
+        from xiaohe.database import database_now
+        from xiaohe.expiry import expire_guests
+
+        async with self.factory.begin() as db:
+            if await db.scalar(
+                text("SELECT pg_try_advisory_xact_lock(hashtextextended('xiaohe.expiry.scan',0))")
+            ):
+                await expire_guests(db, await database_now(db), 100)
+
     async def _save(self, fence, command_id, event, chunk_key=None):
         async with self.factory.begin() as db:
             if event.kind == "delta":
@@ -260,7 +270,10 @@ async def amain():
     worker = RunWorker(async_sessionmaker(engine, expire_on_commit=False), ToolkitClient(settings))
     try:
         async with build_job_app(
-            settings.database_url, worker.execute_run, on_exhausted=worker.finalize_lost_run
+            settings.database_url,
+            worker.execute_run,
+            on_exhausted=worker.finalize_lost_run,
+            on_maintenance=worker.maintain,
         ).open_async() as app:
             await app.run_worker_async()
     finally:

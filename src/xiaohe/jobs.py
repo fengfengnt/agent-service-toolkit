@@ -53,6 +53,14 @@ async def defer_run(db: AsyncSession, run_id: UUID, lock_key: str) -> int:
     ).defer_async(run_id=str(run_id))
 
 
+async def cancel_run_job(db: AsyncSession, job_id: int) -> bool:
+    await db.flush()
+    raw = await (await db.connection()).get_raw_connection()
+    return await _defer_app.job_manager.cancel_job_by_id_async(
+        job_id, connection=raw.driver_connection
+    )
+
+
 async def recover_stalled_jobs(
     app: App,
     *,
@@ -103,6 +111,7 @@ def build_job_app(
     execute_run: Callable[[UUID], Awaitable[None]],
     *,
     on_exhausted: Callable[[UUID], Awaitable[bool]] | None = None,
+    on_maintenance: Callable[[], Awaitable[None]] | None = None,
 ) -> App:
     value = database_url.get_secret_value() if isinstance(database_url, SecretStr) else database_url
     url = make_url(value)
@@ -131,5 +140,7 @@ def build_job_app(
     @app.task(name=RECOVERY_TASK, queue=MAINTENANCE_QUEUE, queueing_lock="xiaohe.recovery.scan")
     async def recovery(timestamp: int):
         await recover_stalled_jobs(app, on_exhausted=on_exhausted)
+        if on_maintenance is not None:
+            await on_maintenance()
 
     return app
