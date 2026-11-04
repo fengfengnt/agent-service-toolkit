@@ -17,3 +17,16 @@ Runtime 仅注册一个 `default`，使用自定义 Runner。Python 受理成功
 - 编译后的 `dist/server.js` 实际启动，GET `/copilot-api/info` 无 Origin 返回 200；仅公开 SDK 元数据，私有 POST 仍要求 Origin/Cookie/CSRF。
 
 以上为 Runtime 单元/受控传输层证据，不等于真实 Python/PG/worker/MinIO/HTTPS 链路，也不构成 G1 放行。A3/A4 结果须另行填写。正式开关保持关闭，未自动发短信、未调用付费模型。
+
+## A3：隔离候选环境与 HTTPS
+
+Runtime 镜像 `yunhezhiyuan-aibackend-copilotruntime:spike-2c8132e` 已实际多阶段构建；revision `2c8132ee9caaf055e7a27629deacc1cfa78fa7ee`，image/manifest-list `sha256:eb33944b55f673918a5b6bf8f5cf636e05842579e920041ec689ffeee6e241f8`。容器使用 UID 1000，未包含 `.env`、测试目录或 TypeScript 开发依赖，注入公共 CA 并保持 TLS 验证。服务/容器分别为 `aibackend-copilotruntime` / `yunhezhiyuan-aibackend-copilotruntime`，project=`yunhezhiyuan`，仅映射 `127.0.0.1:18110:3000`。
+
+专用候选 API/worker 使用受控接待图和原产品 worker，SSO 关闭、短信入口拒绝。新 PG 容器端口 35427、数据库 `xiaohe_copilot_candidate_20261105`；新 MinIO 端口 35428、bucket `xiaohe-copilot-candidate-20261105`。两者使用新卷和新凭据，不接原库或 pytest 清理库。候选 Python 启动器拒绝旧库、旧桶、连接参数覆盖和 SSO 启用（7 项通过）。配置仅保存在 WSL 私有目录 `/home/fengfeng/yunhezhiyuan/copilot-candidate`，未写入仓库/归档。
+
+门户 Owner 增加并验证两个候选 location 及 Docker host 接口监听，原 `/ai-api/` 和静态页面保留。实际地址：
+
+- `https://portal.lvh.me/copilot-candidate/copilot-api/info` → Runtime，仅公开 SDK 元数据。
+- `https://portal.lvh.me/copilot-candidate/ai-api/v1/` → 候选 Python，Runtime 固定使用此上游。
+
+真实匿名 bootstrap、Cookie/CSRF、受控消息、PG/worker/MinIO 与 HTTPS SSE 冒烟通过：14 帧首帧约 0.356 秒、后续帧约 1.428–1.600 秒逐批到达，业务最终 RUN_FINISHED，快照 3 条消息、1 个私有文件引用。未使用成功响应 fixture。TLS 校验和主机名验证保持开启。容器约束 3 项通过；完整 G1 权限/重启/到期测试仍待 A4。
