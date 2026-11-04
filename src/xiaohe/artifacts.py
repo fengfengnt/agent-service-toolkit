@@ -8,7 +8,7 @@ import anyio
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 
 from xiaohe.contracts import ArtifactView, ServiceError, WriteFence
 from xiaohe.conversations import require_conversation
@@ -282,29 +282,50 @@ class ArtifactService:
         return size, view
 
     async def write_artifact_object(self, version_id: UUID, content: bytes):
-        async with self.factory.begin() as db:
-            locator = await db.get(ArtifactVersion, version_id)
-            if locator is None:
-                raise ServiceError("FORBIDDEN", 403)
-            if (
-                len(content) > _MAX_BYTES
-                or hashlib.sha256(content).hexdigest() != locator.content_digest
-            ):
-                raise ServiceError("INPUT_INVALID", 422)
-            fence = WriteFence(
-                run_id=locator.run_id,
-                attempt=locator.producer_attempt,
-                ownership_epoch=locator.producer_epoch,
+        engine = self.factory.kw["bind"]
+        async with engine.connect() as guard, guard.begin():
+            await guard.execute(
+                text("SELECT pg_advisory_xact_lock(hashtextextended(:key,0))"),
+                {"key": "xiaohe.upload:" + str(version_id)},
             )
-            _, row = await self._owned_version(db, fence, version_id)
-            if row.status == "ready":
-                return
-        size, preview = await self._io(lambda: self._upload(row, content))
-        async with self.factory.begin() as db:
-            _, current = await self._owned_version(db, fence, version_id)
-            current.uploaded_at = await db.scalar(select(func.clock_timestamp()))
-            current.verified_digest = hashlib.sha256(content).hexdigest()
-            current.bytes_size, current.preview = size, preview
+            async with self.factory.begin() as db:
+                locator = await db.get(ArtifactVersion, version_id)
+                if locator is None:
+                    raise ServiceError("FORBIDDEN", 403)
+                if (
+                    len(content) > _MAX_BYTES
+                    or hashlib.sha256(content).hexdigest() != locator.content_digest
+                ):
+                    raise ServiceError("INPUT_INVALID", 422)
+                fence = WriteFence(
+                    run_id=locator.run_id,
+                    attempt=locator.producer_attempt,
+                    ownership_epoch=locator.producer_epoch,
+                )
+                _, row = await self._owned_version(db, fence, version_id)
+                if row.status == "ready":
+                    return
+            upload = asyncio.create_task(self._io(lambda: self._upload(row, content)))
+            try:
+                size, preview = await asyncio.shield(upload)
+            except asyncio.CancelledError:
+                # A cancelled coroutine cannot stop the synchronous upload thread.
+                with anyio.CancelScope(shield=True):
+                    while not upload.done():
+                        try:
+                            await asyncio.shield(upload)
+                        except asyncio.CancelledError:
+                            continue
+                        except Exception:
+                            break
+                    if not upload.cancelled():
+                        upload.exception()
+                raise
+            async with self.factory.begin() as db:
+                _, current = await self._owned_version(db, fence, version_id)
+                current.uploaded_at = await db.scalar(select(func.clock_timestamp()))
+                current.verified_digest = hashlib.sha256(content).hexdigest()
+                current.bytes_size, current.preview = size, preview
 
     async def finish_artifact(self, db, fence, version_id: UUID):
         async with db.begin_nested():
@@ -375,3 +396,18 @@ class ArtifactService:
     async def close(self):
         if self._s3 is not None:
             await asyncio.to_thread(self._s3.close)
+
+    async def delete_expired_object(self, object_key):
+        def remove():
+            try:
+                metadata = self._s3.head_object(Bucket=self.settings.minio_bucket, Key=object_key)
+            except ClientError as error:
+                if error.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
+                    return
+                raise
+            # Native S3 version history needs a separate purge; never mark it deleted by a marker.
+            if metadata.get("VersionId") is not None:
+                raise ValueError("versioned bucket purge is not supported")
+            self._s3.delete_object(Bucket=self.settings.minio_bucket, Key=object_key)
+
+        await self._io(remove)

@@ -1,13 +1,31 @@
-# P10 独立部分：到期失效和主动停止
+# P10 到期停止与安全清理
 
-本次在 P8/P9 尚未实现时，只实施匿名到期停止，不开始物理删除。同步访问权限仍由会话/写入 fence 的数据库时间强制，不等后台扫描，也不把刷新、回复、SSE 或幂等重试视为续期。
+到期访问失效、运行停止、物理清理是三个独立事实。访问权限始终以数据库时间和会话/fence同步强制，后台失败不延长权限，不重建guest、不重置条数。P8/P9核心已实现，本批在真实隔离PostgreSQL和MinIO中接入认领保护与清理；没有升级现有业务库或启动正式服务。
 
-`expire_guests(db, now, limit)` 复用调用者事务，按 session→conversation→run 既有顺序锁定；session 分批、SKIP LOCKED，最终重查实际数据库时间。有效访客和现有 merge_pending 对话跳过；扫描参数给未来时间也不能提前结束未到期会话。
+## 停止与权属
 
-到期后 queued/running/waiting_input 统一变为 expired 并释放 slot，完成未结命令、标记 attempt 状态和未完成产物的 cleanup_pending，持久化 run.updated 与一次 viewer.expired。原会话的过期状态保留，所以再次 /session 仍是410，不清计数、不创建新 guest。框架 todo 取消使用 Procrastinate 的正式 API 和同一 psycopg 事务连接；doing 通过原 worker watcher/fence 中断，不能取消的外部结果依然不得提交。
+`expire_guests`复用原30秒维护任务，按Session→Conversation→Run锁序、有限批次和SKIP LOCKED处理。queued/running/waiting_input进入expired、释放slot、结束未结命令，未完成版本标failed/cleanup_pending；框架todo使用原正式API同事务取消，doing依靠watcher/fence停止。撤销但未认领的匿名会话同样可到期清理；pending/merged GuestClaim、merge_operation_id及用户权属明确排除。
 
-运行维护接入原30秒恢复任务，独立 PG 扫描互斥。扫描失败回滚业务与队列取消，下一周期重试，不增加新调度框架。到期测试复现了 ASGI 取消会中断 graph_stopped_at 写入的问题，内部流 finally 改为 shield 收尾；保留图停止事实供后续安全清理使用。
+认领与清理竞争以同一Session锁串行化：有效期内认领先赢即保护资料，原匿名期限随后到达也不删除；期限先到则后续认证仍可成功，但只返回SKIPPED_EXPIRED。固定8小时用户会话不因匿名清理改变。
 
-已验证：三种运行状态、批次上限、重扫不重复事件、未来 cutoff 不提前失效、既有 pending 标志排除、队列取消原子回滚、正式维护任务实际执行、活动图 finally/停止时间、迟到上传拒绝。现有 graph/事件/worker 相邻24项通过；不是认领竞争或完整物理清理通过。
+## 安全删除与重试
 
-待 P9 联合实现/验证：guest_claims 的 pending/merged 保护、确定顺序的认领与到期竞争、等待全部原 namespace 停写、重查对象所有者后删除、checkpoint/事件/消息删除及保留 tombstone、迟到上传孤儿回收，以及硬杀/DB/MinIO删除失败重试。没有暴露或启用一个会返回假成功的 purge 接口；对象和历史仍保留，意味着存储空间尚不会自动回收。
+`purge_expired_guest`再次锁定Session及原对话/run，重查数据库截止和GuestClaim，确认仍为匿名、所有run终态后，尝试取得每个原run、历次thread及文件upload的PG事务锁。忙则下轮重试，避免占住写入所需的Session锁等待。API实际执行和恢复都须经过原写入授权，旧输入不能重新生成checkpoint。
+
+清理持权属锁逐个删除对象，再用官方`AsyncPostgresSaver.adelete_thread`删除原thread的checkpoint/blob/write；saver复用业务当前psycopg事务，数据库删除失败会连同checkpoint一起回滚。随后删除匿名Command、RunAttempt、Run、Artifact/Version、Message和含正文的Event。保留Session的摘要/截止/计数、空Conversation、无正文事件cursor tombstone，以及仅含VISITOR_EXPIRED代码的唯一viewer.expired事件，使旧Cookie、游标和已打开的SSE不会重建身份或正文。
+
+上传对每个version持相同upload锁，直到同步S3线程真正结束；取消协程不能提前放锁。过期后的上传不能ready，其对象进入同一清理路径。清理被取消、进程硬杀或MinIO/DB失败时，未提交的元数据保持，下一次从同一记录继续；对象删除可重复。
+
+进程硬杀无法撤回存储端已接收的HTTP请求，因此另保留`guest_object_tombstones`：只有随机object_key、guest/system/tenant绑定及检查时间，不保留标题、正文、preview或原消息。清理提交后，原维护任务按检查时间分批重查这些key；存储端迟到落盘则再次删除，每次仍锁原Session并核对无pending/merged认领。记录暂不自动淘汰，换取对迟到对象的持续回收；历史越多，同一key巡检间隔越长，需监测清理积压。
+
+业务图当前不向共享长期Store写入访客正文，本次不对不明Store namespace批量删除。已认领guest不进入匿名purge，原匿名namespace仍受撤销和fence保护，其将来的专门空间回收不能混入用户文件删除。
+
+## 状态与运行限制
+
+增量迁移0006追加Session.cleanup_checked_at/cleanup_stopped_at/purged_at；0007追加最小对象清理记录。旧迁移与上游memory实现不改。故障guest轮转扫描，避免长期占住整个批次。原worker入口创建并关闭自己的ArtifactService；未注入该service的bare测试worker用于分项能力。
+
+逻辑失效时间为expires_at；cleanup_stopped_at是持有全部写入锁、确认可停止写入的数据库时间；purged_at是该轮元数据及对象清理的提交时间。purged_at不承诺外部服务今后不迟到写入，迟到对象由持久key记录继续巡检。长期purged_at为空或checked_at久未更新时，应排查worker和存储，不修改截止时间解卡。
+
+当前支持无原生S3 versioning的私有桶；业务版本各有独立不可变key。head返回VersionId时失败关闭并保留记录，不以delete marker冒充物理删除；启用原生版本控制前须实现历史版本清理及相应IAM。本批未改变桶配置或权限。
+
+证据：`test_cleanup_races.py`与`integration/test_cleanup_storage.py`覆盖写锁、重复扫描、认领保护、DB/对象删除失败、协程取消、真实清理进程硬杀、迟到对象补偿、失联任务引用已清理run、批次轮转及SSE标记；整批结果见[组合验收](testing/xiaohe-backend-acceptance.md)。真实门户/SSO/短信/模型、部署及备份恢复仍独立待验收。

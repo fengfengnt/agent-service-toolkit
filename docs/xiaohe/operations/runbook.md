@@ -53,6 +53,8 @@ Compose 的 worker 显式等待 API healthy；运行期间每次执行也先探�
 - worker 依赖 Procrastinate 心跳/任务状态；告警应检查任务积压和最后 heartbeat，不能用 API live 代表 worker 正常。正式参数 heartbeat10秒、失联120秒、扫描30秒；本计划隔离硬杀已验证恢复，证据见 [执行恢复](../execution-recovery.md)。
 - 页面/SSE断开不取消已受理任务；恢复先读快照/游标，不重新 POST 消息。按业务 runId/jobId 定位日志，禁止输出消息正文、请求体、Cookie、认证字段或私有 URL。错误定位在受限运维环境进行。
 
+原30秒维护同时做到期、pending认领、匿名物理清理及迟到对象巡检。worker使用自己的最小bucket权限ArtifactService；除Get/Put外需要该桶的DeleteObject权限，真实生产权限仍待验收。只支持无原生S3 versioning的桶，遇VersionId保留记录并拒绝假清理成功。清理状态和残留key巡检见[清理说明](../expiry.md)；0006/0007仅在本次隔离测试库应用，现有数据库仍须另行批准升级。
+
 ## 备份、回滚与待验收
 
 先在独立恢复环境演练，不覆盖现有数据：停止接收新写、等待或暂停 worker，记录代码/镜像/迁移版本；备份完整 PostgreSQL（xiaohe、Procrastinate、checkpoint/store 相关表及角色/权限）和私有 bucket/对象版本，保持相同时间点。单独复制业务 schema 无法恢复运行记录与 checkpoint 的关系。

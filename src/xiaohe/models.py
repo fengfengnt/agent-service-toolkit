@@ -100,6 +100,9 @@ class Session(Base):
     message_limit: Mapped[int] = mapped_column(Integer, server_default="100")
     retention_seconds: Mapped[int] = mapped_column(Integer, server_default="14400")
     merge_operation_id: Mapped[UUID | None]
+    cleanup_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cleanup_stopped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    purged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Project(Base):
@@ -412,6 +415,21 @@ class ArtifactVersion(Base):
         JSONB, server_default=text('\'{"format":"download_only"}\'::jsonb')
     )
     cleanup_pending: Mapped[bool] = mapped_column(server_default=text("true"))
+
+
+class GuestObjectTombstone(Base):
+    __tablename__ = "guest_object_tombstones"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["guest_id", "system_id", "tenant_id"],
+            ["xiaohe.sessions.guest_id", "xiaohe.sessions.system_id", "xiaohe.sessions.tenant_id"],
+        ),
+    )
+    object_key: Mapped[str] = mapped_column(primary_key=True)
+    guest_id: Mapped[UUID]
+    system_id: Mapped[str]
+    tenant_id: Mapped[int] = mapped_column(BigInteger)
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class EventTombstone(Base):

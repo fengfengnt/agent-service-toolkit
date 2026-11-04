@@ -112,6 +112,57 @@ async def main():
         )
 
     graph = build_graph(handler=handler)
+    if mode == "document":
+        import hashlib
+        import json
+        from pathlib import Path
+
+        from xiaohe.artifacts import ArtifactService
+        from xiaohe.contracts import WriteFence
+
+        # Reuse the structured model fixture; this process must never call a provider.
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        from test_reception_graph import model
+
+        data = json.loads(Path(os.environ["XIAOHE_TEST_MINIO_CONFIG"]).read_text("utf-8"))
+        if data["container"] != "xiaohe-agent-test-minio" or not data["bucket"].startswith(
+            "test-xiaohe-"
+        ):
+            raise ValueError("document probe requires owned isolated bucket")
+        artifact_service = ArtifactService(
+            factory,
+            Settings(
+                toolkit_base_url=settings.toolkit_base_url,
+                auth_secret="fixture-auth",
+                minio_endpoint=data["endpoint"],
+                minio_bucket=data["bucket"],
+                minio_access_key=data["access_key"],
+                minio_secret_key=data["secret_key"],
+            ),
+        )
+
+        async def document(state):
+            await handler(state)
+            payload = "受控进程旅程文件".encode()
+            fence = WriteFence.model_validate(state["write_fence"])
+            async with factory.begin() as db:
+                version = await artifact_service.stage_artifact(
+                    db, fence, "受控文件", "text/plain", hashlib.sha256(payload).hexdigest()
+                )
+            await artifact_service.write_artifact_object(version.id, payload)
+            async with factory.begin() as db:
+                await artifact_service.finish_artifact(db, fence, version.id)
+            return AgentOutcome(
+                parts=[{"type": "text", "text": "已生成受控文件"}],
+                wait_for_input=False,
+                artifact_version_ids=[version.id],
+            )
+
+        graph = build_graph(
+            factory=factory,
+            model=model(intent="professional"),
+            handlers={"buyer": document, "organization": document, "supplier": document},
+        )
     agents["xiaohe"] = Agent(description="process probe", graph_like=graph)
     if mode == "marker":
         original = toolkit_runtime._drive

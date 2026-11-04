@@ -1,6 +1,6 @@
 # 上游差异清单
 
-上游基线：`836649674568320c0cc994553a8a930ed82398d0`，开发分支 `dev-fengfeng`。P0 提交 `e82a8ae`；P0–P9核心与P11配置已实施，P10/P12部分完成；各阶段增量见下文，真实三方联调尚未完成。
+上游基线：`836649674568320c0cc994553a8a930ed82398d0`，开发分支 `dev-fengfeng`。P0 提交 `e82a8ae`；P0–P10核心与P11配置已实施，P12受控组合通过；各阶段增量见下文，真实三方联调尚未完成。
 
 P1 新增 `src/xiaohe/{database,models,identity,conversations}.py`、业务 Alembic 配置/初始迁移、pg 会话测试及[说明](identity-sessions.md)。仅改既有业务 settings/conftest、增量 pyproject 依赖和 pg marker，以及相应 uv.lock；已有锁定版本未升级，新增 Alembic/Greenlet/Mako。上游源码及顶层测试配置继续保持原样。以下为 P0 历史差异与复用边界：
 
@@ -40,3 +40,5 @@ P11新增业务Docker/Compose/代理/启动校验及内部健康检查，真实�
 P8/P9核心提交`afe08f4`新增authentication/auth_bridge/claim、0004/0005增量迁移和隔离测试；复用HTTPX、业务身份/原任务框架及checkpoint，不增加依赖。认证上下文与聊天分离，服务端可信结果建立固定8小时会话；真实认领保护、202自动协调、原消息/文件归属迁移及新用户namespace接续。0001–0003不改，不执行已有业务库升级。
 
 整批独立审查后，同一次修复补齐首次complete当前账号校验、退出当前未绑定上下文撤销、API ready前等待及Compose健康依赖；fixture与实际HTTP探针同步。最终业务/真实PG与MinIO/原client与threads288项通过；原全仓Streamlit失败仍独立保留。详见[本批审查](testing/2026-11-04-auth-deployment-review.md)。P10物理清理和P12真实联调尚未完成，不把新增迁移文件或fixture通过当作正式上线。
+
+P10/P12接续扩展自身expiry/artifacts/worker/models，新增0006清理时间和0007最小对象key记录，复用原维护/PG事务/官方saver删除API，未增加依赖。补齐未认领过期正文、checkpoint和私有对象删除，pending/merged保护、上传锁/取消、真实清理硬杀及迟到对象巡检。P12新增跨方向到已有用户归并的真实内部API/worker硬杀组合，公共适配仍为ASGI，中心仍fixture。309项完整业务回归加2项并发屏障通过，独立审查后最终结果见[接续验收](testing/2026-11-04-cleanup-journey.md)；正式环境未变。

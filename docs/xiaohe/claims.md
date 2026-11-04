@@ -18,7 +18,7 @@
 
 目标waiting_input保留原问题、run和checkpoint，暂让slot；以后的显式动作在空闲时恢复原run，忙时拒绝且不消费。来源未完成run先撤销写资格，接续使用最新command/message和问题，从业务快照创建用户拥有的新run/thread，不重复扣额度或新增用户消息，不拼checkpoint、不改匿名namespace的user metadata。后台迟到结果仍须通过原fence。
 
-本阶段不物理删除旧namespace、业务记录或MinIO对象。P10清理还须验证停止事实、真实GuestClaim保护、迟到对象回收及删除失败重试，详见[到期独立部分](expiry.md)；不能把“未删除”当成已经通过删除竞争测试。
+P10已在隔离环境实现未认领过期guest的物理清理；pending/merged GuestClaim明确排除，实际认领保护、迟到对象回收及失败重试见[到期与清理](expiry.md)。已认领guest的旧匿名namespace本批保留，其停止访问与新用户namespace接续不等于物理空间已回收。
 
 ## 响应全部丢失与会话截止
 

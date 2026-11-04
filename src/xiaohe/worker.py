@@ -25,8 +25,9 @@ from xiaohe.toolkit_client import ToolkitClient
 
 
 class RunWorker:
-    def __init__(self, factory, client: ToolkitClient):
+    def __init__(self, factory, client: ToolkitClient, *, artifacts=None):
         self.factory, self.client = factory, client
+        self.artifacts = artifacts
 
     async def finish_claim(self, claim_id):
         from xiaohe.claim import finish_pending_claim
@@ -60,6 +61,10 @@ class RunWorker:
                 claim = await db.get(GuestClaim, claim_id)
                 if claim.status == "pending":
                     claim.job_id = await defer_claim(db, claim)
+        if self.artifacts is not None:
+            from xiaohe.expiry import purge_expired_guests
+
+            await purge_expired_guests(self.factory, self.artifacts)
 
     async def _save(self, fence, command_id, event, chunk_key=None):
         async with self.factory.begin() as db:
@@ -192,6 +197,8 @@ class RunWorker:
             ):
                 return False
             async with self.factory.begin() as db:
+                if await db.get(Run, run_id) is None:
+                    return True
                 run, conversation, _ = await _locked(db, run_id)
                 if run.status in TERMINAL or run.status == "waiting_input":
                     await wake_claims(db, conversation.id)
@@ -217,6 +224,8 @@ class RunWorker:
 
     async def _authorized_to_execute(self, run_id):
         async with self.factory.begin() as db:
+            if await db.get(Run, run_id) is None:
+                return False
             row, conversation, session = await _locked(db, run_id)
             if row.status in TERMINAL or row.status == "waiting_input":
                 return False
@@ -302,13 +311,16 @@ class RunWorker:
 
 
 async def amain():
+    from xiaohe.artifacts import ArtifactService
     from xiaohe.jobs import build_job_app
 
     settings = Settings()
     if settings.database_url is None:
         raise ValueError("XIAOHE_DATABASE_URL is required")
     engine = create_database_engine(settings.database_url)
-    worker = RunWorker(async_sessionmaker(engine, expire_on_commit=False), ToolkitClient(settings))
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    artifacts = ArtifactService(factory, settings)
+    worker = RunWorker(factory, ToolkitClient(settings), artifacts=artifacts)
     try:
         async with build_job_app(
             settings.database_url,
@@ -319,6 +331,7 @@ async def amain():
         ).open_async() as app:
             await app.run_worker_async()
     finally:
+        await artifacts.close()
         await engine.dispose()
 
 

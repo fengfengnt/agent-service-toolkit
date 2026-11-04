@@ -3,7 +3,7 @@ from uuid import UUID
 
 import httpx
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 from test_artifact_versions import digest
 from test_http_api import client_for, session
 from test_identity_sessions import actor
@@ -166,3 +166,169 @@ async def test_quota_retries_reconnect_and_expiry_never_reset_guest(pg_factory, 
         assert (await client.post("/ai-api/v1/session", json={})).status_code == 410
         async with pg_factory() as db:
             assert (await db.get(Session, who.session_id)).message_count == 100
+
+
+async def test_guest_to_existing_user_with_process_restart_and_artifact(
+    pg_factory, pg_url, job_app, minio_env
+):
+    import asyncio
+    import socket
+
+    from test_admission import finish, send
+    from test_guest_claim import prepare
+    from test_identity_sessions import login
+
+    from integration.test_runtime_crashes import line, ready_api, start, stop
+    from xiaohe.conversations import default_conversation
+    from xiaohe.jobs import MAINTENANCE_QUEUE, recover_stalled_jobs
+    from xiaohe.settings import Settings
+    from xiaohe.toolkit_client import ToolkitClient
+
+    _, member_token = await login(pg_factory)
+    member = await actor(pg_factory, member_token)
+    async with pg_factory.begin() as db:
+        canonical = await default_conversation(db, member)
+    old = await send(pg_factory, member, canonical.id, "old-user-history")
+    await finish(pg_factory, old.run.id)
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+    processes = []
+
+    async def run_pending(mode="normal"):
+        worker = start("worker", mode, port)
+        processes.append(worker)
+        await line(worker, "READY")
+        if mode == "gate":
+            await line(worker, "GATED")
+        else:
+            assert await asyncio.wait_for(asyncio.to_thread(worker.wait), 30) == 0
+        return worker
+
+    try:
+        api = await ready_api("document", port)
+        processes.append(api)
+        async with client_for(pg_factory) as (client, app):
+            app.state.xiaohe_artifacts = minio_env.service
+            guest = await session(client)
+            path = f"/ai-api/v1/conversations/{guest['conversationId']}"
+            first = await client.post(
+                path + "/messages",
+                json={"clientMessageId": "supplier", "text": "我代表供应商，想了解服务"},
+            )
+            assert first.status_code == 202
+            await run_pending()
+            first_snapshot = (await client.get(path)).json()
+            assert any(
+                p["type"] == "artifact_ref" for m in first_snapshot["messages"] for p in m["parts"]
+            )
+            second_body = {"clientMessageId": "organization", "text": "切换到协会组织方向"}
+            accepted = await client.post(path + "/messages", json=second_body)
+            run_id = UUID(accepted.json()["run"]["id"])
+            worker = await run_pending("gate")
+            await stop(worker)
+            processes.remove(worker)
+            await stop(api)
+            processes.remove(api)
+            cookies = httpx.Cookies(client.cookies)
+        assert await recover_stalled_jobs(job_app, seconds_since_heartbeat=0) == 1
+        api = await ready_api("document", port)
+        processes.append(api)
+        await run_pending()
+        async with client_for(pg_factory) as (client, app):
+            app.state.xiaohe_artifacts = minio_env.service
+            client.cookies = cookies
+            restored = await session(client)
+            assert restored["viewer"]["messageCount"] == 2
+            duplicate = await client.post(path + "/messages", json=second_body)
+            assert duplicate.json()["run"]["id"] == str(run_id)
+            assert len(restored["messages"]) == 4
+            before = [(m["id"], m["createdAt"]) for m in restored["messages"]]
+            async with pg_factory() as db:
+                assert (
+                    await db.get(Conversation, UUID(guest["conversationId"]))
+                ).direction == "organization"
+                assert (
+                    await db.scalar(
+                        text("SELECT invocations FROM xiaohe_probe_effects WHERE run_id=:id"),
+                        {"id": run_id},
+                    )
+                    == 1
+                )
+                objects = (await db.scalars(select(ArtifactVersion))).all()
+                original_objects = {(v.id, v.object_key, v.version) for v in objects}
+            await send(pg_factory, member, canonical.id, "busy-user-target")
+            source = await actor(pg_factory, client.cookies.get("__Host-XIAOHESESSION"))
+            operation_id, calls = await prepare(client, app)
+            complete = f"/ai-api/v1/auth/operations/{operation_id}/complete"
+            pending = await client.post(complete, json={})
+            assert pending.status_code == 202 and pending.json()["viewer"]["kind"] == "user"
+            assert pending.headers["Retry-After"] == "1"
+            cookies = httpx.Cookies(client.cookies)
+            auth_csrf = client.headers["X-Xiaohe-Auth-CSRF"]
+            auth_settings = app.state.xiaohe_settings
+        await due(pg_factory, source)
+        await run_pending()
+        coordinator = RunWorker(
+            pg_factory,
+            ToolkitClient(
+                Settings(toolkit_base_url=f"http://127.0.0.1:{port}", auth_secret="fixture-auth")
+            ),
+            artifacts=minio_env.service,
+        )
+        async with build_job_app(
+            pg_url, coordinator.execute_run, on_claim=coordinator.finish_claim
+        ).open_async() as jobs:
+            await jobs.run_worker_async(
+                queues=[MAINTENANCE_QUEUE],
+                wait=False,
+                listen_notify=False,
+                install_signal_handlers=False,
+            )
+        await coordinator.maintain()
+        async with client_for(pg_factory) as (client, app):
+            app.state.xiaohe_artifacts = minio_env.service
+            app.state.xiaohe_settings = auth_settings
+            client.cookies = cookies
+            client.headers["X-Xiaohe-Auth-CSRF"] = auth_csrf
+            result = await client.post(complete, json={})
+            assert result.status_code == 200 and result.json()["merge"]["status"] == "MERGED"
+            assert result.json()["viewer"]["userId"] == member.user_id
+            assert set(before) <= {(m["id"], m["createdAt"]) for m in result.json()["messages"]}
+            assert old.message.id in {m["id"] for m in result.json()["messages"]}
+            for version in objects:
+                downloaded = await client.get(
+                    f"/ai-api/v1/artifacts/{version.artifact_id}/versions/{version.version}/download"
+                )
+                assert (
+                    downloaded.status_code == 200
+                    and downloaded.content == "受控进程旅程文件".encode()
+                )
+            assert (await client.get(path)).status_code == 403
+            async with pg_factory() as db:
+                assert original_objects <= {
+                    (v.id, v.object_key, v.version)
+                    for v in await db.scalars(select(ArtifactVersion))
+                }
+                assert (await db.get(Session, source.session_id)).purged_at is None
+            await session(client)
+            followup = await client.post(
+                f"/ai-api/v1/conversations/{canonical.id}/messages",
+                json={"clientMessageId": "user-followup", "text": "继续协会方向"},
+            )
+            assert followup.status_code == 202
+            await run_pending()
+            async with pg_factory() as db:
+                run = await db.get(Run, UUID(followup.json()["run"]["id"]))
+                assert (
+                    run.user_id == member.user_id
+                    and run.guest_id is None
+                    and run.status == "completed"
+                )
+            client.headers["X-Xiaohe-System-Id"] = "other"
+            client.headers["Origin"] = "https://other.example"
+            assert (await client.get(f"/ai-api/v1/conversations/{canonical.id}")).status_code == 403
+            assert len(calls) == 1
+    finally:
+        for process in reversed(processes):
+            await stop(process)

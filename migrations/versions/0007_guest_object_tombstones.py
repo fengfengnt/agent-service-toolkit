@@ -1,0 +1,29 @@
+"""guest_object_tombstones"""
+
+from alembic import op
+import sqlalchemy as sa
+
+revision = "0007"
+down_revision = "0006"
+branch_labels = None
+depends_on = None
+
+
+def upgrade():
+    op.create_table(
+        "guest_object_tombstones",
+        sa.Column("object_key", sa.String(), primary_key=True),
+        sa.Column("guest_id", sa.Uuid(), nullable=False),
+        sa.Column("system_id", sa.String(), nullable=False),
+        sa.Column("tenant_id", sa.BigInteger(), nullable=False),
+        sa.Column("checked_at", sa.DateTime(timezone=True)),
+        sa.ForeignKeyConstraint(
+            ["guest_id", "system_id", "tenant_id"],
+            ["xiaohe.sessions.guest_id", "xiaohe.sessions.system_id", "xiaohe.sessions.tenant_id"],
+        ),
+        schema="xiaohe",
+    )
+
+
+def downgrade():
+    op.drop_table("guest_object_tombstones", schema="xiaohe")
