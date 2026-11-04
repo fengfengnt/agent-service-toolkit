@@ -1,0 +1,13 @@
+FROM python:3.14.7-slim@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d
+WORKDIR /app
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv UV_COMPILE_BYTECODE=1 PYTHONPATH=/app/src PYTHONDONTWRITEBYTECODE=1 HOME=/tmp
+ENV PATH=/opt/venv/bin:$PATH
+COPY pyproject.toml uv.lock ./
+RUN pip install --no-cache-dir uv==0.13.5 && uv sync --frozen --no-install-project --no-dev
+COPY src/ ./src/
+COPY resources/ ./resources/
+COPY migrations/ ./migrations/
+COPY alembic.ini ./
+USER 10001:10001
+ENTRYPOINT ["python", "-m", "xiaohe.deployment"]
+CMD ["api"]

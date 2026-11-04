@@ -1,5 +1,6 @@
 import asyncio
 from contextlib import AsyncExitStack, asynccontextmanager
+from ipaddress import ip_address, ip_network
 
 import anyio
 from fastapi import FastAPI
@@ -82,6 +83,38 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.xiaohe_factory = factory
     app.state.xiaohe_engine = engine
     app.state.xiaohe_artifacts = ArtifactService(factory, settings)
+
+    @app.middleware("http")
+    async def proxy_scheme(request, call_next):
+        peer = request.client.host if request.client else ""
+        try:
+            trusted = any(
+                ip_address(peer) in ip_network(cidr) for cidr in settings.trusted_proxy_cidrs
+            )
+        except ValueError:
+            trusted = False
+        if trusted and request.headers.getlist("X-Forwarded-Proto") == ["https"]:
+            request.scope["scheme"] = "https"
+        return await call_next(request)
+
+    @app.get("/internal/xiaohe/health/live")
+    async def live():
+        return {"status": "live"}
+
+    @app.get("/internal/xiaohe/health/ready")
+    async def ready():
+        from fastapi.responses import JSONResponse
+
+        try:
+            async with factory() as db:
+                await db.execute(text("SELECT 1 FROM xiaohe.systems LIMIT 1"))
+                await db.execute(text("SELECT 1 FROM procrastinate_jobs LIMIT 1"))
+            artifacts = app.state.xiaohe_artifacts
+            await artifacts._io(lambda: artifacts._s3.head_bucket(Bucket=settings.minio_bucket))
+        except Exception:
+            return JSONResponse({"status": "not_ready"}, status_code=503)
+        return {"status": "ready"}
+
     install_error_handlers(app)
     app.include_router(create_public_router(factory))
     app.include_router(internal)

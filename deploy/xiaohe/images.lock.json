@@ -13,5 +13,34 @@
       "https://github.com/coollabsio/minio"
     ],
     "notes": "社区预编译镜像，仅完成本地摘要、平台及版本核验；不是官方镜像或生产安全审查结论。未在本地源码构建。"
+  },
+  "postgres": {
+    "repository": "postgres",
+    "tag": "17",
+    "digest": "sha256:3b0cda93be7c8dba2ed484d19393d93845dc3dafb88973e248ba8e6d99d784e1",
+    "sources": [
+      "https://hub.docker.com/_/postgres"
+    ],
+    "notes": "复用本计划隔离PG17测试已拉取摘要；部署前再次核验版本及恢复。"
+  },
+  "python": {
+    "repository": "python",
+    "tag": "3.14.7-slim",
+    "digest": "sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d",
+    "platformDigest": "sha256:7bf6c3111fe094f8ee1a1cbcdc63c4cfb345b0e3df42d5aa9a90b3b4b022ab6d",
+    "sources": [
+      "https://hub.docker.com/_/python"
+    ],
+    "notes": "2026-11-04通过registry manifest核对；尚未构建业务镜像。"
+  },
+  "nginx": {
+    "repository": "nginx",
+    "tag": "1.28-alpine",
+    "digest": "sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236",
+    "platformDigest": "sha256:0dcc88822d45581e65ae329f8be769762bf628d3b2bb7d2a077d4aa5c98b30e3",
+    "sources": [
+      "https://hub.docker.com/_/nginx"
+    ],
+    "notes": "2026-11-04通过registry manifest核对。"
   }
 }
