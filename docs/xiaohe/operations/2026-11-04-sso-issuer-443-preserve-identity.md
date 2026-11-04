@@ -1,5 +1,7 @@
 # SSO issuer 443：保留身份原地迁移记录
 
+后续变更：2026-11-04 21:22已完成[Portal Origin/callback去9444](2026-11-04-portal-origin-443.md)，当前Portal为`https://portal.lvh.me`、callback为`https://portal.lvh.me/portal/auth/callback`、运行源b06a57e。下文原9444配置、93c99b3快照和PID保留为本次issuer迁移当时的事实，不再代表最新运行配置。
+
 状态：用户明确批准后，已于2026-11-04 21:01（北京时间）完成本地迁移及API/worker恢复，21:02补完真实匿名适配和只读核验。当前issuer为`https://sso.lvh.me`；原账号、历史和原会话截止保留。正式开关关闭，不发送短信、不调用付费模型。真人新issuer登录尚未重验，不能把匿名适配通过等同会员登录通过。
 
 ## 已核验的授权与范围
