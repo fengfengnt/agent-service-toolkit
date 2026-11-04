@@ -41,6 +41,10 @@ services:
     <<: *business
     command: [worker]
     networks: [private]
+    depends_on:
+      api: {condition: service_healthy}
+      postgres: {condition: service_healthy}
+      minio: {condition: service_started}
   postgres:
     image: postgres@sha256:3b0cda93be7c8dba2ed484d19393d93845dc3dafb88973e248ba8e6d99d784e1
     environment:
@@ -80,7 +84,8 @@ services:
       - ${XIAOHE_TLS_KEY_FILE:?set private key file}:/etc/nginx/tls/key.pem:ro
     networks:
       ingress: {ipv4_address: 172.31.240.2}
-    depends_on: [api]
+    depends_on:
+      api: {condition: service_healthy}
     restart: unless-stopped
 secrets:
   postgres_password: {file: '${XIAOHE_POSTGRES_PASSWORD_FILE:?set private password file}'}

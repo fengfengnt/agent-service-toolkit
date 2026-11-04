@@ -1,6 +1,6 @@
 # 小鹤组合验收记录
 
-本记录区分受控隔离集成、真实外部服务、浏览器及部署。基线 P0–P7 与本批 P11/P10独立部分/P12已有能力均在 dev-fengfeng；受控模型不代表真实模型调用，HTTPX中心fixture不代表SSO或短信已联通。
+本记录区分受控隔离集成、真实外部服务、浏览器及部署。P0–P9核心、P11配置及P10/P12独立部分均在 dev-fengfeng；受控模型不代表真实模型调用，HTTPX中心fixture不代表SSO或短信已联通。
 
 ## 当前已有能力
 
@@ -16,12 +16,21 @@
 | 幂等重试不多扣、事件按原ID重放 | 同上；真实PG消息/命令/事件、HTTP写入 | PASS |
 | 第100条允许/101拒绝，刷新与到期不重建guest | 同上及test_admission.py | PASS |
 | 实际进程三窗口硬杀恢复 | 原integration/test_runtime_crashes.py、execution-recovery.md | 已有P4证据；本批完整回归结果另行记录 |
-| 已登录Portal、到期AI恢复、受信claim与canonical归并 | 等P8/P9接入共享v1.0.2 | 未执行 |
+| 认证专用上下文、过期主体认证、可信claim与canonical归并 | test_auth_operations.py、test_guest_claim.py、test_claim_races.py、integration/test_claim_storage.py；真实PG/MinIO、受控中心 | PASS；实际Portal/SSO未联通 |
+| 响应连Cookie全丢恢复、并发完成、错账号与退出拒绝 | 同上及test_batch_review_regressions.py；同一窗口、首次8小时绝对截止 | PASS；原绑定上下文恢复获用户明确批准 |
+| SMS未决同key、不同captcha证明、冷却、迟到旧动作 | test_auth_operations.py及中心适配测试；HTTPX fixture | PASS；不证明供应商与中心DB之间恰好一次 |
+| API不可用不耗执行预算、恢复后执行、等待期仍到期 | test_batch_review_regressions.py、test_deploy_contract.py；真实PG/任务框架 | PASS；未启动实际业务Compose |
 | 真实短信/会员验证/OIDC换码/跨站浏览器 | 三方服务和相应授权，独立证据 | 未执行 |
 | 真实付费模型、正式部署、备份恢复 | 实际供应商/目标环境及相应授权 | 未执行 |
 
 新增旅程2项通过；P10及相邻24项通过；P11及装配11项通过。完整仓库回归：426通过、4跳过、1失败（33条警告，105.67秒）；失败为原 tests/app/test_streamlit_app.py::test_app_simple_non_streaming 的 Streamlit内部session key缺失，单独重跑同样失败，未修改其源码/fixture/依赖。四项跳过为上游要求外部部署的docker用例。本批业务测试在该次全跑无失败，Ruff/Alembic通过；不能称全仓全绿。
 
+最终修复后业务、真实PG/MinIO与原client/threads共288项通过，19条既有依赖警告，171.52秒；无skip。专项15项通过，Ruff与Alembic check通过。独立审查两项Important及关联退出漏洞均先RED后GREEN，见[整批审查与裁定](2026-11-04-auth-deployment-review.md)。该结果不覆盖或消除上文全仓Streamlit失败。
+
 ## 接续门
 
-门户已冻结共享 v1.0.2，SHA256为647faa1b0f79b23fa2847225437433fb6e93ddeeafe73c3e07a28879f997ebac，并在原聊天获得用户授权继续P8/P9。后续补齐中心受信fixture、全局身份/会话、认领安全点与清理竞争后，才能运行访客→已有用户的完整旅程。正式 SSO_XIAOHE_BRIDGE_ENABLED 保持false；不升级现有数据库或重新生成密钥。
+公开共享合同文档已更新为v1.0.3，wire仍v1.0，最终SHA256为`0f7592698bb9b45e3d81bd5364ebff59fabb384bf74d420c9940a270c32583f8`。v1.0.2为门户此前冻结版；v1.0.3补入本聊天用户批准的原绑定上下文响应全丢恢复。需另两工程同步此文档基线，不重新定义字段。
+
+2026-11-04约10:10（北京时间）只读探测：SSO Discovery严格TLS200，Portal根302后/portal/严格TLS200；Portal GET /ai-api/v1/session返回502，AI18090未监听。只读公共CA；未读取运行密钥、未创建真实中心事务。中心应用已登记不代表AI/门户全链路运行就绪，浏览器实际包版本/入口链仍须owner核对。
+
+下一步按OS Temp交接准备受控三方联调。P10物理清理、真实SSO/会员/OIDC浏览器与P12最终产品验收仍待办。正式 SSO_XIAOHE_BRIDGE_ENABLED 保持false；不升级现有数据库或重新生成密钥，不部署。

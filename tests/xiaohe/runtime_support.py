@@ -49,6 +49,11 @@ async def runtime_env(pg_factory, job_app, pg_url, monkeypatch):
         settings = Settings(toolkit_base_url="http://runtime", auth_secret="fixture-auth")
         app = FastAPI()
         app.include_router(create_execution_router(pg_factory, settings))
+
+        @app.get("/internal/xiaohe/health/ready")
+        async def ready():
+            return {"status": "ready"}
+
         client = ToolkitClient(settings, transport=httpx.ASGITransport(app=app))
         worker = RunWorker(pg_factory, client)
         yield SimpleNamespace(

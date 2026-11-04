@@ -141,6 +141,11 @@ async def main():
 
     app = FastAPI(lifespan=lifespan)
     app.include_router(toolkit_runtime.create_execution_router(factory, settings))
+
+    @app.get("/internal/xiaohe/health/ready")
+    async def ready():
+        return {"status": "ready"}
+
     await uvicorn.Server(
         uvicorn.Config(app, host="127.0.0.1", port=int(port), log_level="error")
     ).serve()

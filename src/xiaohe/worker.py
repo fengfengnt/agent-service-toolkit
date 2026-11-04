@@ -215,6 +215,26 @@ class RunWorker:
                 await wake_claims(db, conversation.id)
             return True
 
+    async def _authorized_to_execute(self, run_id):
+        async with self.factory.begin() as db:
+            row, conversation, session = await _locked(db, run_id)
+            if row.status in TERMINAL or row.status == "waiting_input":
+                return False
+            try:
+                await _authorized(db, row, conversation, session)
+            except ServiceError as error:
+                row.status = "expired" if error.code == "EXECUTION_EXPIRED" else "failed"
+                row.holds_slot = False
+                command = await db.scalar(
+                    select(Command).where(Command.run_id == run_id, Command.completed_at.is_(None))
+                )
+                if command is not None:
+                    command.completed_at = await db.scalar(select(func.clock_timestamp()))
+                _status_event(db, conversation, row)
+                await wake_claims(db, conversation.id)
+                return False
+        return True
+
     async def execute_run(self, run_id: UUID) -> None:
         engine = self.factory.kw["bind"]
         async with engine.connect() as guard, guard.begin():
@@ -222,26 +242,15 @@ class RunWorker:
                 text("SELECT pg_try_advisory_xact_lock(hashtextextended(:key,0))"),
                 {"key": "xiaohe.run:" + str(run_id)},
             ):
-                async with self.factory.begin() as db:
-                    row, conversation, session = await _locked(db, run_id)
-                    if row.status in TERMINAL or row.status == "waiting_input":
-                        return
-                    try:
-                        await _authorized(db, row, conversation, session)
-                    except ServiceError as error:
-                        row.status = "expired" if error.code == "EXECUTION_EXPIRED" else "failed"
-                        row.holds_slot = False
-                        command = await db.scalar(
-                            select(Command).where(
-                                Command.run_id == run_id, Command.completed_at.is_(None)
-                            )
-                        )
-                        if command is not None:
-                            command.completed_at = await db.scalar(select(func.clock_timestamp()))
-                        _status_event(db, conversation, row)
-                        await wake_claims(db, conversation.id)
-                        return
-                # A healthy waiter keeps its framework heartbeat; contention is not completion.
+                if not await self._authorized_to_execute(run_id):
+                    return
+                await asyncio.sleep(1)
+            while True:
+                await guard.execute(text("SELECT 1"))
+                if not await self._authorized_to_execute(run_id):
+                    return
+                if await self.client.ready():
+                    break
                 await asyncio.sleep(1)
             async with self.factory.begin() as db:
                 fence = await acquire_run(db, run_id, recover=True)

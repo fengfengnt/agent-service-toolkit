@@ -275,13 +275,14 @@ async def complete_auth_operation(factory, request, response, operation_id):
         if operation.verified_completion is None:
             raise ServiceError("AUTH_NOT_READY", 409, True, retry_after=1)
         current = None
-        if operation.bound_user_id and _cookie(request):
+        candidate = None
+        if _cookie(request):
             candidate = await db.scalar(
                 select(Session).where(
                     Session.token_digest == hashlib.sha256(_cookie(request).encode()).hexdigest()
                 )
             )
-            if candidate and candidate.user_id is not None:
+            if operation.bound_user_id and candidate and candidate.user_id is not None:
                 candidate = await _request_session(
                     request, system, db, csrf_required=False, lock=False
                 )
@@ -291,7 +292,7 @@ async def complete_auth_operation(factory, request, response, operation_id):
                 ):
                     current = candidate
         session_ids = ([operation.source_session_id] if operation.source_session_id else []) + (
-            [current.id] if current else []
+            [candidate.id] if candidate else []
         )
         if session_ids:
             await db.scalars(
@@ -307,6 +308,14 @@ async def complete_auth_operation(factory, request, response, operation_id):
         identity = VerifiedCompletion.model_validate(operation.verified_completion)
         user = await bind_user(db, system, identity)
         operation = await db.get(type(operation), operation.id, populate_existing=True)
+        if candidate and candidate.user_id is not None:
+            if (candidate.system_id, candidate.tenant_id) != (system.system_id, system.tenant_id):
+                raise ServiceError("FORBIDDEN", 403)
+            live = candidate.revoked_at is None and await database_now(db) < candidate.expires_at
+            enabled = await db.scalar(select(User.enabled).where(User.user_id == candidate.user_id))
+            original_user = source_session.user_id if source_session else None
+            if live and enabled and candidate.user_id not in (user.user_id, original_user):
+                raise ServiceError("IDENTITY_MISMATCH", 409)
         anchor = operation.authenticated_session_created_at or await database_now(db)
         if await database_now(db) >= anchor + timedelta(hours=8):
             raise ServiceError("AUTH_REQUIRED", 401)
@@ -339,7 +348,7 @@ async def complete_auth_operation(factory, request, response, operation_id):
         )
         operation, _, _ = await bound_operation(db, request, operation_id)
         operation.authenticated_session_created_at = anchor
-        operation.bound_user_id, operation.stage = user_session.user_id, "COMPLETED"
+        operation.stage = "COMPLETED"
         claim = None
         if source is not None:
             claim = await _claim_guest(db, operation, user_session, source_session, source, target)
@@ -348,6 +357,7 @@ async def complete_auth_operation(factory, request, response, operation_id):
                 await _merge(db, claim, source, target)
         await db.flush()
         await bound_operation(db, request, operation_id, lock=False)
+        operation.bound_user_id = user_session.user_id
         snapshot = await load_snapshot(db, actor, target.id)
         if claim is not None and claim.status == "pending":
             from xiaohe.jobs import defer_claim

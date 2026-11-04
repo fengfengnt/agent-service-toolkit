@@ -57,6 +57,7 @@ def test_images_are_pinned_and_processes_separate(deployment):
     assert services["api"]["image"] == services["worker"]["image"]
     assert services["api"]["command"] == ["api"]
     assert services["worker"]["command"] == ["worker"]
+    assert services["worker"]["depends_on"]["api"]["condition"] == "service_healthy"
     lock = json.loads((ROOT / "deploy/xiaohe/images.lock.json").read_text("utf-8"))
     for name in ("postgres", "minio"):
         assert services[name]["image"] == lock[name]["repository"] + "@" + lock[name]["digest"]

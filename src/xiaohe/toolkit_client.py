@@ -24,6 +24,23 @@ class ToolkitClient:
         self._settings = settings
         self._transport = transport
 
+    async def ready(self) -> bool:
+        try:
+            async with httpx.AsyncClient(
+                base_url=self._settings.toolkit_base_url,
+                headers={
+                    "Authorization": f"Bearer {self._settings.auth_secret.get_secret_value()}"
+                },
+                timeout=5,
+                follow_redirects=False,
+                trust_env=False,
+                transport=self._transport,
+            ) as client:
+                response = await client.get("/internal/xiaohe/health/ready")
+                return response.status_code == 200 and response.json() == {"status": "ready"}
+        except (httpx.HTTPError, ValueError):
+            return False
+
     async def stream_execution(self, command: ToolkitExecution) -> AsyncIterator[ToolkitEvent]:
         failure = None
         try:

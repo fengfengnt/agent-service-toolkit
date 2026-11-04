@@ -317,5 +317,24 @@ async def logout_session(request: Request, response: Response, db: AsyncSession)
             operation.cancelled_at = record.revoked_at
             context = await db.get(AuthContextRecord, operation.context_id)
             context.expires_at = min(context.expires_at, record.revoked_at)
+        from xiaohe.authentication import AUTH_COOKIE
+
+        try:
+            token = _cookie(request, AUTH_COOKIE)
+        except ServiceError:
+            token = None
+        if token is not None:
+            context = await db.scalar(
+                select(AuthContextRecord)
+                .where(
+                    AuthContextRecord.token_digest == hashlib.sha256(token.encode()).hexdigest(),
+                    AuthContextRecord.system_id == system.system_id,
+                    AuthContextRecord.tenant_id == system.tenant_id,
+                )
+                .with_for_update()
+            )
+            if context is not None:
+                context.expires_at = min(context.expires_at, record.revoked_at)
+        response.delete_cookie(AUTH_COOKIE, secure=True, httponly=True, samesite="lax", path="/")
         response.delete_cookie(SESSION_COOKIE, secure=True, httponly=True, samesite="lax", path="/")
         await db.flush()

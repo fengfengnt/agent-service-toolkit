@@ -1,6 +1,6 @@
 # 上游差异清单
 
-上游基线：`836649674568320c0cc994553a8a930ed82398d0`，开发分支 `dev-fengfeng`。P0 提交 `e82a8ae`；P0–P7 已实施，各阶段增量见下文，P8认证适配尚未实施。
+上游基线：`836649674568320c0cc994553a8a930ed82398d0`，开发分支 `dev-fengfeng`。P0 提交 `e82a8ae`；P0–P9核心与P11配置已实施，P10/P12部分完成；各阶段增量见下文，真实三方联调尚未完成。
 
 P1 新增 `src/xiaohe/{database,models,identity,conversations}.py`、业务 Alembic 配置/初始迁移、pg 会话测试及[说明](identity-sessions.md)。仅改既有业务 settings/conftest、增量 pyproject 依赖和 pg marker，以及相应 uv.lock；已有锁定版本未升级，新增 Alembic/Greenlet/Mako。上游源码及顶层测试配置继续保持原样。以下为 P0 历史差异与复用边界：
 
@@ -36,3 +36,7 @@ P7新增artifacts及0003迁移、固定镜像清单、隔离MinIO fixture；扩�
 P2–P7整批独立评审后，在自身worker/admission/runtime/streaming补齐活锁接管、凭据受理/历史checkpoint过滤和断流关闭。12项先RED后GREEN，完整231项及正式参数恢复132.00秒通过，见 [复核记录](continuous-review.md)。P8在跨工程契约交接点暂停，具体补充见 [认证契约建议](integrations/p8-auth-contract-proposal.md)。
 
 P11新增业务Docker/Compose/代理/启动校验及内部健康检查，真实临时Nginx隔离验证通过；原Docker/Compose不变。P10独立部分接原维护任务停止过期匿名run，未开始物理删除；P12加入真实PG/MinIO已有能力组合旅程。全仓426通过/4跳过/1原Streamlit测试失败，详见[验收记录](testing/xiaohe-backend-acceptance.md)。共享v1.0.2由门户owner获用户授权更新，契约阻塞解除；本聊天接续P8/P9，正式开关保持关闭。
+
+P8/P9核心提交`afe08f4`新增authentication/auth_bridge/claim、0004/0005增量迁移和隔离测试；复用HTTPX、业务身份/原任务框架及checkpoint，不增加依赖。认证上下文与聊天分离，服务端可信结果建立固定8小时会话；真实认领保护、202自动协调、原消息/文件归属迁移及新用户namespace接续。0001–0003不改，不执行已有业务库升级。
+
+整批独立审查后，同一次修复补齐首次complete当前账号校验、退出当前未绑定上下文撤销、API ready前等待及Compose健康依赖；fixture与实际HTTP探针同步。最终业务/真实PG与MinIO/原client与threads288项通过；原全仓Streamlit失败仍独立保留。详见[本批审查](testing/2026-11-04-auth-deployment-review.md)。P10物理清理和P12真实联调尚未完成，不把新增迁移文件或fixture通过当作正式上线。

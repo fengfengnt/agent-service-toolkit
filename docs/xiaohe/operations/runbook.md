@@ -2,7 +2,7 @@
 
 ## 当前交付与启动门
 
-在 dev-fengfeng 增量二开；原 Dockerfile、Compose、README 及 toolkit 保护目录未改。业务镜像使用 Python 3.14.7，API 与 worker 共用镜像、独立进程。新增 Compose 是待验收配置，不代表已部署。正式 SSO 开关保持关闭；P8/P9 接入后还需补认证配置和联合验证，不能直接用于上线。
+在 dev-fengfeng 增量二开；原 Dockerfile、Compose、README 及 toolkit 保护目录未改。业务镜像使用 Python 3.14.7，API 与 worker 共用镜像、独立进程。新增 Compose 是待验收配置，不代表已部署。P8/P9核心适配与认领已有隔离集成证据，正式 SSO 开关保持关闭；实际认证配置、三方浏览器和部署验证尚未完成，不能直接用于上线。
 
 所有命令从 agent-service-toolkit 根目录执行。不要把现有部署的 .env 复制到开发仓库，不要执行 down -v，不要对已有数据库重新套初始化脚本。
 
@@ -44,6 +44,8 @@ docker compose --env-file /secure/xiaohe/compose.env -f deploy/xiaohe/compose.ym
 4. 启动 API；原 lifespan 依次建立 saver/store、运行原 setup，再注册图使用的持久组件。P6 已以新隔离库双进程验证启动互斥；该互斥为 autocommit 会话锁，避免阻塞原 CREATE INDEX CONCURRENTLY。
 5. API ready 后启动 worker，再接代理。worker 依赖任务表和原内部执行地址，重启不重发客户端用户消息。
 
+Compose 的 worker 显式等待 API healthy；运行期间每次执行也先探测内部 ready，并持续复核会话、归属与运行截止。API不可用期间仍维持框架心跳，但不进入 acquire_run、不消耗真实执行次数；到期或撤销直接停止。探测通过后实际调用失败仍走原有限重试，不保证依赖永远可用。
+
 ## 健康与恢复
 
 - `/internal/xiaohe/health/live` 只说明 API 进程能响应。
@@ -57,6 +59,6 @@ docker compose --env-file /secure/xiaohe/compose.env -f deploy/xiaohe/compose.ym
 
 恢复到新库/新 bucket 后核对消息ID/顺序、run/command/事件水位、对象摘要、归属、鉴权与重放；失联 job 按框架恢复，不手写队列状态或重放已完成外部动作。镜像回滚前确认迁移向后兼容；不自动 downgrade 生产数据库。保留原卷和原镜像作为恢复依据。
 
-本阶段已做 Compose 解析、启动拒绝测试、受信 scheme 与 socket 证据；真实 Nginx 隔离路由验证单独记录。业务镜像构建、该 Compose up、目标最小权限、真实环境重启/备份恢复、真实门户/SSO/模型/短信和生产/UAT部署均未完成。P8/P9 完成后补联合验收，正式开关继续关闭。
+本阶段已做 Compose 解析、启动拒绝测试、受信 scheme 与 socket 证据；真实 Nginx 隔离路由验证单独记录。业务镜像构建、该 Compose up、目标最小权限、真实环境重启/备份恢复、真实门户/SSO/模型/短信和生产/UAT部署均未完成。下一步按交接清单准备联合验收，正式开关继续关闭。
 
 参考：[Compose secrets](https://docs.docker.com/compose/how-tos/use-secrets/)、[Nginx proxy](https://nginx.org/en/docs/http/ngx_http_proxy_module.html)。
