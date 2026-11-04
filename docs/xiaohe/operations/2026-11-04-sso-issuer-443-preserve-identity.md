@@ -1,6 +1,6 @@
-# SSO issuer 443：只读核验与待确认迁移范围
+# SSO issuer 443：保留身份原地迁移记录
 
-状态：用户已明确批准按本方案保留身份原地迁移。中心已切换443、旧SSO8443已关闭；本方正在进行隔离测试与执行准备，实际生效结果在后文续记。正式开关关闭，不发送短信、不调用付费模型。
+状态：用户明确批准后，已于2026-11-04 21:01（北京时间）完成本地迁移及API/worker恢复，21:02补完真实匿名适配和只读核验。当前issuer为`https://sso.lvh.me`；原账号、历史和原会话截止保留。正式开关关闭，不发送短信、不调用付费模型。真人新issuer登录尚未重验，不能把匿名适配通过等同会员登录通过。
 
 ## 已核验的授权与范围
 
@@ -68,10 +68,26 @@ UTC2026-11-04 10:47:18，在专用运行库 `xiaohe_triad_local_20261104` 的显
 
 - [x] 配置与迁移先RED：新增443允许/旧8443拒绝，原身份保留并复用、冲突与行数拒绝、事务回滚及保护恢复用例。
 - [x] GREEN：只改专用runner canonical常量，新增固定本地库的一次性SQL；相邻身份/中心客户端检查通过，不重跑328。
-- [ ] 备份私有配置、源快照指针及受影响资料的非秘密完整性摘要；一次独立只读安全审查后执行。
-- [ ] 仅停止自己的API/worker，复核无其他使用该库的业务连接；独占事务更新1User+1System，恢复触发器并验证原主键、canonical、会话时间及消息/文件元数据保持。
-- [ ] 私有base URL及固定源码快照生效，重启自己的两个进程；验证真实443适配/匿名安全边界，记录未完成的真人新issuer登录证据，不触发短信或模型。
+- [x] 备份私有配置、源快照指针及受影响资料的非秘密完整性摘要；一次独立只读安全审查后执行。
+- [x] 仅停止自己的API/worker，复核无其他使用该库的业务连接；独占事务更新1User+1System，恢复触发器并验证原主键、canonical、会话时间及消息/文件元数据保持。
+- [x] 私有base URL及固定源码快照生效，重启自己的两个进程；验证真实443适配/匿名安全边界，记录未完成的真人新issuer登录证据，不触发短信或模型。
 
 隔离验证记录：`test_triad_runtime.py`、`test_issuer_443_migration.py`、`test_identity_sessions.py`、`test_sso_bridge_client.py`，先RED 6 failed/9 passed，再GREEN 53 passed（19 warnings，13.29s），Ruff通过。测试仅连接`test_xiaohe_agent`，不操作真实联调库。执行器`--check`仅只读访问真实联调库，确认1旧/0新用户、无queued/running/waiting_input Run和pending GuestClaim，且443 Discovery 200、公钥摘要一致；未停机或改数据。
 
 独立只读审查结论：SQL及数据保留方案无Critical/Important问题；发现临时进程管理脚本在“API已启动、worker启动失败”时，尚未保存新API的PID。已用隔离复现观察RED，修复为每次启动立即原子保存所有权记录、记录失败停止刚启动进程，并在读取进程信息失败时清理刚启动进程。GREEN检查确认API记录0600保留，后续stop能定位该PID。只修改被忽略的本地联调脚本，不改产品或上游代码；无待处理Minor，Declined to judge为空。
+
+## 实际执行结果
+
+- 实施代码提交`3874539`，运行固定源码`93c99b356b84995b3f8b375e9db163b9fbb057e1`；仍在`dev-fengfeng`，未合并或推送。审查修复后相同53项测试再次通过（19 warnings，17.02s）。
+- 备份目录`/home/fengfeng/.local/share/xiaohe-triad/20261104/issuer-443-backup-20261104T130055Z`为0700，配置、旧源码指针、旧进程记录及精确目标行/摘要为0600；不把私有备份内容放入Git或聊天。
+- 仅停止旧API/worker 3257486/3257487。确认目标库没有其他业务连接、无执行中Run或pending归并，再在同一事务更新1条User及1条System的issuer。原user_id保留；旧issuer用户0、新issuer用户1，没有新增或合并账号。
+- 提交前核对`xiaohe`全部18张表的行数及库内聚合摘要，除User/System的issuer外完全一致；涵盖26条既有session的全部字段和原截止、21条conversation、208条message、102条artifact/版本以及2条claim等测试资料。正文、token等只在库内参与摘要，不返回执行器或报告。身份触发器启用状态及定义摘要与原值一致。
+- 私有bridge仅修改base URL；复核applicationId、secret、callback、CA及整个runtime配置字节不变。旧auth_operations记录未改写，旧未完成认证不得继续走8443，应正常新发起。已有会话的原截止未延长，已自然到期者不会因迁移复活。
+- 新API/worker PID为3773382/3773383，均存活且对应固定源码；API就绪，仍为受控fake模型。只重启本AI进程，不修改共享Nginx、中心、Portal或真实`.env`。
+- 真实HTTPS匿名适配：auth context 200、create 201、顶层完成表单303、continue页面及READY/CONTINUE均200，目标精确443；未登录complete仍409 `AUTH_NOT_READY`、无用户Cookie，cancel 204。没有发送短信、没有调用模型，探针后只读确认原账号仍唯一且精确复用，未新建用户。
+
+公开聚合证据在忽略目录`.superpowers/sdd/2026-11-03-xiaohe-ai-backend/`：`issuer-443-cutover-result.json`（successful=true）、`issuer-443-adapter-evidence.json`、`issuer-443-postcheck.json`；旧验收JSON保留。首次执行因WSL Git的CRLF检查差异在停机前拒绝，按Windows checkout的`core.autocrlf=true`只作该次diff核验后继续，未改仓库配置或业务文件。最终结果覆盖执行结果文件中的早先失败状态，旧RED日志保留。
+
+## 尚未重验与下一步
+
+本次不操作用户原浏览器Cookie，也未重新走会员登录/换码/归并；没有声称新issuer真人会员登录已验收。下一步可由用户在隔离窗口按正常入口进行一次443会员恢复验证；若需要短信，应另按当次明确授权执行，不自动重发。原会话仅在其原截止前继续有效，切换不会重算8小时。正式发布、付费模型及三个专业业务的原后续范围不变。
