@@ -109,6 +109,19 @@ SSO Owner一次发送前只读核验回执：配置层面READY，登录模板sso
 
 AI只读核对门户scratch triad-browser/member-ready.json的脱敏就绪字段，确认mode=member、标题/当前页面/helperPID及pageErrors=0，不读取Cookie/验证码或请求体。用户在新窗口填测试手机号、点击获取验证码并填收到的验证码；如出现协议，由用户自行确认，保持窗口打开。门户helper在用户完成后继续正常回调、绑定/归并检查；当前仅就绪，不提前宣布短信送达、会员身份绑定或归并成功。
 
+## 首次会员验证后的测试窗口中断
+
+用户确认已在窗口完成验证；门户Owner随后定位测试harness缺陷：登录后某Portal document未命中独立构建的映射，返回正式旧index，其引用asset在测试bundle不存在；route回调未捕获ENOENT，Node44476退出，用户确认窗口关闭或空白。该事实不能推导为中心登录失败或AI绑定成功。门户修复测试映射，保留失败证据，不修改正式部署、不自动重发短信。
+
+AI于UTC08:36:58在专用库执行显式READ ONLY事务，仅查询本基线的非敏感元数据：
+
+- 原conversation615535df-9792-479e-b5c0-cf7bbcc3dc61仍是portal/tenant1的supplier访客会话，count1、未撤销、merge_pending=false。
+- 三条原欢迎/用户/assistant消息ID及创建时间仍保留在原会话。artifact c2f782ce-c6c2-4c6c-8af1-a392ecf72070的v1仍ready、111bytes，content_digest与verified_digest均匹配原SHA71b29beb7739dce78d3bf34dccd774ad93e0a73ac6d2178c53eca37dfa32af11。
+- 对应operation c203983a-08cd-4a7b-b9e9-3f69da47af62仍BROWSER_COMPLETION_REQUIRED、verified_completion为空、bound_user为空、首次认证anchor为空，未创建GuestClaim；没有本操作的AI用户绑定或归并证据。
+- 脱敏审计位于本计划忽略目录triad-member-interruption-audit.json，包含READ ONLY=on与精确检查时刻；未查询Cookie、CSRF、手机号、OTP或凭据字段，未修改数据。中心事务进展由SSO Owner另做只读核对，不能从AI尚未complete推定中心未验证。
+
+原浏览器临时认证上下文若随窗口退出丢失，不通过DB或已知ID重造会话。后续在修好的测试窗口通过正常认证重试，新基线和新结果单独记载；原访客记录与自有服务保持，原中断不能被新成功覆盖。
+
 ## 自有进程操作
 
 从Windows运行以下命令，脚本校验PID、内核启动时刻和专用runner路径，只操作自有API/worker；不改Nginx/SSO/存储服务：
