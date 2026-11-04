@@ -35,7 +35,7 @@ Runtime 可加载镜像已归档到 `D:/Code/deploy/local-deploy/releases/yunhez
 
 ## A4：核心链路验证
 
-实际执行 `tests/xiaohe/integration/test_copilot_runtime.py`：9 项通过、零跳过（78.57 秒）。这些测试读取 Owner 显式指定的 WSL 私有候选配置，使用真实 HTTPS、Python、PG、持久队列/worker 和 MinIO；不调用 `pg_factory`，不清理运行库，不模拟成功认证或业务响应。
+实际执行 `tests/xiaohe/integration/test_copilot_runtime.py`：最终任务验收 9 项通过、零跳过（67.61 秒）。这些测试读取 Owner 显式指定的 WSL 私有候选配置，使用真实 HTTPS、Python、PG、持久队列/worker 和 MinIO；不调用 `pg_factory`，不清理运行库，不模拟成功认证或业务响应。
 
 | 项目 | 实际断言与边界 | 结果 |
 | --- | --- | --- |
@@ -47,7 +47,7 @@ Runtime 可加载镜像已归档到 `D:/Code/deploy/local-deploy/releases/yunhez
 | V4 停止 | 关闭订阅后业务仍 queued/running；显式 stop 后 PG cancelled；重连无 activeRun、无伪 RUN_FINISHED；重复 stop=false | 通过 |
 | V5 权限 | 两真实匿名主体并发，互相 run/connect/stop/REST/文件拒绝；另一个真实登记 system 的匿名会话不能接入 portal Runtime；伪造代理/system 头不改变身份 | 通过 |
 | V5 默认路由 | 23 个 SDK 管理/未支持路径经 HTTPS 全部 404；缺 CSRF、错 Origin、未知 thread 拒绝；路由拒绝无新业务记录 | 通过 |
-| V8 额度/到期 | 仅候选 API 临时设 2 条/5 秒；读取和幂等不续期，新受理滚动；第三条 429；真实流中自然到期发安全错误，随后消息/文件/session/connect/run 均拒绝，不自动新建访客 | 通过 |
+| V8 额度/到期 | 仅候选 API 临时设 2 条/5 秒；读取和幂等不续期，新受理滚动；第三条 429；真实流中自然到期发安全错误，随后消息/文件/session/connect/run 均拒绝，不自动新建访客；5 秒内 PG 已无活跃 run | 通过 |
 
 短期限测试在 `finally` 恢复候选 API 的 100/14400 并等待 ready；不是修改现有部署。默认 100 条/14400 秒通过新会话数据库事实与原配置核对，没有等待四小时。
 
@@ -55,6 +55,21 @@ Runtime 可加载镜像已归档到 `D:/Code/deploy/local-deploy/releases/yunhez
 
 ### 后续门禁与限制
 
-G1 的技术范围为 V1–V5/V8；最终整批审阅后交门户继续 P1–P3。此时尚未完成门户产品 UI 替换与浏览器完整交互（V6）、新 UI 文件交互（V7）及真实会员登录/绑定/归并（V9）。会员真实链路不能用匿名主体或 fixture 替代。候选 Python 入口强制 SSO 关闭，不能直接注入现有私有 SSO 参数来绕过此限制；后续会员准备应由相关 Owner 在明确隔离范围内单独处理，验证码由用户输入。
+G1 技术门（V1–V5/V8）已通过。一次独立整批只读审阅覆盖 `85f9893..e344628`：Critical/Important/Minor 均无，复跑 Runtime 38 项及严格 typecheck 通过；审阅未重跑外部 A4 或改变服务。可交门户继续 P1–P3 的已授权实现及隔离验证，不能据此批准正式切换。
+
+此时尚未完成门户产品 UI 替换与浏览器完整交互（V6）、新 UI 文件交互（V7）及真实会员登录/绑定/归并（V9）。会员真实链路不能用匿名主体或 fixture 替代。候选 Python 入口强制 SSO 关闭，不能直接注入现有私有 SSO 参数来绕过此限制；后续会员准备应由相关 Owner 在明确隔离范围内单独处理，验证码由用户输入。
+
+### 客户端范围与执行裁定
+
+门户使用 `@copilotkit/core@1.84.1` 的 `ProxiedCopilotRuntimeAgent.connectAgent()`，其专用重连支持无 RUN_STARTED 的空闲快照。门户真实 HTTPS 补强探针记录 `lifecycleErrors=[]`、`connectOutcome=resolved`，非空欢迎消息与 REST 一致；独立审阅使用实际产品类另测 loadedMessages=1、无错误、无业务调用。裸 `AbstractAgent`／`HttpAgent` 的空闲快照互操作不属于本批已承诺客户端范围，后续升级须继续验证实际代理类。不能为了裸基类校验而伪造业务 run。
+
+本批裁定及代价：
+
+- 先受理 202，再附着唯一 connect SSE，直接复用业务事务和流；代价是多一次内部 HTTP 请求。
+- 本包强制纳入被根 `.gitignore` 忽略的 lockfile，保证镜像可重复；不改变其他包的忽略规则。
+- 无 active 时只恢复权威快照，已取消状态以 PG/无 active/无伪成功验证；不重放旧 attempt 生命周期，历史取消原因的额外 UX 需另行设计。
+- 按用户要求保留 `dev-fengfeng`，未合并、推送或清理并行改动；原始验证记录保留以供门户后续验收。
+
+审阅还实际验证了 Content-Length 与 chunked 两种超 64 KiB 请求：均安全返回 422、不回显输入、零业务调用。
 
 现有 `aibackend-0.1.0`、原数据库/桶、旧 `/ai-api/` 和门户静态部署保留。正式开关继续关闭，不自动发短信，不调用付费模型，不发布 UAT。
