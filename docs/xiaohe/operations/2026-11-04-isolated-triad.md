@@ -1,5 +1,7 @@
 # 本地三方隔离联调运行记录
 
+当前结论（2026-11-04）：第二轮在保留的合法浏览器context中完成可信会员绑定、访客对话/文件归并和刷新恢复，AI专用库只读交叉核对通过。本文按时间保留原失败及中间未完成状态；正式开关继续关闭、未替换部署、未调用付费模型。真实登录短信仅按用户后续授权在隔离窗口由用户主动触发。
+
 用户已在门户聊天明确批准按隔离方案启动API、worker、专用数据库和bucket，继续三方协调；正式开关关闭、不替换现有部署、不发短信或调用付费模型。AI在执行前通过read_thread核验真实用户原话，未再次索取同范围确认。基线dev-fengfeng/9b79b51，本轮新增测试专用启动器，并补齐原总设计已有的首屏欢迎功能；不改上游产品源码、Windows .venv、依赖锁、共享合同或其他工程。
 
 ## 专用资源
@@ -135,6 +137,25 @@ SSO Owner于UTC08:46:28（北京时间16:46:28）只读核对对应中心tx8c417
 随后AI于UTC08:49:09仅只读核对该operation的center_expires_at（真实中心create响应经适配器接收解析后存储的timestamptz），得到UTC08:50:22.803410，与AI created_at相差600.236323秒。这是适配器实际观察的中心UTC截止证据，与600秒契约吻合；不再仅依赖前述创建时刻推导，也不把原SQL客户端的时区显示差异当成已证实的应用期限错误。证据triad-member-center-deadline-audit.json，已同步双方，无需修改时间配置。
 
 门户继续修复跨域重定向后document/asset映射，在同一存活窗口让用户按正常“刷新／重新登录”入口恢复，优先复用已有中心Session。AI不并行操控窗口；截至本节证据时刻，尚无可信完成、用户绑定、归并或刷新后会员恢复的通过结果。
+
+## 最终通过：同context恢复、可信绑定与归并
+
+门户Owner回执：无认证的302探针RED→GREEN，证实SSO重定向目标HTML落到正式旧入口名，而测试静态目录没有该入口。仅在忽略scratch的测试UI中，将该入口名映射至当前测试main JS，既有依赖/CSS保持；资料页映射遗漏与异常退出保护也已修复。没有修改正式包、部署或产品源码。历史staticMissing=1保留，不把过程描述为一次无错。
+
+用户在仍保留的helper69592窗口按正常刷新及“重新登录”恢复，复用此前短信建立的中心会话，没有第三次短信。没有复制/回放一次性URL或提取Cookie。第二轮成功context记录一次由用户触发的短信发送；这不是对首轮中断期间发送次数的统计。
+
+门户真实浏览器结果文件member-result.json：stage=MEMBER_LOGIN_AND_GUEST_MERGE_PASSED、portalAuthenticated=true、pageErrors=0。两次正常可信complete均200，首次恢复产生MERGED，整页刷新后的恢复仍为同一账号；原消息ID/时间及文件版本保留，归并后与刷新后下载均200、SHA一致。此为门户Owner执行的浏览器证据，AI另做以下独立只读数据核对。
+
+AI于UTC08:54:10在专用库显式READ ONLY交叉核对，并用本地断言逐字段比较门户基线与先前retry-audit：
+
+- 外部issuer匹配、subject存在、source_tenant_id=1，唯一映射至user79b8e008-fbb1-479d-b140-f27007a2a4a9及systemId=portal/tenantId=1。身份映射数1、个人门户canonical数1，canonical为3f7e9399-8897-4ff4-8d1f-b671b9f40ba9；未查询subject正文或用户明细。
+- 源50bcaedc-b8bf-4455-8e2a-5647dca053bf仅一条GuestClaim，status=merged，对应可信op f38e9412-2c1a-4102-a324-49157128ad3d；原guest Session已撤销。刷新后的新可信op为4e0f0296-1e1b-451b-ab95-f6131c6c6ec4，绑定同一user，没有重复认领。较早失败f9f1f237仍未兑换，不覆盖其历史状态。
+- 三条原消息691b846a-8bbc-58cc-9f47-c854e6002089、85ba27b1-8cbd-437a-8ec4-8b65c42bbad2、7ef9cabe-4618-5cf9-a47f-8ed5dccca482的创建时间分别仍为UTC08:40:17.914183、08:40:18.342571、08:40:19.378912，归属同一canonical。
+- artifact a972e4fa-d9fb-4b33-8b40-b75fb5ede9b9迁入canonical，原version_id310d888d-1476-4dcc-8b81-d32277470f7d、object_key指纹及v1不变；版本总数/latest均1、ready、111bytes，content/verified/download三者SHA与基线一致。没有重建文件或增加版本。
+- 两个COMPLETED且可信的认证操作分别建立两个会话：UTC08:48:39.618511→16:48:39.618511、UTC08:48:43.622717→16:48:43.622717，均精确+8小时，并分别匹配对应操作首次anchor。后一次是刷新验证中的新可信认证操作，前一个会话截止保持原值；不将这两个不同认证锚点混称普通请求滑动续期，也不声称现场等待满8小时。
+- 首轮615535df-9792-479e-b5c0-cf7bbcc3dc61的GuestClaim仍为0；其临时context丢失后的原资料没有被强行迁移，原中断记录保留。
+
+证据：AI计划忽略目录triad-member-final-audit.json、triad-member-crosscheck-summary.json；门户同目录member-result.json保留实际浏览器结果。断言全部通过，无手机号/OTP/Cookie/CSRF/secret导出，无数据库写入、服务重启或额外短信/模型测试。当前API3257486、worker3257487及b370bfb源码快照保持，只有文档提交更新。部署备份/生产发布及此前上游Streamlit问题仍不属于本次通过结论。
 
 ## 自有进程操作
 
