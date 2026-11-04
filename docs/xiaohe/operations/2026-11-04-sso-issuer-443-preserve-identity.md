@@ -73,3 +73,5 @@ UTC2026-11-04 10:47:18，在专用运行库 `xiaohe_triad_local_20261104` 的显
 - [ ] 私有base URL及固定源码快照生效，重启自己的两个进程；验证真实443适配/匿名安全边界，记录未完成的真人新issuer登录证据，不触发短信或模型。
 
 隔离验证记录：`test_triad_runtime.py`、`test_issuer_443_migration.py`、`test_identity_sessions.py`、`test_sso_bridge_client.py`，先RED 6 failed/9 passed，再GREEN 53 passed（19 warnings，13.29s），Ruff通过。测试仅连接`test_xiaohe_agent`，不操作真实联调库。执行器`--check`仅只读访问真实联调库，确认1旧/0新用户、无queued/running/waiting_input Run和pending GuestClaim，且443 Discovery 200、公钥摘要一致；未停机或改数据。
+
+独立只读审查结论：SQL及数据保留方案无Critical/Important问题；发现临时进程管理脚本在“API已启动、worker启动失败”时，尚未保存新API的PID。已用隔离复现观察RED，修复为每次启动立即原子保存所有权记录、记录失败停止刚启动进程，并在读取进程信息失败时清理刚启动进程。GREEN检查确认API记录0600保留，后续stop能定位该PID。只修改被忽略的本地联调脚本，不改产品或上游代码；无待处理Minor，Declined to judge为空。
