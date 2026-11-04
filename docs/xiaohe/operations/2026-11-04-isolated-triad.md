@@ -59,6 +59,28 @@ SSO Owner确认Discovery/JWKS/continuation已恢复严格TLS200；此前11:57的
 
 运行源码使用Git tracked文件的私有固定快照，未复制.env、untracked或凭据，避免工作区开发期间Python延迟import混用版本。欢迎修复经验证后在门户已确认的无活动窗口，切换自有API及worker到同一新快照；不操作其他进程。
 
+## 最终回归与切换后实测（北京时间15:55）
+
+- 提交：欢迎173dd40、隔离query修复b370bfb。最终完整所选328 passed、无skip、19条既有依赖警告，216.62秒；Alembic无差异，Ruff通过。原上游Streamlit失败仍是此前全仓结果，不声称全仓全绿。
+- 审查问题一次修复：host/dbname query覆盖两用例RED→GREEN，启动器10 passed（5.93秒），不派第二次审查。当前正式参数未改，唯一共享合同SHA256仍为0f7592698bb9b45e3d81bd5364ebff59fabb384bf74d420c9940a270c32583f8。
+- 在门户确认的无活动窗口，仅停止旧自有API/worker并启动新进程：API PID3257486、worker PID3257487，均从source-b370bfb633c1固定快照启动，不从开发工作区动态导入。
+- 真实严格TLS探针UTC07:55:26：新访客首屏一条assistant欢迎，三个suggestions标签精确匹配，count0/activeRun=null；4次并发重开保持消息全文/ID/创建时间及原绝对截止。依次裸供应商、社群组织、采购方，经正常/messages均202，文件方向及三个SHA与前述一致，计数1/2/3。SSE四类、同clientMessageId去重、重开同conversation/全部消息ID、文件下载恢复通过；401/403/internal404及短信503保持。
+- 脱敏证据：计划忽略目录triad-welcome-evidence.json。旧首屏失败及旧匿名文件证据保留，未放宽验收。门户Owner已获READY通知，其真实快捷按钮/刷新复测另记，不能用本API探针代替浏览器。
+- 同快照真实认证探针UTC07:55:41再次通过：context200/create201/未换码complete409 AUTH_NOT_READY/顶层POST303/续接READY及CSRF CONTINUE200/匿名仍409/cancel204。memberAuthenticated=false、SMS=0；只测合法未认证边界，没有会员换码或归并成功证据。
+
+## 门户Owner真实浏览器复测回执
+
+门户Owner在同一b370bfb运行快照上使用真实Edge复测，报告整体exit0、requirementGaps为空，原首屏失败记录保留：
+
+- 初始messages.length=1，assistant欢迎及三个suggestions可见，count0。
+- 实际依次点击供应商、社群组织、采购方按钮，各POST/messages 202，三个v1 Artifact预览/下载200，SHA逐一匹配前述方向文件。
+- 关闭重开及整页刷新后同conversation、全部消息ID保持，count3不增加；pageerror=0、SMS=0。API/SSO/PG/MinIO均未mock。
+- 新快照浏览器restore再次到正常/sso/ssologin手机号表单：context200/create201/顶层POST303/continue200/continuation GET和CSRF POST200/authorize302/loginContext200；没有输入手机号、发短信或完成会员认证。
+
+证据由门户Owner执行并回传，本AI未代为操作浏览器。文件位于门户worktree `C:/Users/70367/.codex/worktrees/xiaohe-auth-card/yunhezhiyuan-portal/.superpowers/sdd/2026-11-03-xiaohe-portal/triad-browser/anonymous-result.json`，认证边界见同目录restore-result.json。欢迎漏项的真实浏览器门已通过，不重复运行这些已通过用例。
+
+后续仅待真实会员闭环：门户Owner提供可操作的隔离窗口及正常认证入口，由用户使用合法会员身份登录，再验证换码、绑定、对话/文件归并和固定绝对8小时。fresh隔离context不会自动共享普通浏览器的SSO Cookie；不通过导出Cookie/storageState或伪造身份绕过。无短信边界继续有效，如没有已有合法会话或其他已支持认证方式，则停留登录页并报告，不擅自发短信。正式包false、自有隔离进程继续保留。
+
 ## 自有进程操作
 
 从Windows运行以下命令，脚本校验PID、内核启动时刻和专用runner路径，只操作自有API/worker；不改Nginx/SSO/存储服务：
