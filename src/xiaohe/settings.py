@@ -19,6 +19,18 @@ class Settings(BaseSettings):
     )
     toolkit_base_url: str = Field(validation_alias="TOOLKIT_BASE_URL")
     auth_secret: SecretStr = Field(validation_alias="AUTH_SECRET")
+    sso_bridge_enabled: bool = Field(default=False, validation_alias="SSO_XIAOHE_BRIDGE_ENABLED")
+    sso_bridge_base_url: str | None = Field(default=None, validation_alias="XIAOHE_SSO_BASE_URL")
+    sso_bridge_application_id: str | None = Field(
+        default=None, validation_alias="XIAOHE_SSO_APPLICATION_ID"
+    )
+    sso_bridge_secret: SecretStr | None = Field(
+        default=None, validation_alias="XIAOHE_SSO_APPLICATION_SECRET"
+    )
+    sso_bridge_ca_file: str | None = Field(default=None, validation_alias="XIAOHE_SSO_CA_FILE")
+    sso_bridge_redirect_uri: str | None = Field(
+        default=None, validation_alias="XIAOHE_SSO_REDIRECT_URI"
+    )
     database_url: SecretStr | None = Field(default=None, validation_alias="XIAOHE_DATABASE_URL")
     minio_endpoint: str | None = Field(default=None, validation_alias="XIAOHE_MINIO_ENDPOINT")
     minio_bucket: str | None = Field(default=None, validation_alias="XIAOHE_MINIO_BUCKET")
@@ -72,6 +84,16 @@ class Settings(BaseSettings):
     @classmethod
     def minio_origin(cls, value):
         return cls.internal_origin(value) if value is not None else None
+
+    @field_validator("sso_bridge_base_url")
+    @classmethod
+    def sso_origin(cls, value):
+        if value is None:
+            return value
+        origin = cls.internal_origin(value)
+        if not origin.startswith("https://"):
+            raise ValueError("SSO bridge requires a fixed HTTPS origin")
+        return origin
 
     @field_validator("minio_bucket")
     @classmethod

@@ -225,4 +225,7 @@ async def cancel_run(db: AsyncSession, actor: Actor, run_id: UUID) -> RunRef:
             .values(completed_at=func.clock_timestamp())
         )
         _status_event(db, conversation, row)
+        from xiaohe.jobs import wake_claims
+
+        await wake_claims(db, conversation.id)
     return RunRef(id=str(row.id), status=row.status)

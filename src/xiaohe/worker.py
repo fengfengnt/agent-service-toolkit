@@ -9,6 +9,7 @@ from xiaohe.artifacts import referenced_parts
 from xiaohe.contracts import ChatMessage, ServiceError, ToolkitExecution
 from xiaohe.database import create_database_engine
 from xiaohe.events import persist_reply_chunk, record_event
+from xiaohe.jobs import wake_claims
 from xiaohe.models import Command, Conversation, Message, Run, RunAttempt, Session
 from xiaohe.runs import (
     TERMINAL,
@@ -27,6 +28,11 @@ class RunWorker:
     def __init__(self, factory, client: ToolkitClient):
         self.factory, self.client = factory, client
 
+    async def finish_claim(self, claim_id):
+        from xiaohe.claim import finish_pending_claim
+
+        return await finish_pending_claim(self.factory, claim_id)
+
     async def maintain(self):
         from xiaohe.database import database_now
         from xiaohe.expiry import expire_guests
@@ -36,6 +42,24 @@ class RunWorker:
                 text("SELECT pg_try_advisory_xact_lock(hashtextextended('xiaohe.expiry.scan',0))")
             ):
                 await expire_guests(db, await database_now(db), 100)
+        from xiaohe.jobs import defer_claim
+        from xiaohe.models import GuestClaim
+
+        async with self.factory() as db:
+            pending = (
+                await db.scalars(
+                    select(GuestClaim.id)
+                    .where(GuestClaim.status == "pending")
+                    .order_by(GuestClaim.updated_at, GuestClaim.id)
+                    .limit(100)
+                )
+            ).all()
+        for claim_id in pending:
+            await self.finish_claim(claim_id)
+            async with self.factory.begin() as db:
+                claim = await db.get(GuestClaim, claim_id)
+                if claim.status == "pending":
+                    claim.job_id = await defer_claim(db, claim)
 
     async def _save(self, fence, command_id, event, chunk_key=None):
         async with self.factory.begin() as db:
@@ -102,6 +126,7 @@ class RunWorker:
                     {"run": {"id": str(run.id), "status": run.status}},
                     run.id,
                 )
+                await wake_claims(db, conversation.id)
             await db.flush()
 
     async def _consume(self, fence, command_id, frame):
@@ -154,6 +179,8 @@ class RunWorker:
                 {"run": {"id": str(run.id), "status": run.status}},
                 run.id,
             )
+            if not retry:
+                await wake_claims(db, conversation.id)
             return retry
 
     async def finalize_lost_run(self, run_id: UUID) -> bool:
@@ -167,6 +194,7 @@ class RunWorker:
             async with self.factory.begin() as db:
                 run, conversation, _ = await _locked(db, run_id)
                 if run.status in TERMINAL or run.status == "waiting_input":
+                    await wake_claims(db, conversation.id)
                     return True
                 run.status, run.holds_slot = "failed", False
                 command = await db.scalar(
@@ -184,6 +212,7 @@ class RunWorker:
                     {"run": {"id": str(run.id), "status": run.status}},
                     run.id,
                 )
+                await wake_claims(db, conversation.id)
             return True
 
     async def execute_run(self, run_id: UUID) -> None:
@@ -210,12 +239,15 @@ class RunWorker:
                         if command is not None:
                             command.completed_at = await db.scalar(select(func.clock_timestamp()))
                         _status_event(db, conversation, row)
+                        await wake_claims(db, conversation.id)
                         return
                 # A healthy waiter keeps its framework heartbeat; contention is not completion.
                 await asyncio.sleep(1)
             async with self.factory.begin() as db:
                 fence = await acquire_run(db, run_id, recover=True)
                 if fence is None:
+                    row = await db.get(Run, run_id)
+                    await wake_claims(db, row.conversation_id)
                     return
                 run = await db.get(Run, run_id)
                 command = await db.scalar(
@@ -274,6 +306,7 @@ async def amain():
             worker.execute_run,
             on_exhausted=worker.finalize_lost_run,
             on_maintenance=worker.maintain,
+            on_claim=worker.finish_claim,
         ).open_async() as app:
             await app.run_worker_async()
     finally:

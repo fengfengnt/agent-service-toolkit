@@ -26,9 +26,9 @@ def validate_runtime(settings, upstream):
 
 
 def main():
-    from core.settings import settings as upstream
-
     try:
+        from core.settings import settings as upstream
+
         validate_runtime(Settings(), upstream)
     except Exception:
         raise SystemExit(

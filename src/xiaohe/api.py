@@ -24,6 +24,8 @@ _MESSAGES = {
     "MERGE_PENDING": "正在接入历史对话，请稍后重试。",
     "ACTION_STALE": "此问题已失效，请刷新对话。",
     "AUTH_OPERATION_EXPIRED": "认证操作已到期。",
+    "AUTH_NOT_READY": "认证结果暂未就绪，请稍后重试。",
+    "AUTH_RATE_LIMITED": "认证请求过于频繁，请稍后重试。",
     "AUTH_REPLAY": "认证请求已使用。",
     "IDENTITY_MISMATCH": "认证身份不匹配。",
     "IDEMPOTENCY_CONFLICT": "重复请求的内容不一致。",
@@ -64,7 +66,8 @@ def install_error_handlers(app: FastAPI):
         return JSONResponse(
             body.model_dump(mode="json", by_alias=True),
             status_code=error.http_status if code == error.code else 503,
-            headers={"Cache-Control": "private, no-store"},
+            headers={"Cache-Control": "private, no-store"}
+            | ({"Retry-After": str(error.retry_after)} if error.retry_after else {}),
         )
 
     @app.exception_handler(RequestValidationError)
@@ -200,4 +203,7 @@ def create_public_router(factory):
             },
         )
 
+    from xiaohe.authentication import create_auth_router
+
+    router.include_router(create_auth_router(factory))
     return router

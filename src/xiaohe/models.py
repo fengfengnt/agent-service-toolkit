@@ -99,6 +99,7 @@ class Session(Base):
     message_count: Mapped[int] = mapped_column(Integer, server_default="0")
     message_limit: Mapped[int] = mapped_column(Integer, server_default="100")
     retention_seconds: Mapped[int] = mapped_column(Integer, server_default="14400")
+    merge_operation_id: Mapped[UUID | None]
 
 
 class Project(Base):
@@ -219,6 +220,8 @@ class Run(Base):
                 "xiaohe.messages.system_id",
                 "xiaohe.messages.tenant_id",
             ],
+            deferrable=True,
+            initially="IMMEDIATE",
         ),
         UniqueConstraint(
             "id", "conversation_id", "system_id", "tenant_id", name="uq_runs_id_scope"
@@ -277,6 +280,8 @@ class Command(Base):
                 "xiaohe.messages.system_id",
                 "xiaohe.messages.tenant_id",
             ],
+            deferrable=True,
+            initially="IMMEDIATE",
         ),
         ForeignKeyConstraint(
             ["run_id", "conversation_id", "system_id", "tenant_id"],
@@ -286,6 +291,8 @@ class Command(Base):
                 "xiaohe.runs.system_id",
                 "xiaohe.runs.tenant_id",
             ],
+            deferrable=True,
+            initially="IMMEDIATE",
         ),
         UniqueConstraint("conversation_id", "kind", "client_key", name="uq_command_idempotency"),
         CheckConstraint("kind IN ('message','action')"),
@@ -322,6 +329,8 @@ class RunAttempt(Base):
                 "xiaohe.runs.system_id",
                 "xiaohe.runs.tenant_id",
             ],
+            deferrable=True,
+            initially="IMMEDIATE",
         ),
     )
 
@@ -458,6 +467,133 @@ class Event(Base):
     event_type: Mapped[str]
     payload: Mapped[dict] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.clock_timestamp()
+    )
+
+
+class AuthContextRecord(Base):
+    __tablename__ = "auth_contexts"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["system_id", "tenant_id"], ["xiaohe.systems.system_id", "xiaohe.systems.tenant_id"]
+        ),
+        UniqueConstraint("id", "system_id", "tenant_id"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    system_id: Mapped[str]
+    tenant_id: Mapped[int] = mapped_column(BigInteger)
+    origin: Mapped[str]
+    token_digest: Mapped[str] = mapped_column(String(64), unique=True)
+    csrf_token: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AuthOperationRecord(Base):
+    __tablename__ = "auth_operations"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["context_id", "system_id", "tenant_id"],
+            [
+                "xiaohe.auth_contexts.id",
+                "xiaohe.auth_contexts.system_id",
+                "xiaohe.auth_contexts.tenant_id",
+            ],
+        ),
+        ForeignKeyConstraint(
+            ["source_session_id", "system_id", "tenant_id"],
+            ["xiaohe.sessions.id", "xiaohe.sessions.system_id", "xiaohe.sessions.tenant_id"],
+        ),
+        ForeignKeyConstraint(
+            ["bound_user_id", "system_id", "tenant_id"],
+            ["xiaohe.users.user_id", "xiaohe.users.system_id", "xiaohe.users.tenant_id"],
+        ),
+        UniqueConstraint("context_id", "request_digest"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    context_id: Mapped[UUID]
+    system_id: Mapped[str]
+    tenant_id: Mapped[int] = mapped_column(BigInteger)
+    source_session_id: Mapped[UUID | None]
+    intent: Mapped[str]
+    oidc: Mapped[dict] = mapped_column(JSONB)
+    browser_challenge: Mapped[str]
+    request_digest: Mapped[str] = mapped_column(String(64))
+    client_ip: Mapped[str] = mapped_column(String(45))
+    user_agent: Mapped[str] = mapped_column(String(512))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    stage: Mapped[str] = mapped_column(server_default="PHONE_REQUIRED")
+    center_transaction_id: Mapped[str | None] = mapped_column(unique=True)
+    center_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    sms_key: Mapped[str | None]
+    sms_request_digest: Mapped[str | None] = mapped_column(String(64))
+    sms_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    sms_result: Mapped[dict | None] = mapped_column(JSONB)
+    retired_sms_digests: Mapped[list] = mapped_column(JSONB, server_default=text("'[]'::jsonb"))
+    verified_completion: Mapped[dict | None] = mapped_column(JSONB)
+    bound_user_id: Mapped[str | None]
+    authenticated_session_created_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+
+
+class GuestClaim(Base):
+    __tablename__ = "guest_claims"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["user_id", "system_id", "tenant_id"],
+            ["xiaohe.users.user_id", "xiaohe.users.system_id", "xiaohe.users.tenant_id"],
+        ),
+        ForeignKeyConstraint(
+            ["guest_id", "system_id", "tenant_id"],
+            ["xiaohe.sessions.guest_id", "xiaohe.sessions.system_id", "xiaohe.sessions.tenant_id"],
+        ),
+        ForeignKeyConstraint(
+            ["source_conversation_id", "system_id", "tenant_id"],
+            [
+                "xiaohe.conversations.id",
+                "xiaohe.conversations.system_id",
+                "xiaohe.conversations.tenant_id",
+            ],
+        ),
+        ForeignKeyConstraint(
+            ["target_conversation_id", "system_id", "tenant_id"],
+            [
+                "xiaohe.conversations.id",
+                "xiaohe.conversations.system_id",
+                "xiaohe.conversations.tenant_id",
+            ],
+        ),
+        ForeignKeyConstraint(["operation_id"], ["xiaohe.auth_operations.id"]),
+        ForeignKeyConstraint(
+            ["target_session_id", "system_id", "tenant_id"],
+            ["xiaohe.sessions.id", "xiaohe.sessions.system_id", "xiaohe.sessions.tenant_id"],
+        ),
+        UniqueConstraint("guest_id"),
+        UniqueConstraint("operation_id"),
+        CheckConstraint("status IN ('pending','merged','skipped_expired')"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    operation_id: Mapped[UUID]
+    system_id: Mapped[str]
+    tenant_id: Mapped[int] = mapped_column(BigInteger)
+    guest_id: Mapped[UUID]
+    user_id: Mapped[str]
+    source_conversation_id: Mapped[UUID]
+    target_conversation_id: Mapped[UUID]
+    target_session_id: Mapped[UUID]
+    source_run_id: Mapped[UUID | None]
+    continuation_run_id: Mapped[UUID | None]
+    source_question: Mapped[dict | None] = mapped_column(JSONB)
+    source_direction: Mapped[str]
+    status: Mapped[str]
+    job_id: Mapped[int | None] = mapped_column(BigInteger)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.clock_timestamp()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.clock_timestamp()
     )
 

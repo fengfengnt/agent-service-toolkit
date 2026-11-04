@@ -67,12 +67,12 @@ async def resolve_system(request: Request, db: AsyncSession) -> TrustedSystem:
     return _trusted(record)
 
 
-def _cookie(request: Request) -> str | None:
+def _cookie(request: Request, name: str = SESSION_COOKIE) -> str | None:
     values = []
     for header in request.headers.getlist("cookie"):
         for part in header.split(";"):
             key, separator, value = part.strip().partition("=")
-            if key == SESSION_COOKIE:
+            if key == name:
                 values.append(value if separator else "")
     if not values:
         return None
@@ -128,18 +128,23 @@ async def require_session(db: AsyncSession, actor: Actor) -> Session:
 
 
 async def _request_session(
-    request: Request, system: TrustedSystem, db: AsyncSession, *, csrf_required: bool
+    request: Request,
+    system: TrustedSystem,
+    db: AsyncSession,
+    *,
+    csrf_required: bool,
+    lock: bool = True,
 ) -> Session:
     token = _cookie(request)
     if token is None:
         raise ServiceError("AUTH_REQUIRED", 401)
     digest = hashlib.sha256(token.encode()).hexdigest()
-    record = await db.scalar(
+    query = (
         select(Session)
         .where(Session.token_digest == digest)
-        .with_for_update()
         .execution_options(populate_existing=True)
     )
+    record = await db.scalar(query.with_for_update() if lock else query)
     if record is None:
         raise ServiceError("AUTH_REQUIRED", 401)
     if record.system_id != system.system_id or record.tenant_id != system.tenant_id:
@@ -182,10 +187,15 @@ async def _new_session(
     authenticated_at: datetime | None = None,
     message_limit: int = 100,
     retention_seconds: int = 14400,
+    created_at: datetime | None = None,
 ) -> tuple[Session, SecretStr]:
     token = SecretStr(secrets.token_urlsafe(32))
     guest_id = uuid4() if user_id is None else None
-    stamp = await database_now(db)
+    stamp = created_at or await database_now(db)
+    if user_id is not None and await database_now(db) >= stamp + timedelta(
+        seconds=USER_SESSION_SECONDS
+    ):
+        raise ServiceError("AUTH_REQUIRED", 401)
     record = Session(
         id=uuid4(),
         system_id=system.system_id,
@@ -208,9 +218,11 @@ async def _new_session(
     return record, token
 
 
-async def create_user_session(
-    db: AsyncSession, system: TrustedSystem, identity: VerifiedCompletion
-) -> tuple[Session, SecretStr]:
+async def bind_user(
+    db: AsyncSession,
+    system: TrustedSystem,
+    identity: VerifiedCompletion,
+) -> User:
     registered = await registered_system(db, system)
     if (
         identity.issuer != registered.issuer
@@ -242,8 +254,23 @@ async def create_user_session(
         raise ServiceError("IDENTITY_MISMATCH", 409)
     if not user.enabled:
         raise ServiceError("AUTH_REQUIRED", 401)
+    return user
+
+
+async def create_user_session(
+    db: AsyncSession,
+    system: TrustedSystem,
+    identity: VerifiedCompletion,
+    *,
+    created_at: datetime | None = None,
+) -> tuple[Session, SecretStr]:
+    user = await bind_user(db, system, identity)
     return await _new_session(
-        db, system, user_id=user.user_id, authenticated_at=identity.authenticated_at
+        db,
+        system,
+        user_id=user.user_id,
+        authenticated_at=identity.authenticated_at,
+        created_at=created_at,
     )
 
 
@@ -275,6 +302,20 @@ async def logout_session(request: Request, response: Response, db: AsyncSession)
     actor = await resolve_actor(request, system, db)
     record = await require_session(db, actor)
     if actor.user_id is not None:
+        from xiaohe.models import AuthContextRecord, AuthOperationRecord
+
         record.revoked_at = await database_now(db)
+        operations = await db.scalars(
+            select(AuthOperationRecord)
+            .where(
+                AuthOperationRecord.bound_user_id == record.user_id,
+                AuthOperationRecord.authenticated_session_created_at == record.created_at,
+            )
+            .with_for_update()
+        )
+        for operation in operations:
+            operation.cancelled_at = record.revoked_at
+            context = await db.get(AuthContextRecord, operation.context_id)
+            context.expires_at = min(context.expires_at, record.revoked_at)
         response.delete_cookie(SESSION_COOKIE, secure=True, httponly=True, samesite="lax", path="/")
         await db.flush()

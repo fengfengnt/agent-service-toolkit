@@ -185,6 +185,11 @@ class Csrf(WireModel):
     token: Id = Field(repr=False)
 
 
+class AuthContext(WireModel):
+    csrf: Csrf
+    expires_at: UtcTime
+
+
 class ChatSnapshot(WireModel):
     viewer: Viewer
     csrf: Csrf
@@ -582,8 +587,16 @@ ToolkitEvent = Annotated[ToolkitDelta | ToolkitOutcome | ToolkitError, Field(dis
 
 
 class ServiceError(Exception):
-    def __init__(self, code: str, http_status: int, retryable: bool = False):
+    def __init__(
+        self,
+        code: str,
+        http_status: int,
+        retryable: bool = False,
+        *,
+        retry_after: int | None = None,
+    ):
         super().__init__(code)
         self.code = code
         self.http_status = http_status
         self.retryable = retryable
+        self.retry_after = retry_after

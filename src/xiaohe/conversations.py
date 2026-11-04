@@ -14,7 +14,7 @@ from xiaohe.contracts import (
     Viewer,
 )
 from xiaohe.identity import CSRF_HEADER, require_session
-from xiaohe.models import Conversation, Event, Message, Project, Run, User
+from xiaohe.models import Conversation, Event, GuestClaim, Message, Project, Run, User
 
 
 async def default_conversation(db: AsyncSession, actor: Actor) -> Conversation:
@@ -120,6 +120,26 @@ async def load_snapshot(db: AsyncSession, actor: Actor, conversation_id: UUID) -
         .order_by(Event.sequence.desc())
         .limit(1)
     )
+    merge = None
+    if actor.user_id is not None and session.merge_operation_id is not None:
+        claim = await db.scalar(
+            select(GuestClaim).where(
+                GuestClaim.operation_id == session.merge_operation_id,
+                GuestClaim.user_id == actor.user_id,
+                GuestClaim.target_conversation_id == conversation.id,
+                GuestClaim.system_id == actor.system.system_id,
+                GuestClaim.tenant_id == actor.system.tenant_id,
+            )
+        )
+        if claim is not None:
+            merge = {
+                "operationId": str(claim.operation_id),
+                "status": {
+                    "pending": "MERGE_PENDING",
+                    "merged": "MERGED",
+                    "skipped_expired": "SKIPPED_EXPIRED",
+                }[claim.status],
+            }
     return ChatSnapshot(
         viewer=viewer,
         csrf={"headerName": CSRF_HEADER, "token": session.csrf_token},
@@ -135,7 +155,7 @@ async def load_snapshot(db: AsyncSession, actor: Actor, conversation_id: UUID) -
         ],
         active_run=RunRef(id=str(active.id), status=active.status) if active else None,
         cursor=str(cursor) if cursor else None,
-        merge=None,
+        merge=merge,
     )
 
 

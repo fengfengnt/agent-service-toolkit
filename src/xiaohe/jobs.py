@@ -15,6 +15,7 @@ RUN_TASK = "xiaohe.execute_run"
 RUN_QUEUE = "xiaohe"
 MAINTENANCE_QUEUE = "xiaohe-maintenance"
 RECOVERY_TASK = "xiaohe.recover_stalled"
+CLAIM_TASK = "xiaohe.finish_claim"
 RECOVERY_CRON = "* * * * * */30"
 HEARTBEAT_SECONDS = 10
 STALLED_SECONDS = 120
@@ -61,6 +62,38 @@ async def cancel_run_job(db: AsyncSession, job_id: int) -> bool:
     )
 
 
+async def defer_claim(db, claim):
+    from sqlalchemy import text
+
+    if claim.job_id is not None:
+        status = await db.scalar(
+            text("SELECT status FROM procrastinate_jobs WHERE id=:id"), {"id": claim.job_id}
+        )
+        if status in ("todo", "doing"):
+            return claim.job_id
+    await db.flush()
+    raw = await (await db.connection()).get_raw_connection()
+    return await _defer_app.configure_task(
+        CLAIM_TASK,
+        queue=MAINTENANCE_QUEUE,
+        lock=f"{claim.tenant_id}:{claim.target_conversation_id}",
+        connection=raw.driver_connection,
+    ).defer_async(claim_id=str(claim.id))
+
+
+async def wake_claims(db, conversation_id):
+    from sqlalchemy import select
+
+    from xiaohe.models import GuestClaim
+
+    for claim in await db.scalars(
+        select(GuestClaim).where(
+            GuestClaim.target_conversation_id == conversation_id, GuestClaim.status == "pending"
+        )
+    ):
+        claim.job_id = await defer_claim(db, claim)
+
+
 async def recover_stalled_jobs(
     app: App,
     *,
@@ -81,6 +114,12 @@ async def recover_stalled_jobs(
             seconds_since_heartbeat=seconds_since_heartbeat,
         )
         for job in maintenance:
+            await app.job_manager.finish_job(job, status=Status.FAILED, delete_job=False)
+        for job in await app.job_manager.get_stalled_jobs(
+            queue=MAINTENANCE_QUEUE,
+            task_name=CLAIM_TASK,
+            seconds_since_heartbeat=seconds_since_heartbeat,
+        ):
             await app.job_manager.finish_job(job, status=Status.FAILED, delete_job=False)
         recovered = 0
         jobs = await app.job_manager.get_stalled_jobs(
@@ -112,6 +151,7 @@ def build_job_app(
     *,
     on_exhausted: Callable[[UUID], Awaitable[bool]] | None = None,
     on_maintenance: Callable[[], Awaitable[None]] | None = None,
+    on_claim: Callable[[UUID], Awaitable[None]] | None = None,
 ) -> App:
     value = database_url.get_secret_value() if isinstance(database_url, SecretStr) else database_url
     url = make_url(value)
@@ -135,6 +175,12 @@ def build_job_app(
     @app.task(name=RUN_TASK, queue=RUN_QUEUE, retry=RunRetryStrategy())
     async def run(run_id: str):
         await execute_run(UUID(run_id))
+
+    @app.task(name=CLAIM_TASK, queue=MAINTENANCE_QUEUE, retry=RunRetryStrategy())
+    async def claim(claim_id: str):
+        if on_claim is None:
+            raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
+        await on_claim(UUID(claim_id))
 
     @app.periodic(cron=RECOVERY_CRON)
     @app.task(name=RECOVERY_TASK, queue=MAINTENANCE_QUEUE, queueing_lock="xiaohe.recovery.scan")

@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -113,6 +114,20 @@ def test_deployment_fails_closed_on_unsafe_runtime(change):
         setattr(upstream, key, value)
     with pytest.raises(ValueError, match="unsafe deployment configuration"):
         validate_runtime(settings, upstream)
+
+
+def test_launcher_configuration_failure_does_not_echo_private_values():
+    sentinel = "fixture-private-configuration-value"
+    result = subprocess.run(
+        [sys.executable, "-m", "xiaohe.deployment", "api"],
+        env=os.environ | {"PYTHONPATH": str(ROOT / "src"), "DEFAULT_MODEL": sentinel},
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode != 0
+    assert sentinel not in result.stderr + result.stdout
+    assert "unsafe deployment configuration" in result.stderr
 
 
 @pytest.mark.pg

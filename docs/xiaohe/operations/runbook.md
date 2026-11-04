@@ -13,7 +13,7 @@
 - runtime.env：AUTH_SECRET、XIAOHE_DATABASE_URL、原 POSTGRES_USER/PASSWORD/HOST/PORT/DB，以及 XIAOHE_MINIO_BUCKET/ACCESS_KEY/SECRET_KEY。业务库与原 saver/store 必须指向同一 PostgreSQL 17 实例及数据库。数据库密码含 URL 特殊字符时要正确编码业务 URL，并核对上游原连接串的实际兼容性。
 - 模型继续复用上游 COMPATIBLE_BASE_URL、COMPATIBLE_API_KEY、COMPATIBLE_MODEL、DEFAULT_MODEL=openai-compatible，或已配置的 DeepSeek；不要把真实供应商 model ID 填到上游固定枚举 DEFAULT_MODEL。没有指定/验通真实模型时只能记录未验收，不能把健康探测解释为模型可用。
 - PostgreSQL 密码文件与 MinIO root 用户/密码文件仅由各存储服务挂载；API/worker 使用独立 bucket 权限的应用 key。提前建立私有 bucket 和仅覆盖该 bucket 的 IAM policy；不把 root key 给业务容器。
-- 新的 SSO app Bearer 与 AUTH_SECRET、存储凭据相互独立。P8 的配置及本地桥接登记沿已有交接接入，不重新生成现有 secret。
+- 新的 SSO app Bearer 与 AUTH_SECRET、存储凭据相互独立。P8 的配置及本地桥接登记沿已有交接接入，不重新生成现有 secret；新增键与联调输入见[SSO适配](../integrations/sso-required-inputs.md)。正式开关继续false。
 - TLS 证书/私钥通过只读挂载传入 gateway。公开域名、Origin、client、system/tenant 映射按受信登记配置，示例域名不可运行使用。
 
 Compose 的默认主机绑定是 127.0.0.1:19443，仅 gateway 有映射。API、worker、PostgreSQL、MinIO 无主机端口；MinIO console 关闭。生产部署前检查 172.31.240.0/28 与宿主网络不冲突；若调整，必须一起修改 gateway 固定地址、API 地址及最小 trusted_proxy_cidrs。
