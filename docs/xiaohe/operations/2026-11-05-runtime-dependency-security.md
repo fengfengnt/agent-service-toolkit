@@ -47,7 +47,7 @@ Runtime lock中有4处3.25.76（client/proto/runtime/shared），以及根4.6.7�
 
 无界array、带rest tuple、v3无原生上限的map/record及其他巨大合法结构不因这次回移获得新预算；许可feature record同样无界，不能声称升级4.6.7自动限量。继续依赖现有64KiB入口和路由/授权边界，不把这些保护当作通用资源上限证明。后续若需新budget属于另外的行为设计。
 
-旧运行Runtime `spike-2c8132e` 没有这些修补，上轮独立测试镜像 `spike-4a55b1e` 也没有本轮v3/许可修补。Linux新镜像验证及本批最终审查另行追加；源码/测试通过不等于已部署。前轮尾斜杠P3仍保留，正式发布门禁没有自动解除。
+旧运行Runtime `spike-2c8132e` 没有这些修补，上轮独立测试镜像 `spike-4a55b1e` 也没有本轮v3/许可修补。Linux新镜像验证及本批最终审查结果见下节；源码/测试通过不等于已部署。前轮尾斜杠P3仍保留，正式发布门禁没有自动解除。
 
 ## 新Linux镜像与只读联调
 
@@ -59,7 +59,7 @@ Runtime lock中有4处3.25.76（client/proto/runtime/shared），以及根4.6.7�
 
 前后8个既有容器（原API/worker、旧Runtime、候选API/worker/PG/MinIO、Nginx）ID/image/StartedAt/RestartCount/running/挂载集合一致。2个新临时容器均清理，残留0；保留测试镜像与证据，新建匿名测试数据沿用自身保留期，不删除既有数据。旧Runtime与旧tag仍保持 `spike-2c8132e` / `eb33944...`。新镜像只读门不等于重验发送消息、stop/reconnect、会员绑定/归并或浏览器；G2继续复用历史证据。
 
-[公开JSON回执](../evidence/2026-11-05-runtime-dependency-security.json)包含原/后摘要、官方tarball业务保持、Windows与Linux/HTTPS结果、版本与镜像、audit网络失败和未覆盖范围。完整构建/测试/容器前后记录保留在本计划忽略目录的 `linux/`；未改 .env/SSO/Nginx/凭据/正式开关，没有推送/合并/部署，没有正式版本升级或发布归档。最终源码审查尚待补充。
+[公开JSON回执](../evidence/2026-11-05-runtime-dependency-security.json)包含原/后摘要、官方tarball业务保持、Windows与Linux/HTTPS结果、版本与镜像、audit网络失败和未覆盖范围。完整构建/测试/容器前后记录保留在本计划忽略目录的 `linux/`；未改 .env/SSO/Nginx/凭据/正式开关，没有推送/合并/部署，没有正式版本升级或发布归档。最终源码审查结果见下节。
 
 ## 最终独立审查
 
