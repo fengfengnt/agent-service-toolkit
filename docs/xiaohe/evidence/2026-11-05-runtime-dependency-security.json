@@ -221,5 +221,26 @@
     "runningDeploymentUnpatched": true,
     "previousTrailingSlashMinorDeferred": true
   },
-  "katexInRuntimeLock": false
+  "katexInRuntimeLock": false,
+  "review": {
+    "base": "3563f90cb89b021cec9028a04effa3ba00230c37",
+    "head": "a11cc9e7a66f8af3cbbc8b58458751b761f5c8c2",
+    "freshContext": true,
+    "critical": 0,
+    "important": 0,
+    "minor": 0,
+    "sourceMergeApproved": true,
+    "releaseApproved": false,
+    "independentTests": {
+      "pass": 61,
+      "fail": 0
+    },
+    "strict": "PASS",
+    "compiledEntry": {
+      "pass": 4,
+      "fail": 0
+    },
+    "officialTarballIntegrityAndBusinessBytes": "PASS"
+  },
+  "upstreamResearchAsOfDate": "2026-11-05"
 }

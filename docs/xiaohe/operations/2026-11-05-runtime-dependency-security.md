@@ -60,3 +60,13 @@ Runtime lock中有4处3.25.76（client/proto/runtime/shared），以及根4.6.7�
 前后8个既有容器（原API/worker、旧Runtime、候选API/worker/PG/MinIO、Nginx）ID/image/StartedAt/RestartCount/running/挂载集合一致。2个新临时容器均清理，残留0；保留测试镜像与证据，新建匿名测试数据沿用自身保留期，不删除既有数据。旧Runtime与旧tag仍保持 `spike-2c8132e` / `eb33944...`。新镜像只读门不等于重验发送消息、stop/reconnect、会员绑定/归并或浏览器；G2继续复用历史证据。
 
 [公开JSON回执](../evidence/2026-11-05-runtime-dependency-security.json)包含原/后摘要、官方tarball业务保持、Windows与Linux/HTTPS结果、版本与镜像、audit网络失败和未覆盖范围。完整构建/测试/容器前后记录保留在本计划忽略目录的 `linux/`；未改 .env/SSO/Nginx/凭据/正式开关，没有推送/合并/部署，没有正式版本升级或发布归档。最终源码审查尚待补充。
+
+## 最终独立审查
+
+唯一fresh-context reviewer审查 `3563f90..a11cc9e` 整批，结论：**本批源码可合并，Critical0、Important0、Minor0**；未进行第二次源码审查或修复pass。审查方独立复跑61/61、strict、现有编译入口4/4；另对10条v3真实路径验证稀疏数组、边界内错误、Set短输入、union/intersection及异步catch/transform，均通过。独立读取官方cached许可tgz、核对lock SHA512并重算externalize结果，crypto前缀与业务后缀逐字节保持。没有修改源码、依赖、dist、index或分支。
+
+审查边界裁定：Linux/HTTPS采用本方本轮实测回执，审查方不重复执行；无界集合的新budget留给另外设计；旧部署、G2、SSO、SMS、模型及既有尾斜杠P3保持原边界，不把本批源码合并等同重验/发布；官方最新版本与audit属于本轮研究/有界失败快照，审查方未联网，不称audit全绿；并行部署修改及其他未跟踪文件保持且不纳入本批审查。没有剩余本批源码阻塞，不自动解除正式发布门禁。
+
+另一次只读导入形式盘点确认，MCP真实使用的 `zod/v4-mini` 解析到根4.6.7；langgraph/openai内的同类字样主要为文档示例，各模块解析环境同为4.6.7。老3包内部旧/v4物理文件仍在，正式入口精确bare import hook覆盖已使用路径；本批不宣称删除全部未用绝对/相对深层入口。
+
+最终保留 `dev-fengfeng`、测试镜像与验收目录、所有并行修改；没有推送、合并到其他分支或部署。KaTeX在本Runtime lock中不存在；门户修复由其Owner另行验收，不能用本报告替代门户浏览器证据。
