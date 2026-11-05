@@ -1,9 +1,26 @@
+import hmac
+from urllib.parse import quote
 from uuid import UUID
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Response
 
 from xiaohe.api import _actor, _body
-from xiaohe.reception.contracts import CreateDraft, PatchDraft, ReceptionAction
+from xiaohe.contracts import ServiceError
+from xiaohe.reception.contracts import (
+    CreateDraft,
+    DetachFile,
+    InitFile,
+    OperationalDownload,
+    PatchDraft,
+    ReceptionAction,
+)
+from xiaohe.reception.files import (
+    detach_file,
+    download_file,
+    download_operational_file,
+    init_file,
+    write_file,
+)
 from xiaohe.reception.flow import apply_reception_action
 from xiaohe.reception.store import create_draft, load_reception, patch_draft
 from xiaohe.reception.submission import create_draft_from_business
@@ -11,6 +28,12 @@ from xiaohe.reception.submission import create_draft_from_business
 
 def create_reception_router(factory, business_client=None):
     router = APIRouter(prefix="/ai-api/v1/reception")
+
+    def storage(request):
+        service = getattr(request.app.state, "xiaohe_artifacts", None)
+        if service is None:
+            raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
+        return service
 
     @router.get("/conversations/{conversation_id}")
     async def state(conversation_id: UUID, request: Request):
@@ -51,5 +74,84 @@ def create_reception_router(factory, business_client=None):
         body = await _body(request, ReceptionAction)
         async with factory.begin() as db:
             return await apply_reception_action(db, await _actor(request, db), draft_id, body)
+
+    @router.post("/drafts/{draft_id}/files", status_code=201)
+    async def initialize_file(draft_id: UUID, request: Request):
+        body = await _body(request, InitFile)
+        async with factory.begin() as db:
+            return await init_file(db, await _actor(request, db), draft_id, body)
+
+    @router.put("/drafts/{draft_id}/files/{file_id}")
+    async def upload(draft_id: UUID, file_id: UUID, request: Request):
+        async with factory.begin() as db:
+            actor = await _actor(request, db)
+        return await write_file(
+            factory, actor, draft_id, file_id, request.stream(), artifacts=storage(request)
+        )
+
+    @router.delete("/drafts/{draft_id}/files/{file_id}")
+    async def detach(draft_id: UUID, file_id: UUID, request: Request):
+        body = await _body(request, DetachFile)
+        async with factory.begin() as db:
+            result = await detach_file(
+                db, await _actor(request, db), draft_id, file_id, body.expected_revision
+            )
+            return result.model_dump(mode="json", by_alias=True, exclude_none=True)
+
+    @router.get("/files/{file_id}/download")
+    async def download(file_id: UUID, request: Request):
+        async with factory.begin() as db:
+            actor = await _actor(request, db)
+        ref, content = await download_file(factory, actor, file_id, artifacts=storage(request))
+        return file_response(ref, content)
+
+    return router
+
+
+def file_response(ref, content):
+    return Response(
+        content=content,
+        media_type=ref.media_type,
+        headers={
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Disposition": "attachment; filename*=UTF-8''" + quote(ref.filename, safe=""),
+        },
+    )
+
+
+def create_reception_file_router(factory, settings, artifacts):
+    router = APIRouter(prefix="/internal-api/reception-files/v1")
+
+    @router.post("/files/{file_id}/download")
+    async def operational_download(file_id: UUID, request: Request):
+        application = request.headers.getlist("X-Reception-Application")
+        credentials = request.headers.getlist("Authorization")
+        if (
+            not all(
+                (
+                    settings.reception_file_application_id,
+                    settings.reception_file_secret,
+                    settings.reception_file_system_id,
+                )
+            )
+            or application != [settings.reception_file_application_id]
+            or len(credentials) != 1
+            or not hmac.compare_digest(
+                credentials[0].encode("utf-8"),
+                ("Bearer " + settings.reception_file_secret.get_secret_value()).encode("utf-8"),
+            )
+        ):
+            raise ServiceError("FORBIDDEN", 403)
+        body = await _body(request, OperationalDownload)
+        ref, content = await download_operational_file(
+            factory,
+            settings.reception_file_system_id,
+            file_id,
+            body.application_id,
+            body.owner_ai_user_id,
+            artifacts=artifacts,
+        )
+        return file_response(ref, content)
 
     return router

@@ -1,7 +1,7 @@
 from ipaddress import ip_network
 from urllib.parse import urlsplit
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -48,6 +48,15 @@ class Settings(BaseSettings):
     )
     reception_secret: SecretStr | None = Field(
         default=None, validation_alias="XIAOHE_RECEPTION_APPLICATION_SECRET"
+    )
+    reception_file_application_id: str | None = Field(
+        default=None, validation_alias="XIAOHE_RECEPTION_FILE_APPLICATION_ID"
+    )
+    reception_file_secret: SecretStr | None = Field(
+        default=None, validation_alias="XIAOHE_RECEPTION_FILE_SECRET"
+    )
+    reception_file_system_id: str | None = Field(
+        default=None, validation_alias="XIAOHE_RECEPTION_FILE_SYSTEM_ID"
     )
     trusted_proxy_cidrs: list[str] = Field(
         default_factory=list, validation_alias="XIAOHE_TRUSTED_PROXY_CIDRS"
@@ -99,7 +108,7 @@ class Settings(BaseSettings):
     def reception_origin(cls, value):
         return cls.internal_origin(value) if value is not None else None
 
-    @field_validator("reception_secret")
+    @field_validator("reception_secret", "reception_file_secret")
     @classmethod
     def reception_credential(cls, value):
         import re
@@ -110,6 +119,18 @@ class Settings(BaseSettings):
         ):
             raise ValueError("invalid reception service credential")
         return value
+
+    @model_validator(mode="after")
+    def independent_file_credential(self):
+        if self.reception_file_secret is not None:
+            existing = [
+                secret.get_secret_value()
+                for secret in (self.auth_secret, self.reception_secret, self.sso_bridge_secret)
+                if secret is not None
+            ]
+            if self.reception_file_secret.get_secret_value() in existing:
+                raise ValueError("file reader requires an independent credential")
+        return self
 
     @field_validator("sso_bridge_base_url")
     @classmethod

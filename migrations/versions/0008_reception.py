@@ -81,6 +81,8 @@ def upgrade():
     op.create_table(
         "reception_files",
         sa.Column("id", sa.Uuid(), nullable=False),
+        sa.Column("client_upload_id", sa.String(), nullable=False),
+        sa.Column("upload_request", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("draft_id", sa.Uuid(), nullable=False),
         sa.Column("conversation_id", sa.Uuid(), nullable=False),
         sa.Column("system_id", sa.String(), nullable=False),
@@ -92,6 +94,7 @@ def upgrade():
         sa.Column("sha256", sa.String(), nullable=True),
         sa.Column("status", sa.String(), nullable=False),
         sa.Column("object_key", sa.String(), nullable=False),
+        sa.Column("object_keys", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("detached", sa.Boolean(), nullable=False),
         sa.Column(
             "created_at",
@@ -108,9 +111,12 @@ def upgrade():
                 "xiaohe.reception_drafts.system_id",
                 "xiaohe.reception_drafts.tenant_id",
             ],
+            deferrable=True,
+            initially="DEFERRED",
         ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("object_key"),
+        sa.UniqueConstraint("draft_id", "client_upload_id"),
         schema="xiaohe",
     )
     op.create_table(
@@ -135,6 +141,8 @@ def upgrade():
                 "xiaohe.reception_drafts.system_id",
                 "xiaohe.reception_drafts.tenant_id",
             ],
+            deferrable=True,
+            initially="DEFERRED",
         ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("draft_id", "draft_revision"),

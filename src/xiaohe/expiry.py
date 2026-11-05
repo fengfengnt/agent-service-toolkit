@@ -22,6 +22,12 @@ from xiaohe.models import (
     RunAttempt,
     Session,
 )
+from xiaohe.reception.models import (
+    ReceptionDraft,
+    ReceptionFile,
+    ReceptionFlow,
+    ReceptionSubmission,
+)
 from xiaohe.runs import TERMINAL
 
 CLEANUP_BUDGET_SECONDS = 5
@@ -174,6 +180,8 @@ async def _delete_guest_bodies(db, conversation_ids, run_ids):
         )
     await db.flush()
     await db.execute(delete(Event).where(*private_events))
+    for model in (ReceptionSubmission, ReceptionFile, ReceptionFlow, ReceptionDraft):
+        await db.execute(delete(model).where(model.conversation_id.in_(conversation_ids)))
     for model in (Command, RunAttempt):
         await db.execute(delete(model).where(model.conversation_id.in_(conversation_ids)))
     artifact_ids = select(Artifact.id).where(Artifact.conversation_id.in_(conversation_ids))
@@ -245,13 +253,24 @@ async def purge_expired_guest(factory, guest_id: UUID, artifacts) -> bool:
             )
         ).all()
         keys += ["xiaohe.upload:" + str(v.id) for v in versions]
+        reception_files = (
+            await db.scalars(
+                select(ReceptionFile)
+                .where(ReceptionFile.conversation_id.in_(conversation_ids))
+                .with_for_update()
+            )
+        ).all()
+        object_keys = {v.object_key for v in versions}
+        for reception_file in reception_files:
+            object_keys.add(reception_file.object_key)
+            object_keys.update(reception_file.object_keys)
         for key in keys:
             if not await db.scalar(
                 text("SELECT pg_try_advisory_xact_lock(hashtextextended(:key,0))"), {"key": key}
             ):
                 return False
         session.cleanup_stopped_at = session.cleanup_stopped_at or await database_now(db)
-        for version in versions:
+        for object_key in sorted(object_keys):
             # The session/conversation locks prevent claim ownership changes during deletion.
             if artifacts is None:
                 return False
@@ -259,7 +278,7 @@ async def purge_expired_guest(factory, guest_id: UUID, artifacts) -> bool:
                 await progress.execute(
                     insert(GuestObjectTombstone)
                     .values(
-                        object_key=version.object_key,
+                        object_key=object_key,
                         guest_id=guest_id,
                         system_id=session.system_id,
                         tenant_id=session.tenant_id,
@@ -268,17 +287,17 @@ async def purge_expired_guest(factory, guest_id: UUID, artifacts) -> bool:
                 )
                 deleted_at = await progress.scalar(
                     select(GuestObjectTombstone.checked_at).where(
-                        GuestObjectTombstone.object_key == version.object_key
+                        GuestObjectTombstone.object_key == object_key
                     )
                 )
             if deleted_at is not None:
                 continue
-            await artifacts.delete_expired_object(version.object_key)
+            await artifacts.delete_expired_object(object_key)
             # Persist completed external work even when the guest's remaining budget expires.
             async with factory.begin() as progress:
                 await progress.execute(
                     update(GuestObjectTombstone)
-                    .where(GuestObjectTombstone.object_key == version.object_key)
+                    .where(GuestObjectTombstone.object_key == object_key)
                     .values(checked_at=func.clock_timestamp())
                 )
         await _delete_guest_bodies(db, conversation_ids, run_ids)

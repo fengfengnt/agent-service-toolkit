@@ -2,7 +2,10 @@ from typing import Annotated, Literal, Self
 
 from pydantic import Field, model_validator
 
-from xiaohe.contracts import Id, Positive, WireModel
+from xiaohe.contracts import Id as BaseId
+from xiaohe.contracts import Positive, WireModel
+
+Id = Annotated[BaseId, Field(max_length=200)]
 
 Direction = Literal["buyer", "organization", "supplier"]
 DraftKind = Literal["service", "onboarding"]
@@ -56,7 +59,7 @@ class PatchDraft(WireModel):
 class FileRef(WireModel):
     id: Id
     category: FileCategory
-    filename: Annotated[Id, Field(max_length=255)]
+    filename: Annotated[BaseId, Field(max_length=255)]
     media_type: MediaType
     bytes: Annotated[int, Field(strict=True, ge=1, le=33554432)]
     sha256: Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")] | None
@@ -67,6 +70,37 @@ class FileRef(WireModel):
         if self.status == "ready" and self.sha256 is None:
             raise ValueError("ready file requires digest")
         return self
+
+
+class InitFile(WireModel):
+    client_upload_id: Id
+    category: FileCategory
+    filename: Annotated[BaseId, Field(max_length=255)]
+    media_type: MediaType
+    bytes: Positive
+    expected_revision: Positive
+
+    @model_validator(mode="after")
+    def bounded_size(self) -> Self:
+        from xiaohe.contracts import ServiceError
+
+        if self.bytes > 33554432:
+            raise ServiceError("FILE_TOO_LARGE", 413)
+        return self
+
+
+class UploadView(WireModel):
+    file: FileRef
+    upload_path: str
+
+
+class DetachFile(WireModel):
+    expected_revision: Positive
+
+
+class OperationalDownload(WireModel):
+    application_id: Id
+    owner_ai_user_id: Id
 
 
 class DraftView(WireModel):

@@ -28,3 +28,21 @@ def test_implemented_models_follow_shared_examples(case):
     else:
         with pytest.raises((ValidationError, ServiceError)):
             model.model_validate(case["value"])
+
+
+def test_reception_ids_are_bounded_and_filename_keeps_its_own_limit():
+    with pytest.raises(ValidationError):
+        contracts.CreateDraft(client_draft_id="x" * 201, direction="buyer", kind="service")
+    filename = "文" * 251 + ".pdf"
+    assert (
+        contracts.FileRef(
+            id="file",
+            category="case",
+            filename=filename,
+            media_type="application/pdf",
+            bytes=1,
+            sha256=None,
+            status="pending",
+        ).filename
+        == filename
+    )

@@ -89,6 +89,8 @@ def _draft_fk():
             "xiaohe.reception_drafts.system_id",
             "xiaohe.reception_drafts.tenant_id",
         ],
+        deferrable=True,
+        initially="DEFERRED",
     )
 
 
@@ -112,9 +114,15 @@ class ReceptionSubmission(Base):
 
 class ReceptionFile(Base):
     __tablename__ = "reception_files"
-    __table_args__ = (_draft_fk(), CheckConstraint("status IN ('pending','ready','failed')"))
+    __table_args__ = (
+        _draft_fk(),
+        CheckConstraint("status IN ('pending','ready','failed')"),
+        UniqueConstraint("draft_id", "client_upload_id"),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    client_upload_id: Mapped[str]
+    upload_request: Mapped[dict] = mapped_column(JSONB)
     draft_id: Mapped[UUID]
     conversation_id: Mapped[UUID]
     system_id: Mapped[str]
@@ -126,6 +134,7 @@ class ReceptionFile(Base):
     sha256: Mapped[str | None]
     status: Mapped[str] = mapped_column(default="pending")
     object_key: Mapped[str] = mapped_column(unique=True)
+    object_keys: Mapped[list] = mapped_column(JSONB, default=list)
     detached: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.clock_timestamp()

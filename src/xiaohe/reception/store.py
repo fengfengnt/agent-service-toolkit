@@ -1,13 +1,19 @@
+import hashlib
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from xiaohe.contracts import Actor, ServiceError
 from xiaohe.conversations import require_conversation
 from xiaohe.reception.contracts import CreateDraft, DraftRef, DraftView, FileRef, ReceptionView
 from xiaohe.reception.fields import PUBLIC_FIELDS, missing_required, validate_fields
-from xiaohe.reception.models import ReceptionDraft, ReceptionFile, ReceptionFlow
+from xiaohe.reception.models import (
+    ReceptionDraft,
+    ReceptionFile,
+    ReceptionFlow,
+    ReceptionSubmission,
+)
 
 
 def _uuid(value: str | UUID) -> UUID:
@@ -211,3 +217,46 @@ async def load_reception(db: AsyncSession, actor: Actor, conversation_id: UUID) 
         draft_refs=refs,
         active_draft=await draft_view(db, active) if active else None,
     )
+
+
+async def merge_reception(db, source, target):
+    drafts = (
+        await db.scalars(select(ReceptionDraft).where(ReceptionDraft.conversation_id == source.id))
+    ).all()
+    for draft in drafts:
+        if await db.scalar(
+            select(ReceptionDraft.id).where(
+                ReceptionDraft.conversation_id == target.id,
+                ReceptionDraft.client_draft_id == draft.client_draft_id,
+            )
+        ):
+            draft.client_draft_id = (
+                "claim:"
+                + hashlib.sha256((str(source.id) + draft.client_draft_id).encode()).hexdigest()
+            )
+            draft.creation_request = draft.creation_request | {
+                "clientDraftId": draft.client_draft_id
+            }
+        draft.conversation_id = target.id
+    for model in (ReceptionFile, ReceptionSubmission):
+        await db.execute(
+            update(model)
+            .where(model.conversation_id == source.id)
+            .values(conversation_id=target.id)
+        )
+    source_flow = await db.get(ReceptionFlow, source.id)
+    if source_flow is not None:
+        target_flow = await locked_flow(db, target)
+        target_flow.invitation_state = source_flow.invitation_state
+        target_flow.pending_request_id = None
+        remaining = (
+            await db.scalars(
+                select(ReceptionDraft).where(
+                    ReceptionDraft.conversation_id == target.id,
+                    ReceptionDraft.direction == target.direction,
+                    ReceptionDraft.state.in_(["collecting", "review"]),
+                )
+            )
+        ).all()
+        target_flow.active_draft_id = remaining[0].id if len(remaining) == 1 else None
+        await db.delete(source_flow)
