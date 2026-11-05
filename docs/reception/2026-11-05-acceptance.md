@@ -18,8 +18,8 @@
 | C0 | 48项schema正反例、10个状态向量 | reception.v1；主契约v1.0.10，旧六种ChatPart不变 |
 | Java | 56项单元/H2/HTTP/原SSO回归、4项隔离MySQL并发/回滚检查 | 新模块及只读身份适配；现有业务库未执行脚本 |
 | 管理前端 | 6项动作测试、Vite构建、受控浏览器权限/经理/小屏检查 | 全量vue-tsc仍含原有非本次错误；真实管理员登录未替代验收 |
-| AI | 最新全量275项通过，Alembic无漂移 | 真实隔离PG/MinIO、原受理/worker/AG-UI、claim/expiry/fence及文件回归；19条现有依赖警告 |
-| 门户 | 339项单元、184项普通浏览器、23项SSO/接待续接浏览器，类型检查及构建通过 | 原SDK、PKCE、Cookie、草稿冲突、认证恢复及新页面；此前用受控API，和下述J1区分 |
+| AI | 接待及相邻底座套件291项通过，Alembic无漂移 | 真实隔离PG/MinIO、原受理/worker/AG-UI、claim/expiry/fence及文件回归；19条现有依赖警告 |
+| 门户 | 最新341项单元、39项相关普通浏览器、23项SSO/接待续接浏览器，类型检查及构建通过 | 普通184项是修复前一轮全量，本轮针对接待/原聊天/产出物/SDK回归；受控API证据和下述J1区分 |
 | J1 HTTP | 2项通过 | 实际网络、产品Python路由/图/worker、Java生产控制器/服务/过滤器、隔离PG/MySQL/MinIO；精确耗时见证据日志 |
 | J1 Native浏览器 | 1项通过 | 实际Node Runtime、门户构建、SDK、HTTPS网关、原登录绑定及真实业务接口；新增需求后后台申请数为6 |
 
@@ -36,13 +36,15 @@
 | 后台成功响应丢失 | Java先受理再断开响应；AI保持未确定，查询原键恢复；没有重复申请 |
 | Java已受理、AI尚未记回执时杀进程 | 真实杀掉本次API与worker并重启；原队列恢复，同一提交仅一条，原申请回执revision为5，服务申请仍为5条 |
 | 身份和租户隔离 | 来源租户2、业务租户9；跨system拒绝；另一用户进展为空，旧账号CSRF与新Cookie混用403 |
-| Native门户新需求 | 原受权主体预填，独立汇总确认，显示实际受理回执；进展新增一条，MySQL服务申请为6条 |
+| Native门户新需求及穿插答疑 | 原受权主体预填；采集中输入城市后主聊天框答疑产生新卡片，未保存城市仍保留；汇总阶段继续答疑并展示安全Skill答复；独立汇总确认显示实际受理回执，进展新增一条，MySQL服务申请为6条 |
 
 J1发现并修复了实际PG死锁：同一事务连续更新Run会触发session复合外键检查，原认证用户worker先持有conversation、页面先持有session，产生循环等待。现在统一session→conversation→Run；并发用例先失败后通过，原身份/执行期限/撤销语义回归通过。最终J1日志没有deadlock；不以自动重试掩盖。
 
+加强J1还发现主聊天框在waiting_input错发新消息，后端按原规则返回RUN_ACTIVE。共享session现在将当前input_request的主框文本作为对应补充动作受理，历史问题不接收新消息，失败重试仍用原幂等键。没有放松admission或伪造运行状态。该问题单元复现后通过，实际Native闭环也通过。
+
 ## 证据与复验
 
-本次成功证据：[HTTP结果](evidence/2026-11-06-j1/pytest.log)、[浏览器结果](evidence/2026-11-06-j1/browser.log)、[进程恢复回执](evidence/2026-11-06-j1/restart-result.json)、[测试计数](evidence/2026-11-06-j1/dataset.json)、[桌面截图](evidence/2026-11-06-j1/progress-desktop.png)、[手机截图](evidence/2026-11-06-j1/progress-mobile.png)。截图已检查，测试数据全部虚构。
+本次成功证据（最终修复后重新执行，HTTP2项155.83秒、Native浏览器1项17.3秒）：[HTTP结果](evidence/2026-11-06-j1/pytest.log)、[浏览器结果](evidence/2026-11-06-j1/browser.log)、[进程恢复回执](evidence/2026-11-06-j1/restart-result.json)、[测试计数](evidence/2026-11-06-j1/dataset.json)、[桌面截图](evidence/2026-11-06-j1/progress-desktop.png)、[手机截图](evidence/2026-11-06-j1/progress-mobile.png)。截图已检查，测试数据全部虚构。
 
 Windows/WSL环境，在本仓库以现有Python环境执行：
 
@@ -59,4 +61,4 @@ Java在专用HTTP测试容器中桥接MockMvc，执行实际控制器、过滤�
 
 未验证正式短信投递、真实模型效果、正式知识库质量、真实管理员账号全链路、正式CA/备份恢复、生产配置及部署。正式开关保持原状态，未推送或合并到原工作区。
 
-最终一次独立整体代码审阅：待记录；只有审阅及必要修复完成后才作交付结论。
+最终一次独立整体代码审阅已完成：未发现有充分证据的Critical，4项Important已集中修复并经失败用例与回归验证，无延期Minor。具体问题、8项保留裁定与成本见[最终审阅记录](2026-11-06-final-review.md)。没有再分派复审，作者测试不作为第二次独立审阅。当前为隔离分支的实施与本地验证结论，正式环境验收边界仍按上文执行。
