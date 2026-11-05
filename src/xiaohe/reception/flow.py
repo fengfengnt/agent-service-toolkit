@@ -8,15 +8,21 @@ from sqlalchemy import select
 
 from xiaohe.admission import accept_action
 from xiaohe.contracts import AgentOutcome, ServiceError, WireModel, WriteFence
+from xiaohe.conversations import WELCOME
 from xiaohe.models import Command, Conversation, Message
 from xiaohe.reception.contracts import FieldValue, ReceptionAction, SkillContext
-from xiaohe.reception.fields import ROUNDS, map_member_size, missing_required, validate_fields
+from xiaohe.reception.fields import (
+    FIELD_LABELS,
+    ROUNDS,
+    map_member_size,
+    missing_required,
+    validate_fields,
+)
 from xiaohe.reception.models import ReceptionDraft, ReceptionFlow
 from xiaohe.reception.skills import answer_skill
 from xiaohe.reception.store import flow_record, locked_flow, patch_locked_draft, require_draft
 from xiaohe.runs import require_write
 
-WELCOME = "您好，我是小鹤，欢迎来到云鹤智元。请选择您的服务身份：采购商、社群组织或供应商。"
 LABELS = {"buyer": "采购商", "organization": "社群组织", "supplier": "供应商"}
 ALIASES = {
     "buyer": r"采购商|采购方|买方|采购总监|供应链负责人|寻源工程师|数字化负责人",
@@ -70,6 +76,13 @@ def recognize_direction(text: str) -> str | None:
     positive = re.sub(
         rf"(?:不是|并非|不做|不要(?:切换到|换成)?|不想(?:切换到|换成)?)\s*(?:{all_roles})", "", text
     )
+    identities = [
+        direction
+        for direction, aliases in ALIASES.items()
+        if re.search(rf"(?:我是|我们是|我代表|我们代表)\s*(?:{aliases})", positive)
+    ]
+    if len(identities) == 1:
+        return identities[0]
     found = [direction for direction, aliases in ALIASES.items() if re.search(aliases, positive)]
     return found[0] if len(found) == 1 else None
 
@@ -87,6 +100,14 @@ def _explicit_confirmation(text):
             text,
         )
     )
+
+
+def _new_need(text):
+    return bool(re.fullmatch(r"(?:我要|我想|请帮我)?新建(?:一[份个])?需求[。！!\s]*", text.strip()))
+
+
+def _next_round(text):
+    return bool(re.fullmatch(r"保存本轮(?:资料)?|(?:继续)?下一轮", text.strip()))
 
 
 class Candidate(WireModel):
@@ -242,6 +263,9 @@ async def _prepare_reception_step(
             and draft.state in ("collecting", "review")
             and not command.payload.get("reception")
             and not _explicit_confirmation(text)
+            and not _new_need(text)
+            and not _next_round(text)
+            and not _switch(text)
             and text.strip() not in ("查看汇总", "跳过选填", "跳过")
         )
         command_id = command.id
@@ -320,7 +344,7 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
                 select(ReceptionDraft).where(
                     ReceptionDraft.conversation_id == conversation.id,
                     ReceptionDraft.direction == chosen,
-                    ReceptionDraft.state.in_(["collecting", "review"]),
+                    ReceptionDraft.state.in_(["collecting", "review", "submitting"]),
                 )
             )
         ).all()
@@ -333,19 +357,31 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
             OPENERS[chosen],
             suggestions=["寻源慢", "难比价", "想看效果"] if chosen == "buyer" else None,
         )
-    if chosen and chosen != current:
+    if (
+        chosen
+        and chosen != current
+        and re.match(
+            rf"\s*(?:(?:我是|我代表|我们是|我选择)\s*(?:{ALIASES[chosen]})"
+            rf"|(?:{ALIASES[chosen]})\s*(?:[。！!？?\s]*$|怎么用|如何使用|入驻|注册|服务))",
+            text,
+        )
+    ):
         return reply(
             "当前按"
             + LABELS[current]
             + "方向接待。该问题属于其他服务方向；如需更换，请明确告诉我切换到哪个方向。"
         )
-    if flow.active_draft_id is None:
+    new_need = _new_need(text)
+    if new_need:
+        flow.active_draft_id = None
+        flow.invitation_state = "accepted"
+    if flow.active_draft_id is None and not new_need:
         candidates = (
             await db.scalars(
                 select(ReceptionDraft).where(
                     ReceptionDraft.conversation_id == conversation.id,
                     ReceptionDraft.direction == current,
-                    ReceptionDraft.state.in_(["collecting", "review"]),
+                    ReceptionDraft.state.in_(["collecting", "review", "submitting"]),
                 )
             )
         ).all()
@@ -424,17 +460,23 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
                 raise ServiceError("DRAFT_CONFLICT", 409)
             await patch_locked_draft(db, row, snapshot[1], extracted)
         operation = action.get("action")
-        if operation == "save_round":
+        if (operation == "save_round" or _next_round(text)) and row.state in (
+            "collecting",
+            "review",
+        ):
             steps = (
                 ["round1", "round2", "round3"]
                 + (["files"] if current == "supplier" else [])
                 + ["summary"]
             )
-            row.step = steps[min(steps.index(row.step) + 1, len(steps) - 1)]
-            row.revision += 1
-        elif operation in ("skip_optional", "show_summary") or re.fullmatch(
-            r"跳过(?:选填)?|查看汇总|查看资料汇总", text.strip()
-        ):
+            next_step = steps[min(steps.index(row.step) + 1, len(steps) - 1)]
+            if next_step != row.step:
+                row.step = next_step
+                row.revision += 1
+        elif (
+            operation in ("skip_optional", "show_summary")
+            or re.fullmatch(r"跳过(?:选填)?|查看汇总|查看资料汇总", text.strip())
+        ) and row.state in ("collecting", "review"):
             if row.step != "summary":
                 row.step = "summary"
                 row.revision += 1
@@ -462,7 +504,11 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
         if row.state == "review":
             missing = missing_required(current, row.fields)
             return reply(
-                ("还缺少最低提交资料：" + "、".join(missing) + "。" if missing else "")
+                (
+                    "还缺少最低提交资料：" + "、".join(FIELD_LABELS[key] for key in missing) + "。"
+                    if missing
+                    else ""
+                )
                 + "请核对右侧当前资料汇总；可以修改，确认无误后再明确提交。"
             )
         if row.state == "submitting":
@@ -479,7 +525,9 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
         return reply(
             (skill.text + "\n\n" if skill else "")
             + (
-                "请补充本轮资料，选填内容可以跳过；保存本轮只保存当前信息。"
+                "本轮可以提供："
+                + "、".join(FIELD_LABELS[key] for key in ROUNDS[current][int(row.step[-1]) - 1])
+                + "。选填内容可以跳过；保存本轮只保存当前信息。"
                 if row.step != "files"
                 else "可以选填上传企业材料，也可以直接查看汇总。"
             )

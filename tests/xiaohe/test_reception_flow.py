@@ -43,10 +43,43 @@ def test_member_size_maps_clear_counts_and_clarifies_endpoints(text, expected):
         ("采购商或供应商都可以", None),
         ("不要切换到供应商", None),
         ("我是采购总监", "buyer"),
+        ("我是供应商，想找采购商", "supplier"),
     ],
 )
 def test_negation_and_two_roles_clarify(text, expected):
     assert recognize_direction(text) == expected
+
+
+@pytest.mark.pg
+@pytest.mark.asyncio
+async def test_buyer_supplier_question_is_answered_and_natural_round_controls_work(
+    pg_factory, runtime_env, monkeypatch
+):
+    await install(pg_factory, runtime_env, monkeypatch)
+    _, token = await login(pg_factory)
+    initial, _, _ = await bootstrap(pg_factory, token)
+    who, conversation = await actor(pg_factory, token), UUID(initial.conversation_id)
+    await talk(pg_factory, runtime_env, who, conversation, "采购商")
+    message, view = await talk(pg_factory, runtime_env, who, conversation, "怎么筛选可信供应商？")
+    assert view.direction == "buyer" and "其他服务方向" not in message.model_dump_json()
+    assert "寻源" in message.model_dump_json()
+    message, view = await talk(pg_factory, runtime_env, who, conversation, "供应商资质怎么核实？")
+    assert view.direction == "buyer" and "其他服务方向" not in message.model_dump_json()
+    message, view = await talk(pg_factory, runtime_env, who, conversation, "我愿意登记需求")
+    assert "企业名称" in message.model_dump_json()
+    assert "companyName" not in message.model_dump_json()
+    draft = view.active_draft
+    async with pg_factory.begin() as db:
+        await patch_draft(db, who, draft.id, draft.revision, {"companyName": "甲公司"})
+    for text, step in [("保存本轮", "round2"), ("继续下一轮", "round3"), ("下一轮", "summary")]:
+        message, view = await talk(pg_factory, runtime_env, who, conversation, text)
+        assert view.active_draft.step == step
+    assert view.active_draft.state == "review"
+    revision = view.active_draft.revision
+    _, view = await talk(pg_factory, runtime_env, who, conversation, "下一轮")
+    assert view.active_draft.revision == revision == view.active_draft.summary_version
+    _, view = await talk(pg_factory, runtime_env, who, conversation, "好的")
+    assert view.active_draft.state == "review"
 
 
 async def install(pg_factory, runtime_env, monkeypatch, business_client=None):

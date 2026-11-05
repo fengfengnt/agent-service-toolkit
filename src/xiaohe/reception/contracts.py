@@ -3,7 +3,7 @@ from typing import Annotated, Literal, Self
 from pydantic import Field, model_validator
 
 from xiaohe.contracts import Id as BaseId
-from xiaohe.contracts import Positive, WireModel
+from xiaohe.contracts import InputId, Positive, UtcTime, WireModel
 
 Id = Annotated[BaseId, Field(max_length=200)]
 
@@ -141,8 +141,8 @@ class ReceptionView(WireModel):
 
 
 class ReceptionAction(WireModel):
-    client_action_id: Id
-    request_id: Id
+    client_action_id: InputId
+    request_id: InputId
     expected_revision: Positive
     action: Literal["save_round", "skip_optional", "show_summary", "confirm", "resume"]
     summary_version: Positive | None = None
@@ -355,3 +355,58 @@ class IntentReceipt(WireModel):
     id: Id
     application_id: Id
     status: Literal["recorded"]
+
+
+class PageCursor(WireModel):
+    cursor: Id | None = None
+
+
+class SubjectQuery(PageCursor):
+    kind: Literal["company", "organization"]
+
+
+class PublicRecord(WireModel):
+    id: Id
+    created_at: UtcTime
+    text: Annotated[BaseId, Field(max_length=4000)]
+
+
+class OnboardingView(WireModel):
+    id: Id
+    revision: Positive
+    stage: Literal["submitted", "awaiting_materials", "approved", "onboarded", "closed"]
+    public_records: list[PublicRecord]
+
+
+class ManagerView(WireModel):
+    id: Id
+    name: Annotated[BaseId, Field(max_length=100)]
+
+
+class ProgressApplication(WireModel):
+    id: Id
+    direction: Direction
+    summary: Annotated[str, Field(max_length=4000)]
+    submitted_at: UtcTime
+    stage: Literal["recorded", "communicating", "awaiting_user", "completed", "closed"]
+    manager: ManagerView | None
+    grade: Annotated[str, Field(max_length=200)] | None
+    expected_contact_at: UtcTime | None
+    public_records: list[PublicRecord]
+    onboarding: OnboardingView | None
+
+
+class ProgressGroup(WireModel):
+    subject_id: Id
+    subject_name: Annotated[BaseId, Field(max_length=200)]
+    applications: list[ProgressApplication]
+
+
+class ProgressPage(WireModel):
+    groups: list[ProgressGroup]
+    next_cursor: Id | None
+
+
+class SubmissionEnvelope(WireModel):
+    actor: ReceptionActor
+    payload: Submission

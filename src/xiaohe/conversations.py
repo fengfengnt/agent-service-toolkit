@@ -16,6 +16,7 @@ from xiaohe.contracts import (
 from xiaohe.identity import CSRF_HEADER, require_session
 from xiaohe.models import Conversation, Event, GuestClaim, Message, Project, Run, User
 
+WELCOME = "您好，我是小鹤，欢迎来到云鹤智元。请选择您的服务身份：采购商、社群组织或供应商。"
 
 async def default_conversation(db: AsyncSession, actor: Actor) -> Conversation:
     await require_session(db, actor)
@@ -107,7 +108,7 @@ async def ensure_welcome(db: AsyncSession, conversation: Conversation) -> None:
         tenant_id=conversation.tenant_id,
         role="assistant",
         parts=[
-            {"type": "text", "text": "您好，我是小鹤，欢迎来到云鹤智元。请选择您的服务身份：采购商、社群组织或供应商。"},
+            {"type": "text", "text": WELCOME},
             {
                 "type": "suggestions",
                 "items": [

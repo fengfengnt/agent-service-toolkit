@@ -10,7 +10,7 @@ from xiaohe.reception import contracts
 
 ROOT = Path(__file__).parent / "contracts"
 FIXTURES = json.loads((ROOT / "reception-fixtures.json").read_text("utf-8"))
-CASES = [case for case in FIXTURES["schemaCases"] if hasattr(contracts, case["type"])]
+CASES = FIXTURES["schemaCases"]
 
 
 def test_reception_schema_snapshot_matches_master_digest():
@@ -46,3 +46,16 @@ def test_reception_ids_are_bounded_and_filename_keeps_its_own_limit():
         ).filename
         == filename
     )
+
+
+@pytest.mark.parametrize("key", ["clientActionId", "requestId"])
+def test_reception_actions_keep_original_admission_identifier_limit(key):
+    action = {
+        "clientActionId": "a",
+        "requestId": "q",
+        "expectedRevision": 1,
+        "action": "save_round",
+    }
+    contracts.ReceptionAction.model_validate(action | {key: "x" * 128})
+    with pytest.raises(ValidationError):
+        contracts.ReceptionAction.model_validate(action | {key: "x" * 129})

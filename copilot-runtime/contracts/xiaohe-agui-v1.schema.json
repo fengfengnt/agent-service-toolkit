@@ -2895,5 +2895,5 @@
       "$ref": "#/$defs/StreamEvent"
     }
   ],
-  "$comment": "由唯一主合同§10提取；文档v1.0.8；SHA256 4edf68301c226f6cb820d852796346a39b87984264ab31a29804abc4538b1522；源 D:/Code/yunhezhiyuan-agents/docs/contracts/2026-11-03-xiaohe-integration-v1.md"
+  "$comment": "由唯一主合同§10提取；文档v1.0.8；SHA256 d67c84955b056549fcc5ffa73af64ae5acd09809afb2638b17765795a50a5cce；源 D:/Code/yunhezhiyuan-agents/docs/contracts/2026-11-03-xiaohe-integration-v1.md"
 }

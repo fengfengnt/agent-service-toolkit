@@ -93,6 +93,11 @@ class ReceptionBusinessClient:
     async def subjects(self, actor: ReceptionActor, query: dict) -> SubjectPage:
         return await self._post("subjects/query", actor, query, SubjectPage)
 
+    async def progress(self, actor, query):
+        from xiaohe.reception.contracts import ProgressPage
+
+        return await self._post("progress/query", actor, query, ProgressPage)
+
     async def onboarding(self, actor, request):
         return await self._post("onboarding/submit", actor, request, SubmitReceipt)
 

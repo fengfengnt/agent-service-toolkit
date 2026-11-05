@@ -1377,10 +1377,16 @@
       "type": "object",
       "properties": {
         "clientActionId": {
-          "$ref": "#/$defs/Id"
+          "type": "string",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "\\S"
         },
         "requestId": {
-          "$ref": "#/$defs/Id"
+          "type": "string",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "\\S"
         },
         "expectedRevision": {
           "$ref": "#/$defs/Revision"

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "reception.v1",
-  "schemaSha256": "3b4028c4630c842513a1ace1cd1e74dea6cc3fb7c5ceddb23c53a410d862c2c2",
+  "schemaSha256": "e310762f5c78970454c4ccfe0de279dcf9ebb20ccdf396a4af4a75f43b9893dc",
   "schemaCases": [
     {
       "name": "buyer-name-only",
@@ -469,6 +469,54 @@
         "summaryVersion": 2
       },
       "valid": true
+    },
+    {
+      "name": "clientActionId-128-valid",
+      "type": "ReceptionAction",
+      "value": {
+        "clientActionId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "requestId": "request-1",
+        "expectedRevision": 2,
+        "action": "confirm",
+        "summaryVersion": 2
+      },
+      "valid": true
+    },
+    {
+      "name": "clientActionId-129-rejected",
+      "type": "ReceptionAction",
+      "value": {
+        "clientActionId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "requestId": "request-1",
+        "expectedRevision": 2,
+        "action": "confirm",
+        "summaryVersion": 2
+      },
+      "valid": false
+    },
+    {
+      "name": "requestId-128-valid",
+      "type": "ReceptionAction",
+      "value": {
+        "clientActionId": "action-1",
+        "requestId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expectedRevision": 2,
+        "action": "confirm",
+        "summaryVersion": 2
+      },
+      "valid": true
+    },
+    {
+      "name": "requestId-129-rejected",
+      "type": "ReceptionAction",
+      "value": {
+        "clientActionId": "action-1",
+        "requestId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expectedRevision": 2,
+        "action": "confirm",
+        "summaryVersion": 2
+      },
+      "valid": false
     },
     {
       "name": "confirm-summary-missing",

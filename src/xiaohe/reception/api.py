@@ -3,16 +3,20 @@ from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Request, Response
+from pydantic import ValidationError
 
 from xiaohe.api import _actor, _body
 from xiaohe.contracts import ServiceError
+from xiaohe.models import User
 from xiaohe.reception.contracts import (
     CreateDraft,
     DetachFile,
     InitFile,
     OperationalDownload,
+    PageCursor,
     PatchDraft,
     ReceptionAction,
+    SubjectQuery,
 )
 from xiaohe.reception.files import (
     detach_file,
@@ -23,11 +27,42 @@ from xiaohe.reception.files import (
 )
 from xiaohe.reception.flow import apply_reception_action
 from xiaohe.reception.store import create_draft, load_reception, patch_draft
-from xiaohe.reception.submission import create_draft_from_business
+from xiaohe.reception.submission import actor_from_user, create_draft_from_business
 
 
 def create_reception_router(factory, business_client=None):
     router = APIRouter(prefix="/ai-api/v1/reception")
+
+    async def business_query(request, model, method):
+        query = request.query_params
+        if len(query.multi_items()) != len(query):
+            raise ServiceError("INPUT_INVALID", 422)
+        try:
+            payload = model.model_validate(dict(query)).model_dump(
+                mode="json", by_alias=True, exclude_unset=True
+            )
+        except ValidationError:
+            raise ServiceError("INPUT_INVALID", 422) from None
+        async with factory.begin() as db:
+            actor = await _actor(request, db)
+            if actor.user_id is None:
+                raise ServiceError("AUTH_REQUIRED", 401)
+            authority = actor_from_user(await db.get(User, actor.user_id))
+        if business_client is None:
+            raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
+        result = await getattr(business_client, method)(authority, payload)
+        async with factory.begin() as db:
+            if await _actor(request, db) != actor:
+                raise ServiceError("AUTH_REQUIRED", 401)
+        return result.model_dump(mode="json", by_alias=True)
+
+    @router.get("/subjects")
+    async def subjects(request: Request):
+        return await business_query(request, SubjectQuery, "subjects")
+
+    @router.get("/progress")
+    async def progress(request: Request):
+        return await business_query(request, PageCursor, "progress")
 
     def storage(request):
         service = getattr(request.app.state, "xiaohe_artifacts", None)

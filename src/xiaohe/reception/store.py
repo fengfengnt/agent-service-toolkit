@@ -256,7 +256,7 @@ async def merge_reception(db, source, target):
                 select(ReceptionDraft).where(
                     ReceptionDraft.conversation_id == target.id,
                     ReceptionDraft.direction == target.direction,
-                    ReceptionDraft.state.in_(["collecting", "review"]),
+                    ReceptionDraft.state.in_(["collecting", "review", "submitting"]),
                 )
             )
         ).all()
