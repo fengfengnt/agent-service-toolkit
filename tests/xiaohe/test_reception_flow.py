@@ -52,6 +52,27 @@ def test_negation_and_two_roles_clarify(text, expected):
 
 @pytest.mark.pg
 @pytest.mark.asyncio
+async def test_explicit_new_draft_api_choice_can_start_original_worker_without_prior_role_turn(
+    pg_factory, runtime_env, monkeypatch
+):
+    await install(pg_factory, runtime_env, monkeypatch)
+    _, token = await login(pg_factory)
+    initial, _, _ = await bootstrap(pg_factory, token)
+    who, conversation = await actor(pg_factory, token), UUID(initial.conversation_id)
+    async with pg_factory.begin() as db:
+        created = await create_draft(
+            db,
+            who,
+            conversation,
+            CreateDraft(client_draft_id="explicit", kind="service", direction="supplier"),
+        )
+    message, view = await talk(pg_factory, runtime_env, who, conversation, "继续采集资料")
+    assert view.direction == "supplier" and view.active_draft.id == created.id
+    assert "企业名称" in message.model_dump_json()
+
+
+@pytest.mark.pg
+@pytest.mark.asyncio
 async def test_buyer_supplier_question_is_answered_and_natural_round_controls_work(
     pg_factory, runtime_env, monkeypatch
 ):

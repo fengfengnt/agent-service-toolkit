@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from xiaohe.contracts import Actor, ServiceError
 from xiaohe.conversations import require_conversation
+from xiaohe.models import Conversation
 from xiaohe.reception.contracts import CreateDraft, DraftRef, DraftView, FileRef, ReceptionView
 from xiaohe.reception.fields import PUBLIC_FIELDS, missing_required, validate_fields
 from xiaohe.reception.models import (
@@ -156,6 +157,8 @@ async def create_draft(
         row.fields = validate_fields(request.direction, row.fields)
     db.add(row)
     await db.flush()
+    conversation = await db.get(Conversation, conversation_id)
+    conversation.direction = request.direction
     flow.active_draft_id = row.id
     return await draft_view(db, row)
 
