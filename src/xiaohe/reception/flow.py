@@ -237,9 +237,18 @@ async def _prepare_reception_step(
         flow = await locked_flow(db, conversation)
         draft = await db.get(ReceptionDraft, flow.active_draft_id) if flow.active_draft_id else None
         snapshot = (draft.id, draft.revision, draft.direction, draft.step) if draft else None
+        may_extract = (
+            draft is not None
+            and draft.state in ("collecting", "review")
+            and not command.payload.get("reception")
+            and not _explicit_confirmation(text)
+            and text.strip() not in ("查看汇总", "跳过选填", "跳过")
+        )
         command_id = command.id
         direction = conversation.direction
-    extracted = await _extract(model, snapshot[2], snapshot[3], text) if snapshot else {}
+    extracted = (
+        await _extract(model, snapshot[2], snapshot[3], text) if snapshot and may_extract else {}
+    )
     skill = None
     if direction in TOPICS:
         topic = next(
@@ -494,8 +503,12 @@ async def run_reception_step(
     factory, fence, model=None, knowledge_query=None, business_client=None
 ):
     from xiaohe.reception.models import ReceptionSubmission
+    from xiaohe.reception.organization import INTENT_LABELS, run_organization_step, sample_answer
     from xiaohe.reception.submission import submit_confirmed
 
+    specialized = await run_organization_step(factory, fence, business_client)
+    if specialized is not None:
+        return specialized
     outcome = await _prepare_reception_step(factory, fence, model, knowledge_query)
     async with factory.begin() as db:
         run = await require_write(db, fence)
@@ -539,16 +552,28 @@ async def run_reception_step(
         submission = await db.get(ReceptionSubmission, submission_id)
         draft = await db.get(ReceptionDraft, submission.draft_id)
         name = draft.fields.get("companyName") or draft.fields.get("organizationName") or "本次"
-        result = AgentOutcome(
-            parts=[
+        message = (
+            name + "的入驻申请已记录，待后台人工审核；请到“我的进展”查看真实进度。"
+            if draft.kind == "onboarding"
+            else name
+            + "的"
+            + LABELS[draft.direction]
+            + "需求已记录；请在“我的进展”查看后续安排与实际跟进状态。"
+        )
+        parts = [{"type": "text", "text": message}]
+        if draft.direction == "organization" and draft.kind == "service":
+            parts[0]["text"] += "\n\n" + (await sample_answer()).text
+            parts.append(
                 {
-                    "type": "text",
-                    "text": name
-                    + "的"
-                    + LABELS[draft.direction]
-                    + "需求已记录；请在“我的进展”查看后续安排与实际跟进状态。",
+                    "type": "suggestions",
+                    "items": [
+                        {"id": kind, "text": label}
+                        for kind, label in {**INTENT_LABELS, "onboarding": "提交入驻资料"}.items()
+                    ],
                 }
-            ],
+            )
+        result = AgentOutcome(
+            parts=parts,
             wait_for_input=False,
             artifact_version_ids=[],
         )

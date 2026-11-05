@@ -126,8 +126,6 @@ async def create_draft(
         **request.model_dump(),
     )
     if source is not None:
-        if request.kind != "service":
-            raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
         if request.source_application_id:
             if (
                 source.id != request.source_application_id
@@ -137,7 +135,11 @@ async def create_draft(
             ):
                 raise ServiceError("FORBIDDEN", 403)
             row.subject_id = source.subject_id
-            row.source_revision = source.revision
+            row.source_revision = (
+                source.revision
+                if request.kind == "service" or request.source_onboarding_id
+                else None
+            )
             row.fields = source.public_fields | source.request_fields
             row.source_files = [
                 file.model_dump(mode="json", by_alias=True) for file in source.files

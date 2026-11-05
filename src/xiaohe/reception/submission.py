@@ -4,7 +4,12 @@ from sqlalchemy import select
 
 from xiaohe.contracts import ServiceError
 from xiaohe.models import Command, Message, Run, User
-from xiaohe.reception.contracts import ReceptionActor, Submission, SubmitReceipt
+from xiaohe.reception.contracts import (
+    OnboardingSubmission,
+    ReceptionActor,
+    Submission,
+    SubmitReceipt,
+)
 from xiaohe.reception.fields import PUBLIC_FIELDS, missing_required
 from xiaohe.reception.models import ReceptionDraft, ReceptionFile, ReceptionSubmission
 from xiaohe.reception.store import create_draft, require_draft
@@ -111,22 +116,33 @@ async def confirm_locked_draft(db, row, expected_revision, summary_version, mess
     private = {
         key: value for key, value in row.fields.items() if key not in PUBLIC_FIELDS[row.direction]
     }
-    if row.kind != "service":
-        raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
-    payload = Submission(
+    shared = dict(
         submission_key=key,
         draft_id=str(row.id),
         draft_revision=row.revision,
-        operation="update" if row.source_application_id else "create",
-        application_id=row.source_application_id,
-        expected_application_revision=row.source_revision if row.source_application_id else None,
-        subject_id=row.subject_id,
-        subject_kind="organization" if row.direction == "organization" else "company",
-        direction=row.direction,
         public_fields=public,
         request_fields=private,
         files=refs,
     )
+    if row.kind == "onboarding":
+        payload = OnboardingSubmission(
+            **shared,
+            application_id=row.source_application_id,
+            onboarding_id=row.source_onboarding_id,
+            expected_onboarding_revision=row.source_revision if row.source_onboarding_id else None,
+        )
+    else:
+        payload = Submission(
+            **shared,
+            operation="update" if row.source_application_id else "create",
+            application_id=row.source_application_id,
+            expected_application_revision=row.source_revision
+            if row.source_application_id
+            else None,
+            subject_id=row.subject_id,
+            subject_kind="organization" if row.direction == "organization" else "company",
+            direction=row.direction,
+        )
     submission = ReceptionSubmission(
         draft_id=row.id,
         conversation_id=row.conversation_id,
@@ -164,7 +180,10 @@ async def submit_confirmed(factory, fence, submission_id, client) -> SubmitRecei
             raise ServiceError("DRAFT_CONFLICT", 409)
         user = await db.get(User, run.user_id)
         actor = actor_from_user(user)
-        payload = Submission.model_validate(row.payload)
+        kind = draft.kind
+        payload = (OnboardingSubmission if kind == "onboarding" else Submission).model_validate(
+            row.payload
+        )
     if client is None:
         raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
     try:
@@ -172,7 +191,11 @@ async def submit_confirmed(factory, fence, submission_id, client) -> SubmitRecei
         if result.status == "accepted":
             receipt = result.receipt
         elif result.status == "not_found":
-            receipt = await client.submit(actor, payload)
+            receipt = await (
+                client.onboarding(actor, payload)
+                if kind == "onboarding"
+                else client.submit(actor, payload)
+            )
         else:
             raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
     except ServiceError as error:
@@ -195,9 +218,12 @@ async def submit_confirmed(factory, fence, submission_id, client) -> SubmitRecei
     if (
         receipt.status != "accepted"
         or receipt.submission_key != payload.submission_key
-        or receipt.kind != "service"
+        or receipt.kind != kind
         or payload.application_id is not None
         and receipt.application_id != payload.application_id
+        or kind == "onboarding"
+        and payload.onboarding_id is not None
+        and receipt.onboarding_id != payload.onboarding_id
     ):
         raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
     async with factory.begin() as db:
@@ -216,11 +242,17 @@ async def submit_confirmed(factory, fence, submission_id, client) -> SubmitRecei
         return receipt
 
 
-async def create_draft_from_business(factory, actor, conversation_id, request, client):
+async def create_draft_from_business(
+    factory, actor, conversation_id, request, client, *, fence=None
+):
     from xiaohe.conversations import require_conversation
 
     async with factory.begin() as db:
         await require_conversation(db, actor, conversation_id)
+        if fence is not None:
+            run = await require_write(db, fence)
+            if run.conversation_id != conversation_id or run.user_id != actor.user_id:
+                raise ServiceError("FORBIDDEN", 403)
         if actor.user_id is None:
             raise ServiceError("AUTH_REQUIRED", 401)
         existing = await db.scalar(
@@ -235,10 +267,25 @@ async def create_draft_from_business(factory, actor, conversation_id, request, c
         trusted = actor_from_user(user)
     if client is None:
         raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
-    if request.kind != "service":
-        raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
     if request.source_application_id:
         source = await client.application(trusted, request.source_application_id)
+        if request.source_onboarding_id:
+            current = await client.onboarding_application(
+                trusted, request.source_application_id, request.source_onboarding_id
+            )
+            if (
+                current.application_id != request.source_application_id
+                or current.id != request.source_onboarding_id
+            ):
+                raise ServiceError("FORBIDDEN", 403)
+            source = source.model_copy(
+                update={
+                    "public_fields": current.public_fields,
+                    "request_fields": current.request_fields,
+                    "files": current.files,
+                    "revision": current.revision,
+                }
+            )
     else:
         source, cursor, seen = None, None, set()
         while True:
@@ -261,4 +308,7 @@ async def create_draft_from_business(factory, actor, conversation_id, request, c
         if source is None:
             raise ServiceError("FORBIDDEN", 403)
     async with factory.begin() as db:
+        if fence is not None:
+            await require_conversation(db, actor, conversation_id)
+            await require_write(db, fence)
         return await create_draft(db, actor, conversation_id, request, source=source)

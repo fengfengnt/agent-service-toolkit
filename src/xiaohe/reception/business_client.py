@@ -5,6 +5,8 @@ import httpx
 from xiaohe.contracts import ServiceError
 from xiaohe.reception.contracts import (
     ApplicationView,
+    IntentReceipt,
+    OnboardingApplicationView,
     ReceptionActor,
     SubjectPage,
     Submission,
@@ -90,3 +92,17 @@ class ReceptionBusinessClient:
 
     async def subjects(self, actor: ReceptionActor, query: dict) -> SubjectPage:
         return await self._post("subjects/query", actor, query, SubjectPage)
+
+    async def onboarding(self, actor, request):
+        return await self._post("onboarding/submit", actor, request, SubmitReceipt)
+
+    async def onboarding_application(self, actor, application_id, onboarding_id):
+        return await self._post(
+            "onboarding/get",
+            actor,
+            {"applicationId": application_id, "onboardingId": onboarding_id},
+            OnboardingApplicationView,
+        )
+
+    async def intent(self, actor, request):
+        return await self._post("intents", actor, request, IntentReceipt)

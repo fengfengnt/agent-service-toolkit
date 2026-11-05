@@ -309,3 +309,49 @@ class SubjectView(WireModel):
 class SubjectPage(WireModel):
     items: list[SubjectView]
     next_cursor: Id | None
+
+
+class OnboardingSubmission(WireModel):
+    submission_key: Id
+    draft_id: Id
+    draft_revision: Positive
+    application_id: Id
+    onboarding_id: Id | None = None
+    expected_onboarding_revision: Positive | None = None
+    public_fields: dict[str, FieldValue]
+    request_fields: dict[str, FieldValue]
+    files: list[FileRef]
+
+    @model_validator(mode="after")
+    def valid_onboarding(self) -> Self:
+        _check_formal_fields("organization", self.public_fields, self.request_fields, self.files)
+        if (self.onboarding_id is None) != (self.expected_onboarding_revision is None):
+            raise ValueError("update requires current onboarding revision")
+        return self
+
+
+class OnboardingApplicationView(WireModel):
+    id: Id
+    application_id: Id
+    revision: Positive
+    stage: Literal["submitted", "awaiting_materials", "approved", "onboarded", "closed"]
+    public_fields: dict[str, FieldValue]
+    request_fields: dict[str, FieldValue]
+    files: list[FileRef]
+
+    @model_validator(mode="after")
+    def valid_onboarding(self) -> Self:
+        _check_formal_fields("organization", self.public_fields, self.request_fields, self.files)
+        return self
+
+
+class IntentRequest(WireModel):
+    client_intent_id: Id
+    application_id: Id
+    intent: Literal["solution_discussion", "sample_demo", "cooperation_handbook"]
+
+
+class IntentReceipt(WireModel):
+    id: Id
+    application_id: Id
+    status: Literal["recorded"]
