@@ -32,11 +32,11 @@
 
 **Interfaces:** 消费锁定原发布物；产出`npm run patch:security`、默认postinstall及`--check`只读模式，保留版本和依赖锁。每次变更前验证全批。
 
-- [ ] 写实际5个Zod包ESM/CJS、数组/Set有界样本及许可版本4.6.7的RED；先用`node tests/run.mjs dependency-security`运行，Expected:旧3.25.76的元素仍被访问，许可仍4.3.6，不是只因缺文件失败。
-- [ ] 写补丁安装/幂等/版本与内容漂移/全批预检测试及许可功能离线正负测试；不得改产品信任锚，合成签名只在临时测试副本中使用临时公钥，私钥仅内存。
-- [ ] 实现最小回移和许可region外置，固定before/after SHA；接入正常npm与Docker显式链，更新旧残留断言为新提前拒绝行为。
-- [ ] `npm test`、`npm run typecheck`、`npm run build`、编译入口定向验证。Expected:原42+新增全通过，严格编译exit0，正常许可/拒绝与原有HTTP行为不变。
-- [ ] 精确提交本任务并task-done，不推送或部署。
+- [x] 写实际5个Zod包ESM/CJS、数组/Set有界样本及许可版本4.6.7的RED；先用`node tests/run.mjs dependency-security`运行，Expected:旧3.25.76的元素仍被访问，许可仍4.3.6，不是只因缺文件失败。
+- [x] 写补丁安装/幂等/版本与内容漂移/全批预检测试及许可功能离线正负测试；不得改产品信任锚，合成签名只在临时测试副本中使用临时公钥，私钥仅内存。
+- [x] 实现最小回移和许可region外置，固定before/after SHA；接入正常npm与Docker显式链，更新旧残留断言为新提前拒绝行为。固定tuple既有上限按ledger裁定同时回移，带rest保持。
+- [x] `npm test`、`npm run typecheck`、`npm run build`、编译入口定向验证。Expected:原42+新增全通过，严格编译exit0，正常许可/拒绝与原有HTTP行为不变。
+- [x] 精确提交本任务并task-done，不推送或部署。
 
 ### Task 2: 独立Linux门与验收
 
@@ -44,5 +44,9 @@
 
 **Interfaces:** 消费Task1固定提交，按原隔离约定构建新tag，验证实际安装补丁与入口；不使用旧tag或替换现有容器。
 
-- [ ] 固定来源与新镜像身份、断网/无秘密、nonroot临时容器运行新安全门和health/info。Expected:与Windows结果一致，现场旧容器保留，临时容器仅清本方创建项。
-- [ ] 保存各原/后摘要、版本树、audit网络失败与未设限范围、历史G2复用及旧运行镜像差异；一次整批fresh-context审查，按执行技能处理真实阻塞，不重复上一批review。
+- [x] 固定来源与新镜像身份、断网/无秘密、nonroot临时容器运行新安全门和health/info。Expected:与Windows结果一致，现场旧容器保留，临时容器仅清本方创建项。
+- [x] 保存各原/后摘要、版本树、audit网络失败与未设限范围、历史G2复用及旧运行镜像差异。
+
+## Final Review
+
+- [ ] 全部任务证据完成后，对本批源码做一次fresh-context审查，按执行技能处理真实阻塞，不重复上一批review。

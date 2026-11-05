@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-11-05T07:11:27.323Z",
+  "sourceRevision": "af2e6a21d49bbc35fc2adc36dcc1fe243275f457",
+  "imageTag": "yunhezhiyuan-aibackend-copilotruntime:spike-af2e6a2",
+  "lockSha256": "8a0d2227a4d27403556c17dfc5d2fc06795a6ee351f4c4c278151245ab491f4b",
+  "archiveSha256": "5ed5be177e6fa79bc7b4f3c54ee6f3a0811dcefb4fae4b694840d9638679221e",
+  "windows": {
+    "suite": {
+      "pass": 61,
+      "fail": 0,
+      "skipped": 0
+    },
+    "strict": "PASS",
+    "build": "PASS",
+    "compiledEntryAndFactory": {
+      "pass": 4,
+      "fail": 0
+    }
+  },
+  "freshLinuxInstall": {
+    "patchId": "xiaohe-dependencies-20261105",
+    "verified": 12,
+    "applied": 12,
+    "checkOnly": false
+  },
+  "offline": {
+    "result": "PASS",
+    "layer": "Linux production image / network none / no secrets",
+    "node": "v24.21.0",
+    "platform": "linux",
+    "architecture": "x64",
+    "uid": 1000,
+    "entry": {
+      "versions": [
+        "4.6.7"
+      ],
+      "cjsVersion": {
+        "major": 4,
+        "minor": 6,
+        "patch": 7
+      },
+      "visits": 0,
+      "issues": 1,
+      "legacyVersion": "3.25.76"
+    },
+    "health": 200,
+    "info": 200,
+    "rootZod": "4.6.7",
+    "legacyZod": "3.25.76",
+    "runtime": "1.84.1",
+    "publicSubpaths": 5,
+    "invalidSubpaths": 5,
+    "prototypeMinorStillDeferred": true,
+    "installedPatch": {
+      "patchId": "xiaohe-dependencies-20261105",
+      "verified": 12,
+      "applied": 0,
+      "checkOnly": true
+    },
+    "securityTests": {
+      "total": 19,
+      "pass": 19,
+      "fail": 0
+    },
+    "embeddedLicenseVersion": {
+      "major": 4,
+      "minor": 6,
+      "patch": 7
+    },
+    "image": {
+      "id": "sha256:97487c6d389e18136c5c8129f843e28e77f87db6a8b389accad90262966370b4",
+      "repoDigests": [
+        "yunhezhiyuan-aibackend-copilotruntime@sha256:97487c6d389e18136c5c8129f843e28e77f87db6a8b389accad90262966370b4"
+      ],
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "cmd": [
+        "node",
+        "dist/index.js"
+      ],
+      "revision": "af2e6a21d49bbc35fc2adc36dcc1fe243275f457"
+    },
+    "network": "none",
+    "removedOwnContainer": true
+  },
+  "network": {
+    "result": "PASS",
+    "layer": "new Linux image -> existing candidate Python via verified HTTPS",
+    "verifiedTLS": true,
+    "bootstrap": 200,
+    "health": 200,
+    "info": 200,
+    "connect": 200,
+    "snapshot": 200,
+    "eventTypes": [
+      "MESSAGES_SNAPSHOT",
+      "STATE_SNAPSHOT"
+    ],
+    "readonlyGatewayCalls": [
+      {
+        "method": "POST",
+        "path": "/copilot-candidate/ai-api/v1/agui/status"
+      },
+      {
+        "method": "POST",
+        "path": "/copilot-candidate/ai-api/v1/agui/connect"
+      }
+    ],
+    "userMessages": 0,
+    "preservedWelcomeMessages": 1,
+    "quotaUnchanged": true,
+    "originalDeadlineUnchanged": true,
+    "activeRun": false,
+    "cookiesPersisted": false,
+    "modelCalls": 0,
+    "smsCalls": 0,
+    "existingSessionsUsed": false,
+    "imageId": "sha256:97487c6d389e18136c5c8129f843e28e77f87db6a8b389accad90262966370b4",
+    "revision": "af2e6a21d49bbc35fc2adc36dcc1fe243275f457",
+    "removedOwnContainer": true
+  },
+  "preservation": {
+    "result": "PASS",
+    "checkedAt": "2026-11-05T07:11:27.323Z",
+    "protectedContainersUnchanged": 8,
+    "unchangedFields": [
+      "id",
+      "image",
+      "startedAt",
+      "restarts",
+      "running",
+      "mounts"
+    ],
+    "ownTemporaryContainersRemaining": 0,
+    "oldImageUnchanged": true,
+    "newImage": {
+      "id": "sha256:97487c6d389e18136c5c8129f843e28e77f87db6a8b389accad90262966370b4",
+      "repoDigests": [
+        "yunhezhiyuan-aibackend-copilotruntime@sha256:97487c6d389e18136c5c8129f843e28e77f87db6a8b389accad90262966370b4"
+      ],
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "cmd": [
+        "node",
+        "dist/index.js"
+      ],
+      "revision": "af2e6a21d49bbc35fc2adc36dcc1fe243275f457"
+    },
+    "imagePushed": false,
+    "existingDeploymentReplaced": false,
+    "existingDataDeleted": false,
+    "anonymousFixtureCreated": 1,
+    "realG2Repeated": false,
+    "versionIsTestTag": true,
+    "officialVersionUnchanged": "0.1.0",
+    "officialReleaseArchiveProduced": false
+  },
+  "licenseBusinessPreservation": {
+    "cachedOfficialTarball": true,
+    "entries": [
+      {
+        "file": "index.mjs",
+        "prefixPreserved": true,
+        "businessSuffixPreserved": true,
+        "originalSha256": "1493aad710c85598540c34abc02a5e383a7b1ca491da83b387498df32fd92dfe",
+        "patchedSha256": "51a6ef70efa8815d0f7a4f719f8cda169f36313068d76301f33d2b11d8cc8502",
+        "businessSha256": "7621c503599aa4430059468c592ae3e8aa93ba1e9ec146c0f35ed96846461951"
+      },
+      {
+        "file": "index.js",
+        "prefixPreserved": true,
+        "businessSuffixPreserved": true,
+        "originalSha256": "17dc355f16ef7f76f3fd01399932280b1b5accc3dc83e9e8823e7f985c190be1",
+        "patchedSha256": "260546c3283c8f91217198a417ec9b2b8c082df2dcfa119e8e522bc78375b2e4",
+        "businessSha256": "5f6e9867b3a36d6337277412428ac61fc841fe72182700f25197afeee7fb856a"
+      }
+    ]
+  },
+  "audit": {
+    "exit": null,
+    "elapsedMs": 18026,
+    "error": "ETIMEDOUT",
+    "result": {
+      "jsonAvailable": false
+    }
+  },
+  "profiles": {
+    "zod@3.25.76/types.js": {
+      "before": "9763a2938f0e7f983363ef4bf6530e7583e3f2d54f8a4a6684efad58febc6e8e",
+      "after": "6e88acc559f1792fa5f92dd66c068847c9aa95bfcdffbfe92ce1e4fb28d46968"
+    },
+    "zod@3.25.76/types.cjs": {
+      "before": "06487cc05ed45c5dd29789bf0aa75734d1ce06592a7f2665ba4ca90a68e8a3e1",
+      "after": "db378b44d1dbc3a19f2c564c9af2b0a11c15aa3ecd1bc2c006b7404bd2666a4b"
+    },
+    "zod@4.6.7/types.js": {
+      "before": "d7214e1dacf9e6e70c9ca80247717b4be13b240510428fef132b7da3260d1a32",
+      "after": "f63297f0639c38e7a4e9ac8088f602e23abfdac94ace5ad15de502d6868dba92"
+    },
+    "zod@4.6.7/types.cjs": {
+      "before": "7a2f06d88e280bdd198c60e0d292ed7f1e3993e877be4415de07e6abc7746dd1",
+      "after": "0775786639f3b6eda631dd2045f86f76c706da5a5a24d14580a8247e9ef3a324"
+    },
+    "license-verifier@0.5.0/index.mjs": {
+      "before": "1493aad710c85598540c34abc02a5e383a7b1ca491da83b387498df32fd92dfe",
+      "after": "51a6ef70efa8815d0f7a4f719f8cda169f36313068d76301f33d2b11d8cc8502"
+    },
+    "license-verifier@0.5.0/index.js": {
+      "before": "17dc355f16ef7f76f3fd01399932280b1b5accc3dc83e9e8823e7f985c190be1",
+      "after": "260546c3283c8f91217198a417ec9b2b8c082df2dcfa119e8e522bc78375b2e4"
+    }
+  },
+  "historicalG2Reused": true,
+  "remaining": {
+    "unboundedContainersNotCapped": true,
+    "officialV3SecurityReleaseAvailable": false,
+    "registryAuditGreen": false,
+    "runningDeploymentUnpatched": true,
+    "previousTrailingSlashMinorDeferred": true
+  },
+  "katexInRuntimeLock": false
+}

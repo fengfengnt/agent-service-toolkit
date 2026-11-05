@@ -48,3 +48,15 @@ Runtime lock中有4处3.25.76（client/proto/runtime/shared），以及根4.6.7�
 无界array、带rest tuple、v3无原生上限的map/record及其他巨大合法结构不因这次回移获得新预算；许可feature record同样无界，不能声称升级4.6.7自动限量。继续依赖现有64KiB入口和路由/授权边界，不把这些保护当作通用资源上限证明。后续若需新budget属于另外的行为设计。
 
 旧运行Runtime `spike-2c8132e` 没有这些修补，上轮独立测试镜像 `spike-4a55b1e` 也没有本轮v3/许可修补。Linux新镜像验证及本批最终审查另行追加；源码/测试通过不等于已部署。前轮尾斜杠P3仍保留，正式发布门禁没有自动解除。
+
+## 新Linux镜像与只读联调
+
+产品提交 `af2e6a21d49bbc35fc2adc36dcc1fe243275f457`。从该提交的独立Git archive构建 `yunhezhiyuan-aibackend-copilotruntime:spike-af2e6a2`，OCI revision同源；本地image ID/manifest-list digest为 `sha256:97487c6d389e18136c5c8129f843e28e77f87db6a8b389accad90262966370b4`。Linux amd64、Node24.21.0、uid1000，未覆盖旧tag或推送镜像。
+
+全新 `npm ci --ignore-scripts` 后显式补丁实测verified12/applied12，再strict构建、production prune。断网、无秘密的临时容器核对最终生产镜像的12个实际文件after SHA全部通过，并用原3份新测试执行 **19/19安全门**，真实许可schema为4.6.7；独立正式 `dist/index.js` 的health/info200，v4 ESM/CJS与公开子路径、安全拒绝仍通过。测试只读挂载公开源码、清单及锁文件，临时目录使用独立tmpfs，不把源码替换到image的dist/node_modules。
+
+另一临时容器只读挂载公开CA、严格TLS连接既有候选Python；新匿名bootstrap、health/info、connect与最终snapshot均200。新Runtime实际业务fetch只有status/connect两次，欢迎消息1条保持、用户消息0、activeRun为空、quota和原截止完全一致；不发消息、不调用模型或SMS、不使用真人登录会话。Cookie/CSRF只在进程内，不落命令行/环境/文件。
+
+前后8个既有容器（原API/worker、旧Runtime、候选API/worker/PG/MinIO、Nginx）ID/image/StartedAt/RestartCount/running/挂载集合一致。2个新临时容器均清理，残留0；保留测试镜像与证据，新建匿名测试数据沿用自身保留期，不删除既有数据。旧Runtime与旧tag仍保持 `spike-2c8132e` / `eb33944...`。新镜像只读门不等于重验发送消息、stop/reconnect、会员绑定/归并或浏览器；G2继续复用历史证据。
+
+[公开JSON回执](../evidence/2026-11-05-runtime-dependency-security.json)包含原/后摘要、官方tarball业务保持、Windows与Linux/HTTPS结果、版本与镜像、audit网络失败和未覆盖范围。完整构建/测试/容器前后记录保留在本计划忽略目录的 `linux/`；未改 .env/SSO/Nginx/凭据/正式开关，没有推送/合并/部署，没有正式版本升级或发布归档。最终源码审查尚待补充。
