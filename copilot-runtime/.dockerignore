@@ -5,6 +5,7 @@
 !tsconfig.json
 !tsconfig.build.json
 !src/**
+!scripts/**
 !contracts/**
 node_modules
 dist

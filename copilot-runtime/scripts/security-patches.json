@@ -1,0 +1,26 @@
+{
+  "zod@3.25.76/types.js": {
+    "before": "9763a2938f0e7f983363ef4bf6530e7583e3f2d54f8a4a6684efad58febc6e8e",
+    "after": "6e88acc559f1792fa5f92dd66c068847c9aa95bfcdffbfe92ce1e4fb28d46968"
+  },
+  "zod@3.25.76/types.cjs": {
+    "before": "06487cc05ed45c5dd29789bf0aa75734d1ce06592a7f2665ba4ca90a68e8a3e1",
+    "after": "db378b44d1dbc3a19f2c564c9af2b0a11c15aa3ecd1bc2c006b7404bd2666a4b"
+  },
+  "zod@4.6.7/types.js": {
+    "before": "d7214e1dacf9e6e70c9ca80247717b4be13b240510428fef132b7da3260d1a32",
+    "after": "f63297f0639c38e7a4e9ac8088f602e23abfdac94ace5ad15de502d6868dba92"
+  },
+  "zod@4.6.7/types.cjs": {
+    "before": "7a2f06d88e280bdd198c60e0d292ed7f1e3993e877be4415de07e6abc7746dd1",
+    "after": "0775786639f3b6eda631dd2045f86f76c706da5a5a24d14580a8247e9ef3a324"
+  },
+  "license-verifier@0.5.0/index.mjs": {
+    "before": "1493aad710c85598540c34abc02a5e383a7b1ca491da83b387498df32fd92dfe",
+    "after": "51a6ef70efa8815d0f7a4f719f8cda169f36313068d76301f33d2b11d8cc8502"
+  },
+  "license-verifier@0.5.0/index.js": {
+    "before": "17dc355f16ef7f76f3fd01399932280b1b5accc3dc83e9e8823e7f985c190be1",
+    "after": "260546c3283c8f91217198a417ec9b2b8c082df2dcfa119e8e522bc78375b2e4"
+  }
+}

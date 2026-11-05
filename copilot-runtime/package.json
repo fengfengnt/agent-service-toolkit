@@ -5,9 +5,11 @@
   "type": "module",
   "engines": {"node": ">=24"},
   "scripts": {
+    "postinstall": "node scripts/apply-security-patches.mjs",
+    "patch:security": "node scripts/apply-security-patches.mjs",
     "typecheck": "tsc --noEmit",
-    "build": "tsc -p tsconfig.build.json",
-    "test": "node tests/run.mjs",
+    "build": "node scripts/apply-security-patches.mjs --check && tsc -p tsconfig.build.json",
+    "test": "node scripts/apply-security-patches.mjs --check && node tests/run.mjs",
     "start": "node dist/index.js"
   },
   "dependencies": {

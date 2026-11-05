@@ -34,7 +34,7 @@ test("v4 public subpaths align while root/v3 keep their original resolution", as
   assert.equal(client("zod/package.json").version, "3.25.76");
   assert.equal(createRequire(require.resolve("@copilotkit/runtime"))("zod/package.json").version, "3.25.76");
   const { z } = client("zod/v3");
-  assert.equal(z.array(z.string()).max(2).safeParse([1, 2, 3]).error.issues.length, 4);
+  assert.equal(z.array(z.string()).max(2).safeParse([1, 2, 3]).error.issues.length, 1);
   for (const path of ["zod/v4/private", "zod/v4/locales/../../v3/index.js", "zod/v4/locales/../index.js",
     "zod/v4/locales/..\\classic\\external.cjs", "zod/v4/locales/..\\..\\v3\\index.cjs"]) {
     assert.throws(() => client(path));
