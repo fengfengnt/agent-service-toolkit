@@ -4,6 +4,7 @@ from alembic import context
 from sqlalchemy import create_engine, text
 
 from xiaohe.models import Base
+from xiaohe.reception import models as reception_models  # noqa: F401
 
 config = context.config
 

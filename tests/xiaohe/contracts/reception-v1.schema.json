@@ -1,0 +1,2498 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:xiaohe:reception:v1",
+  "title": "小鹤接待与 Collaborator 共享资料契约",
+  "version": "reception.v1",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "Revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "Direction": {
+      "enum": [
+        "buyer",
+        "organization",
+        "supplier"
+      ]
+    },
+    "DraftKind": {
+      "enum": [
+        "service",
+        "onboarding"
+      ]
+    },
+    "DraftStep": {
+      "enum": [
+        "round1",
+        "round2",
+        "round3",
+        "files",
+        "summary"
+      ]
+    },
+    "DraftState": {
+      "enum": [
+        "collecting",
+        "review",
+        "submitting",
+        "accepted"
+      ]
+    },
+    "FieldValue": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 4000
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "maxItems": 32,
+          "uniqueItems": true
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "UtcDate": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "buyerDraftFields": {
+      "type": "object",
+      "properties": {
+        "companyName": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 200,
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "industry": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "companyScale": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "city": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "category": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "requirement": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "annualPurchase": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "painPoints": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "contactName": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "contactRole": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "existingSystems": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "projectStatus": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "budget": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "desiredTime": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "decisionProcess": {
+          "$ref": "#/$defs/FieldValue"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "buyerFields": {
+      "type": "object",
+      "properties": {
+        "companyName": {
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "industry": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "companyScale": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "city": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "category": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "requirement": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "annualPurchase": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "painPoints": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "contactName": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "contactRole": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "existingSystems": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "projectStatus": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "budget": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "desiredTime": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "decisionProcess": {
+          "$ref": "#/$defs/FieldValue"
+        }
+      },
+      "required": [
+        "companyName"
+      ],
+      "additionalProperties": false
+    },
+    "buyerPublicFields": {
+      "type": "object",
+      "properties": {
+        "companyName": {
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "industry": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "companyScale": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "city": {
+          "$ref": "#/$defs/FieldValue"
+        }
+      },
+      "required": [
+        "companyName"
+      ],
+      "additionalProperties": false
+    },
+    "buyerRequestFields": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "requirement": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "annualPurchase": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "painPoints": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "contactName": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "contactRole": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "existingSystems": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "projectStatus": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "budget": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "desiredTime": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "decisionProcess": {
+          "$ref": "#/$defs/FieldValue"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "organizationDraftFields": {
+      "type": "object",
+      "properties": {
+        "organizationName": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 40,
+              "minLength": 2,
+              "pattern": "\\S"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "organizationType": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "memberSize": {
+          "anyOf": [
+            {
+              "enum": [
+                "100 家以下",
+                "100—500",
+                "500—2000",
+                "2000 以上"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "anyOf": [
+            {
+              "enum": [
+                "本市",
+                "本省",
+                "全国",
+                "含海外"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "city": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "industries": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "services": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "onlineChannels": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "公众号",
+                  "小程序",
+                  "APP",
+                  "官网",
+                  "微信群",
+                  "暂无"
+                ]
+              },
+              "minItems": 1,
+              "uniqueItems": true,
+              "if": {
+                "contains": {
+                  "const": "暂无"
+                }
+              },
+              "then": {
+                "maxItems": 1
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "aiNeeds": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "contactName": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 100,
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "contactRole": {
+          "anyOf": [
+            {
+              "enum": [
+                "会长",
+                "副会长",
+                "秘书长",
+                "运营负责人",
+                "专职工作人员",
+                "其他"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "email": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "email",
+              "maxLength": 254
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "activeRatio": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "revenueStructure": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "desiredLaunchTime": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "decisionProcess": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "resources": {
+          "$ref": "#/$defs/FieldValue"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "organizationFields": {
+      "type": "object",
+      "properties": {
+        "organizationName": {
+          "type": "string",
+          "maxLength": 40,
+          "minLength": 2,
+          "pattern": "\\S"
+        },
+        "organizationType": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "memberSize": {
+          "enum": [
+            "100 家以下",
+            "100—500",
+            "500—2000",
+            "2000 以上"
+          ]
+        },
+        "coverage": {
+          "enum": [
+            "本市",
+            "本省",
+            "全国",
+            "含海外"
+          ]
+        },
+        "city": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "industries": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "services": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "onlineChannels": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "公众号",
+              "小程序",
+              "APP",
+              "官网",
+              "微信群",
+              "暂无"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "if": {
+            "contains": {
+              "const": "暂无"
+            }
+          },
+          "then": {
+            "maxItems": 1
+          }
+        },
+        "aiNeeds": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "contactName": {
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "contactRole": {
+          "anyOf": [
+            {
+              "enum": [
+                "会长",
+                "副会长",
+                "秘书长",
+                "运营负责人",
+                "专职工作人员",
+                "其他"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "email": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "email",
+              "maxLength": 254
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "activeRatio": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "revenueStructure": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "desiredLaunchTime": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "decisionProcess": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "resources": {
+          "$ref": "#/$defs/FieldValue"
+        }
+      },
+      "required": [
+        "organizationName",
+        "memberSize",
+        "coverage",
+        "onlineChannels",
+        "contactName"
+      ],
+      "additionalProperties": false
+    },
+    "organizationPublicFields": {
+      "type": "object",
+      "properties": {
+        "organizationName": {
+          "type": "string",
+          "maxLength": 40,
+          "minLength": 2,
+          "pattern": "\\S"
+        },
+        "organizationType": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "memberSize": {
+          "enum": [
+            "100 家以下",
+            "100—500",
+            "500—2000",
+            "2000 以上"
+          ]
+        },
+        "coverage": {
+          "enum": [
+            "本市",
+            "本省",
+            "全国",
+            "含海外"
+          ]
+        },
+        "city": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "industries": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "services": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "onlineChannels": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "公众号",
+              "小程序",
+              "APP",
+              "官网",
+              "微信群",
+              "暂无"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "if": {
+            "contains": {
+              "const": "暂无"
+            }
+          },
+          "then": {
+            "maxItems": 1
+          }
+        }
+      },
+      "required": [
+        "organizationName",
+        "memberSize",
+        "coverage",
+        "onlineChannels"
+      ],
+      "additionalProperties": false
+    },
+    "organizationRequestFields": {
+      "type": "object",
+      "properties": {
+        "aiNeeds": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "contactName": {
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "contactRole": {
+          "anyOf": [
+            {
+              "enum": [
+                "会长",
+                "副会长",
+                "秘书长",
+                "运营负责人",
+                "专职工作人员",
+                "其他"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "email": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "email",
+              "maxLength": 254
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "activeRatio": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "revenueStructure": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "desiredLaunchTime": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "decisionProcess": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "resources": {
+          "$ref": "#/$defs/FieldValue"
+        }
+      },
+      "required": [
+        "contactName"
+      ],
+      "additionalProperties": false
+    },
+    "supplierDraftFields": {
+      "type": "object",
+      "properties": {
+        "companyName": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 200,
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "companyType": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "category": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "city": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "productDescription": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "capabilityTags": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "qualifications": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "serviceAreas": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "orderTypes": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "contactName": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "capacity": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "deliveryCycle": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "revenue": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "teamSize": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "targetCustomers": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "targetAreas": {
+          "$ref": "#/$defs/FieldValue"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "supplierFields": {
+      "type": "object",
+      "properties": {
+        "companyName": {
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "companyType": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "category": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "city": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "productDescription": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "capabilityTags": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "qualifications": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "serviceAreas": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "orderTypes": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "contactName": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "capacity": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "deliveryCycle": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "revenue": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "teamSize": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "targetCustomers": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "targetAreas": {
+          "$ref": "#/$defs/FieldValue"
+        }
+      },
+      "required": [
+        "companyName"
+      ],
+      "additionalProperties": false
+    },
+    "supplierPublicFields": {
+      "type": "object",
+      "properties": {
+        "companyName": {
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "companyType": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "city": {
+          "$ref": "#/$defs/FieldValue"
+        }
+      },
+      "required": [
+        "companyName"
+      ],
+      "additionalProperties": false
+    },
+    "supplierRequestFields": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "productDescription": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "capabilityTags": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "qualifications": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "serviceAreas": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "orderTypes": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "contactName": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "capacity": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "deliveryCycle": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "revenue": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "teamSize": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "targetCustomers": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "targetAreas": {
+          "$ref": "#/$defs/FieldValue"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "FileRef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "category": {
+          "enum": [
+            "business_license",
+            "product_manual",
+            "certificate",
+            "case"
+          ]
+        },
+        "filename": {
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "mediaType": {
+          "enum": [
+            "application/pdf",
+            "image/png",
+            "image/jpeg",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+          ]
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 33554432
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "ready",
+            "failed"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "category",
+        "filename",
+        "mediaType",
+        "bytes",
+        "sha256",
+        "status"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "ready"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "sha256": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "DraftView": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "kind": {
+          "$ref": "#/$defs/DraftKind"
+        },
+        "direction": {
+          "$ref": "#/$defs/Direction"
+        },
+        "sourceApplicationId": {
+          "$ref": "#/$defs/Id"
+        },
+        "sourceOnboardingId": {
+          "$ref": "#/$defs/Id"
+        },
+        "subjectId": {
+          "$ref": "#/$defs/Id"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "step": {
+          "$ref": "#/$defs/DraftStep"
+        },
+        "state": {
+          "$ref": "#/$defs/DraftState"
+        },
+        "fields": {},
+        "missingRequired": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 100
+          }
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FileRef"
+          }
+        },
+        "summaryVersion": {
+          "$ref": "#/$defs/Revision"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "direction",
+        "revision",
+        "step",
+        "state",
+        "fields",
+        "missingRequired",
+        "files"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "direction": {
+                "const": "buyer"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "fields": {
+                "$ref": "#/$defs/buyerDraftFields"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "direction": {
+                "const": "organization"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "fields": {
+                "$ref": "#/$defs/organizationDraftFields"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "direction": {
+                "const": "supplier"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "fields": {
+                "$ref": "#/$defs/supplierDraftFields"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "onboarding"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "sourceApplicationId"
+            ],
+            "properties": {
+              "direction": {
+                "const": "organization"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "sourceOnboardingId"
+            ]
+          },
+          "then": {
+            "required": [
+              "sourceApplicationId"
+            ],
+            "properties": {
+              "kind": {
+                "const": "onboarding"
+              },
+              "direction": {
+                "const": "organization"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "DraftRef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "kind": {
+          "$ref": "#/$defs/DraftKind"
+        },
+        "direction": {
+          "$ref": "#/$defs/Direction"
+        },
+        "subjectName": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "summary": {
+          "type": "string",
+          "maxLength": 4000
+        },
+        "step": {
+          "$ref": "#/$defs/DraftStep"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "state": {
+          "$ref": "#/$defs/DraftState"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "direction",
+        "subjectName",
+        "summary",
+        "step",
+        "revision",
+        "state"
+      ],
+      "additionalProperties": false
+    },
+    "ReceptionView": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "conversationId": {
+          "$ref": "#/$defs/Id"
+        },
+        "direction": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Direction"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "invitationState": {
+          "enum": [
+            "none",
+            "offered",
+            "deferred",
+            "accepted"
+          ]
+        },
+        "pendingRequestId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "draftRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DraftRef"
+          }
+        },
+        "activeDraft": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DraftView"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "version",
+        "conversationId",
+        "direction",
+        "invitationState",
+        "pendingRequestId",
+        "draftRefs",
+        "activeDraft"
+      ],
+      "additionalProperties": false
+    },
+    "companySubjectFields": {
+      "type": "object",
+      "properties": {
+        "companyName": {
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "industry": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "companyScale": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "city": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "companyType": {
+          "$ref": "#/$defs/FieldValue"
+        }
+      },
+      "required": [
+        "companyName"
+      ],
+      "additionalProperties": false
+    },
+    "SubjectPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/Id"
+              },
+              "kind": {
+                "enum": [
+                  "company",
+                  "organization"
+                ]
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "publicFields": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/companySubjectFields"
+                  },
+                  {
+                    "$ref": "#/$defs/organizationPublicFields"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "name",
+              "publicFields"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "nextCursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "nextCursor"
+      ],
+      "additionalProperties": false
+    },
+    "CreateDraft": {
+      "type": "object",
+      "properties": {
+        "clientDraftId": {
+          "$ref": "#/$defs/Id"
+        },
+        "direction": {
+          "$ref": "#/$defs/Direction"
+        },
+        "kind": {
+          "$ref": "#/$defs/DraftKind"
+        },
+        "subjectId": {
+          "$ref": "#/$defs/Id"
+        },
+        "sourceApplicationId": {
+          "$ref": "#/$defs/Id"
+        },
+        "sourceOnboardingId": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "required": [
+        "clientDraftId",
+        "direction",
+        "kind"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "onboarding"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "sourceApplicationId"
+            ],
+            "properties": {
+              "direction": {
+                "const": "organization"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "sourceOnboardingId"
+            ]
+          },
+          "then": {
+            "required": [
+              "sourceApplicationId"
+            ],
+            "properties": {
+              "kind": {
+                "const": "onboarding"
+              },
+              "direction": {
+                "const": "organization"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "PatchDraft": {
+      "type": "object",
+      "properties": {
+        "expectedRevision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "fields": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/buyerDraftFields"
+            },
+            {
+              "$ref": "#/$defs/organizationDraftFields"
+            },
+            {
+              "$ref": "#/$defs/supplierDraftFields"
+            }
+          ]
+        }
+      },
+      "required": [
+        "expectedRevision",
+        "fields"
+      ],
+      "additionalProperties": false
+    },
+    "ReceptionAction": {
+      "type": "object",
+      "properties": {
+        "clientActionId": {
+          "$ref": "#/$defs/Id"
+        },
+        "requestId": {
+          "$ref": "#/$defs/Id"
+        },
+        "expectedRevision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "action": {
+          "enum": [
+            "save_round",
+            "skip_optional",
+            "show_summary",
+            "confirm",
+            "resume"
+          ]
+        },
+        "summaryVersion": {
+          "$ref": "#/$defs/Revision"
+        }
+      },
+      "required": [
+        "clientActionId",
+        "requestId",
+        "expectedRevision",
+        "action"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "confirm"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "summaryVersion"
+            ]
+          }
+        }
+      ]
+    },
+    "InitFile": {
+      "type": "object",
+      "properties": {
+        "clientUploadId": {
+          "$ref": "#/$defs/Id"
+        },
+        "category": {
+          "enum": [
+            "business_license",
+            "product_manual",
+            "certificate",
+            "case"
+          ]
+        },
+        "filename": {
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "mediaType": {
+          "enum": [
+            "application/pdf",
+            "image/png",
+            "image/jpeg",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+          ]
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 33554432
+        },
+        "expectedRevision": {
+          "$ref": "#/$defs/Revision"
+        }
+      },
+      "required": [
+        "clientUploadId",
+        "category",
+        "filename",
+        "mediaType",
+        "bytes",
+        "expectedRevision"
+      ],
+      "additionalProperties": false
+    },
+    "UploadView": {
+      "type": "object",
+      "properties": {
+        "file": {
+          "$ref": "#/$defs/FileRef"
+        },
+        "uploadPath": {
+          "type": "string",
+          "pattern": "^/ai-api/v1/reception/drafts/[^/]+/files/[^/]+$"
+        }
+      },
+      "required": [
+        "file",
+        "uploadPath"
+      ],
+      "additionalProperties": false
+    },
+    "SubmitReceipt": {
+      "type": "object",
+      "properties": {
+        "submissionKey": {
+          "$ref": "#/$defs/Id"
+        },
+        "kind": {
+          "$ref": "#/$defs/DraftKind"
+        },
+        "applicationId": {
+          "$ref": "#/$defs/Id"
+        },
+        "onboardingId": {
+          "$ref": "#/$defs/Id"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "status": {
+          "enum": [
+            "accepted",
+            "pending",
+            "unknown",
+            "failed"
+          ]
+        }
+      },
+      "required": [
+        "submissionKey",
+        "kind",
+        "applicationId",
+        "revision",
+        "status"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "onboarding"
+              },
+              "status": {
+                "const": "accepted"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "onboardingId"
+            ]
+          }
+        }
+      ]
+    },
+    "SubmissionResult": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "enum": [
+                "not_found",
+                "pending"
+              ]
+            },
+            "receipt": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "status",
+            "receipt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "accepted"
+            },
+            "receipt": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/SubmitReceipt"
+                },
+                {
+                  "properties": {
+                    "status": {
+                      "const": "accepted"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "required": [
+            "status",
+            "receipt"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ReceptionActor": {
+      "type": "object",
+      "properties": {
+        "aiUserId": {
+          "$ref": "#/$defs/Id"
+        },
+        "systemId": {
+          "$ref": "#/$defs/Id"
+        },
+        "issuer": {
+          "type": "string",
+          "format": "uri"
+        },
+        "sub": {
+          "$ref": "#/$defs/Id"
+        },
+        "sourceTenantId": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "required": [
+        "aiUserId",
+        "systemId",
+        "issuer",
+        "sub",
+        "sourceTenantId"
+      ],
+      "additionalProperties": false
+    },
+    "PageCursor": {
+      "type": "object",
+      "properties": {
+        "cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "SubjectQuery": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "company",
+            "organization"
+          ]
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    "ApplicationQuery": {
+      "type": "object",
+      "properties": {
+        "applicationId": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "required": [
+        "applicationId"
+      ],
+      "additionalProperties": false
+    },
+    "ResultQuery": {
+      "type": "object",
+      "properties": {
+        "submissionKey": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "required": [
+        "submissionKey"
+      ],
+      "additionalProperties": false
+    },
+    "Submission": {
+      "type": "object",
+      "properties": {
+        "submissionKey": {
+          "$ref": "#/$defs/Id"
+        },
+        "draftId": {
+          "$ref": "#/$defs/Id"
+        },
+        "draftRevision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "operation": {
+          "enum": [
+            "create",
+            "update"
+          ]
+        },
+        "applicationId": {
+          "$ref": "#/$defs/Id"
+        },
+        "expectedApplicationRevision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "subjectId": {
+          "$ref": "#/$defs/Id"
+        },
+        "subjectKind": {
+          "enum": [
+            "company",
+            "organization"
+          ]
+        },
+        "direction": {
+          "$ref": "#/$defs/Direction"
+        },
+        "publicFields": {},
+        "requestFields": {},
+        "files": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/FileRef"
+              },
+              {
+                "properties": {
+                  "status": {
+                    "const": "ready"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "submissionKey",
+        "draftId",
+        "draftRevision",
+        "operation",
+        "subjectKind",
+        "direction",
+        "publicFields",
+        "requestFields",
+        "files"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "direction": {
+                "const": "buyer"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "subjectKind": {
+                "const": "company"
+              },
+              "publicFields": {
+                "$ref": "#/$defs/buyerPublicFields"
+              },
+              "requestFields": {
+                "$ref": "#/$defs/buyerRequestFields"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "direction": {
+                "const": "organization"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "subjectKind": {
+                "const": "organization"
+              },
+              "publicFields": {
+                "$ref": "#/$defs/organizationPublicFields"
+              },
+              "requestFields": {
+                "$ref": "#/$defs/organizationRequestFields"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "direction": {
+                "const": "supplier"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "subjectKind": {
+                "const": "company"
+              },
+              "publicFields": {
+                "$ref": "#/$defs/supplierPublicFields"
+              },
+              "requestFields": {
+                "$ref": "#/$defs/supplierRequestFields"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "update"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "applicationId",
+              "expectedApplicationRevision",
+              "subjectId"
+            ]
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "applicationId"
+                  ]
+                },
+                {
+                  "required": [
+                    "expectedApplicationRevision"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "OnboardingSubmission": {
+      "type": "object",
+      "properties": {
+        "submissionKey": {
+          "$ref": "#/$defs/Id"
+        },
+        "draftId": {
+          "$ref": "#/$defs/Id"
+        },
+        "draftRevision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "applicationId": {
+          "$ref": "#/$defs/Id"
+        },
+        "onboardingId": {
+          "$ref": "#/$defs/Id"
+        },
+        "expectedOnboardingRevision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "publicFields": {
+          "$ref": "#/$defs/organizationPublicFields"
+        },
+        "requestFields": {
+          "$ref": "#/$defs/organizationRequestFields"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/FileRef"
+              },
+              {
+                "properties": {
+                  "status": {
+                    "const": "ready"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "submissionKey",
+        "draftId",
+        "draftRevision",
+        "applicationId",
+        "publicFields",
+        "requestFields",
+        "files"
+      ],
+      "additionalProperties": false,
+      "dependentRequired": {
+        "onboardingId": [
+          "expectedOnboardingRevision"
+        ],
+        "expectedOnboardingRevision": [
+          "onboardingId"
+        ]
+      }
+    },
+    "ApplicationView": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "subjectId": {
+          "$ref": "#/$defs/Id"
+        },
+        "direction": {
+          "$ref": "#/$defs/Direction"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "publicFields": {},
+        "requestFields": {},
+        "files": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/FileRef"
+              },
+              {
+                "properties": {
+                  "status": {
+                    "const": "ready"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "id",
+        "subjectId",
+        "direction",
+        "revision",
+        "publicFields",
+        "requestFields",
+        "files"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "direction": {
+                "const": "buyer"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "publicFields": {
+                "$ref": "#/$defs/buyerPublicFields"
+              },
+              "requestFields": {
+                "$ref": "#/$defs/buyerRequestFields"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "direction": {
+                "const": "organization"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "publicFields": {
+                "$ref": "#/$defs/organizationPublicFields"
+              },
+              "requestFields": {
+                "$ref": "#/$defs/organizationRequestFields"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "direction": {
+                "const": "supplier"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "publicFields": {
+                "$ref": "#/$defs/supplierPublicFields"
+              },
+              "requestFields": {
+                "$ref": "#/$defs/supplierRequestFields"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "IntentRequest": {
+      "type": "object",
+      "properties": {
+        "clientIntentId": {
+          "$ref": "#/$defs/Id"
+        },
+        "applicationId": {
+          "$ref": "#/$defs/Id"
+        },
+        "intent": {
+          "enum": [
+            "solution_discussion",
+            "sample_demo",
+            "cooperation_handbook"
+          ]
+        }
+      },
+      "required": [
+        "clientIntentId",
+        "applicationId",
+        "intent"
+      ],
+      "additionalProperties": false
+    },
+    "IntentReceipt": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "applicationId": {
+          "$ref": "#/$defs/Id"
+        },
+        "status": {
+          "const": "recorded"
+        }
+      },
+      "required": [
+        "id",
+        "applicationId",
+        "status"
+      ],
+      "additionalProperties": false
+    },
+    "OnboardingView": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "stage": {
+          "enum": [
+            "submitted",
+            "awaiting_materials",
+            "approved",
+            "onboarded",
+            "closed"
+          ]
+        },
+        "publicRecords": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/Id"
+              },
+              "createdAt": {
+                "$ref": "#/$defs/UtcDate"
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 4000,
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "id",
+              "createdAt",
+              "text"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "stage",
+        "publicRecords"
+      ],
+      "additionalProperties": false
+    },
+    "OnboardingQuery": {
+      "type": "object",
+      "properties": {
+        "applicationId": {
+          "$ref": "#/$defs/Id"
+        },
+        "onboardingId": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "required": [
+        "applicationId",
+        "onboardingId"
+      ],
+      "additionalProperties": false
+    },
+    "OnboardingApplicationView": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "applicationId": {
+          "$ref": "#/$defs/Id"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "stage": {
+          "enum": [
+            "submitted",
+            "awaiting_materials",
+            "approved",
+            "onboarded",
+            "closed"
+          ]
+        },
+        "publicFields": {
+          "$ref": "#/$defs/organizationPublicFields"
+        },
+        "requestFields": {
+          "$ref": "#/$defs/organizationRequestFields"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/FileRef"
+              },
+              {
+                "properties": {
+                  "status": {
+                    "const": "ready"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "id",
+        "applicationId",
+        "revision",
+        "stage",
+        "publicFields",
+        "requestFields",
+        "files"
+      ],
+      "additionalProperties": false
+    },
+    "ProgressGroup": {
+      "type": "object",
+      "properties": {
+        "subjectId": {
+          "$ref": "#/$defs/Id"
+        },
+        "subjectName": {
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "applications": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/Id"
+              },
+              "direction": {
+                "$ref": "#/$defs/Direction"
+              },
+              "summary": {
+                "type": "string",
+                "maxLength": 4000
+              },
+              "submittedAt": {
+                "$ref": "#/$defs/UtcDate"
+              },
+              "stage": {
+                "enum": [
+                  "recorded",
+                  "communicating",
+                  "awaiting_user",
+                  "completed",
+                  "closed"
+                ]
+              },
+              "manager": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/$defs/Id"
+                      },
+                      "name": {
+                        "type": "string",
+                        "maxLength": 100,
+                        "minLength": 1,
+                        "pattern": "\\S"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "grade": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "expectedContactAt": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/UtcDate"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "publicRecords": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "$ref": "#/$defs/Id"
+                    },
+                    "createdAt": {
+                      "$ref": "#/$defs/UtcDate"
+                    },
+                    "text": {
+                      "type": "string",
+                      "maxLength": 4000,
+                      "minLength": 1,
+                      "pattern": "\\S"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "createdAt",
+                    "text"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "onboarding": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/OnboardingView"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "direction",
+              "summary",
+              "submittedAt",
+              "stage",
+              "manager",
+              "grade",
+              "expectedContactAt",
+              "publicRecords",
+              "onboarding"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "subjectId",
+        "subjectName",
+        "applications"
+      ],
+      "additionalProperties": false
+    },
+    "ProgressPage": {
+      "type": "object",
+      "properties": {
+        "groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ProgressGroup"
+          }
+        },
+        "nextCursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "groups",
+        "nextCursor"
+      ],
+      "additionalProperties": false
+    },
+    "SubjectQueryEnvelope": {
+      "type": "object",
+      "properties": {
+        "actor": {
+          "$ref": "#/$defs/ReceptionActor"
+        },
+        "payload": {
+          "$ref": "#/$defs/SubjectQuery"
+        }
+      },
+      "required": [
+        "actor",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "ApplicationQueryEnvelope": {
+      "type": "object",
+      "properties": {
+        "actor": {
+          "$ref": "#/$defs/ReceptionActor"
+        },
+        "payload": {
+          "$ref": "#/$defs/ApplicationQuery"
+        }
+      },
+      "required": [
+        "actor",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "SubmissionEnvelope": {
+      "type": "object",
+      "properties": {
+        "actor": {
+          "$ref": "#/$defs/ReceptionActor"
+        },
+        "payload": {
+          "$ref": "#/$defs/Submission"
+        }
+      },
+      "required": [
+        "actor",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "ResultQueryEnvelope": {
+      "type": "object",
+      "properties": {
+        "actor": {
+          "$ref": "#/$defs/ReceptionActor"
+        },
+        "payload": {
+          "$ref": "#/$defs/ResultQuery"
+        }
+      },
+      "required": [
+        "actor",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "PageCursorEnvelope": {
+      "type": "object",
+      "properties": {
+        "actor": {
+          "$ref": "#/$defs/ReceptionActor"
+        },
+        "payload": {
+          "$ref": "#/$defs/PageCursor"
+        }
+      },
+      "required": [
+        "actor",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "IntentRequestEnvelope": {
+      "type": "object",
+      "properties": {
+        "actor": {
+          "$ref": "#/$defs/ReceptionActor"
+        },
+        "payload": {
+          "$ref": "#/$defs/IntentRequest"
+        }
+      },
+      "required": [
+        "actor",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "OnboardingSubmissionEnvelope": {
+      "type": "object",
+      "properties": {
+        "actor": {
+          "$ref": "#/$defs/ReceptionActor"
+        },
+        "payload": {
+          "$ref": "#/$defs/OnboardingSubmission"
+        }
+      },
+      "required": [
+        "actor",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "OnboardingQueryEnvelope": {
+      "type": "object",
+      "properties": {
+        "actor": {
+          "$ref": "#/$defs/ReceptionActor"
+        },
+        "payload": {
+          "$ref": "#/$defs/OnboardingQuery"
+        }
+      },
+      "required": [
+        "actor",
+        "payload"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
