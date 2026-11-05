@@ -1,0 +1,430 @@
+{
+  "schemaVersion": 1,
+  "result": "PASS",
+  "date": "2026-11-05",
+  "sources": {
+    "frontendProduct": "21b8337eb1f983e7136333a18a8810cc3b412a86",
+    "browserDriver": "b73d5d0637eb4a6c3675db3379c81dcdff972804",
+    "runtimeProduct": "af2e6a21d49bbc35fc2adc36dcc1fe243275f457",
+    "runtimeImageId": "sha256:97487c6d389e18136c5c8129f843e28e77f87db6a8b389accad90262966370b4",
+    "runtimeImageTag": "yunhezhiyuan-aibackend-copilotruntime:spike-af2e6a2",
+    "candidatePythonRevision": "0d18e819bfe3a0b7295efc609a3289caf1392ead"
+  },
+  "frontendBytes": {
+    "result": "PASS",
+    "fixedFrontendRevision": "21b8337eb1f983e7136333a18a8810cc3b412a86",
+    "indexSha256": "7870722a8d81402aa4f3464274aaea1ccd21d1941c8cfd7894711e920c4d8b93",
+    "indexMatchesPublicReceipt": true,
+    "verifiedListedJsCssAssets": 146,
+    "reportedJsCssManifestSha256": "1beda9141f2ab495a962c0f76a904e1cf08f5f1a208a43e305086642654c5470",
+    "fullArchiveFiles": 218,
+    "fullArchiveManifestSha256": "8b7b3fc5c283a0ecf50568973dc81492452267d605e0191fbe5447c4cb5ee740",
+    "extensionCounts": {
+      ".js": 139,
+      ".css": 7,
+      ".woff2": 20,
+      ".woff": 20,
+      ".ttf": 20,
+      ".webp": 11,
+      ".html": 1
+    },
+    "isolatedFlag": true,
+    "defaultBuildRestoredFalse": true,
+    "archivePath": "C:\\Users\\70367\\.codex\\artifacts\\xiaohe-dependency-security-20261105\\candidate-spa"
+  },
+  "browser": {
+    "status": "PASS",
+    "tests": {
+      "pass": 4,
+      "fail": 0,
+      "skipped": 0,
+      "durationSeconds": 55.5
+    },
+    "cases": {
+      "guest": {
+        "result": "PASS",
+        "frontendRevision": "21b8337eb1f983e7136333a18a8810cc3b412a86",
+        "welcome": true,
+        "directions": 3,
+        "waitingAction": true,
+        "streamChunks": [
+          {
+            "chunks": 11,
+            "events": 13,
+            "businessDeltas": 0,
+            "durationMs": 2480
+          },
+          {
+            "chunks": 9,
+            "events": 11,
+            "businessDeltas": 0,
+            "durationMs": 591
+          },
+          {
+            "chunks": 11,
+            "events": 13,
+            "businessDeltas": 0,
+            "durationMs": 1906
+          },
+          {
+            "chunks": 3,
+            "events": 5,
+            "businessDeltas": 0,
+            "durationMs": 209
+          }
+        ],
+        "background": true,
+        "reload": true,
+        "messageOrderAndTimesPreserved": true,
+        "preciseFiles": [
+          {
+            "version": 1,
+            "sha256": "f6c55baf14a872960df5e7f165c90075af2d5986f732634ca519808b824c1d23"
+          },
+          {
+            "version": 1,
+            "sha256": "f6c55baf14a872960df5e7f165c90075af2d5986f732634ca519808b824c1d23"
+          },
+          {
+            "version": 1,
+            "sha256": "f6c55baf14a872960df5e7f165c90075af2d5986f732634ca519808b824c1d23"
+          },
+          {
+            "version": 1,
+            "sha256": "f6c55baf14a872960df5e7f165c90075af2d5986f732634ca519808b824c1d23"
+          }
+        ],
+        "apiResponses": 73,
+        "runtimeWrites": 5,
+        "remoteStops": 0,
+        "downloads": 12,
+        "authComplete": [],
+        "runtimeOrigin": "https://portal.lvh.me:18113",
+        "historicalMemberG2Reused": true
+      },
+      "organization": {
+        "result": "PASS",
+        "direction": "organization",
+        "version": 1,
+        "sha256": "056adbd036f2b6e74046a5024b4087a701b5aefe27907f170901a93878f47f95",
+        "apiResponses": 9,
+        "runtimeWrites": 1,
+        "remoteStops": 0,
+        "downloads": 1,
+        "authComplete": [],
+        "runtimeOrigin": "https://portal.lvh.me:18113"
+      },
+      "supplier": {
+        "result": "PASS",
+        "direction": "supplier",
+        "version": 1,
+        "sha256": "1e376778f6b42c821dd698edd8f79efcd6632ef93333b5517649d328fcb15005",
+        "apiResponses": 8,
+        "runtimeWrites": 1,
+        "remoteStops": 0,
+        "downloads": 1,
+        "authComplete": [],
+        "runtimeOrigin": "https://portal.lvh.me:18113"
+      },
+      "stop": {
+        "result": "PASS",
+        "cancelled": true,
+        "activeRun": false,
+        "files": 0,
+        "apiResponses": 3,
+        "runtimeWrites": 1,
+        "remoteStops": 1,
+        "downloads": 0,
+        "authComplete": [],
+        "runtimeOrigin": "https://portal.lvh.me:18113"
+      }
+    },
+    "totalDownloads": 14,
+    "assetsCount": 146,
+    "assetsManifestSha256": "1beda9141f2ab495a962c0f76a904e1cf08f5f1a208a43e305086642654c5470",
+    "tokenByTokenModelStreamingVerified": false,
+    "sameArtifactVersionEditingVerified": false,
+    "sseEvidenceLimit": "Browser maximum11chunks/13events, maximum observed2480ms, businessDeltas0; no true-model token-by-token claim; native independent356ms->8900ms probe recorded separately",
+    "sourceReceipt": {
+      "path": "C:/Users/70367/.codex/worktrees/xiaohe-auth-card/yunhezhiyuan-portal/docs/sso/evidence/2026-11-05-dependency-security.json",
+      "sha256AtCapture": "9122c2ade852fc61934ba38c6c6e1f41f93d0c8b243875daae389fab3aef3aff"
+    }
+  },
+  "controlledSourceChecks": [
+    {
+      "container": "api",
+      "path": "integration/copilot_candidate.py",
+      "sha256": "3d5429c25ff5ce40e02924662a54b8a9e3fe6b2032779182faca1a68d801f1e1"
+    },
+    {
+      "container": "api",
+      "path": "integration/triad_runtime.py",
+      "sha256": "4ed69e0b06d83d73251fdc1daef6a76fc66f33e21d91a2fcd6f9f1f3d856bd5e"
+    },
+    {
+      "container": "api",
+      "path": "test_reception_graph.py",
+      "sha256": "62a137a28d4eebd37486ce782b736b36e05cc15c9ff7672b510edf6ede9711df"
+    },
+    {
+      "container": "worker",
+      "path": "integration/copilot_candidate.py",
+      "sha256": "3d5429c25ff5ce40e02924662a54b8a9e3fe6b2032779182faca1a68d801f1e1"
+    },
+    {
+      "container": "worker",
+      "path": "integration/triad_runtime.py",
+      "sha256": "4ed69e0b06d83d73251fdc1daef6a76fc66f33e21d91a2fcd6f9f1f3d856bd5e"
+    },
+    {
+      "container": "worker",
+      "path": "test_reception_graph.py",
+      "sha256": "62a137a28d4eebd37486ce782b736b36e05cc15c9ff7672b510edf6ede9711df"
+    }
+  ],
+  "tls": {
+    "verifiedTLS": true,
+    "health": 200,
+    "checks": [
+      {
+        "path": "/copilot-api/info",
+        "method": "GET",
+        "status": 200,
+        "marker": "combo-af2e6a2"
+      },
+      {
+        "path": "/copilot-api/info",
+        "method": "GET",
+        "status": 403,
+        "marker": "combo-af2e6a2"
+      },
+      {
+        "path": "/copilot-api/threads",
+        "method": "GET",
+        "status": 404,
+        "marker": "combo-af2e6a2"
+      },
+      {
+        "path": "/copilot-api/agent/default/run",
+        "method": "OPTIONS",
+        "status": 204,
+        "marker": "combo-af2e6a2"
+      }
+    ]
+  },
+  "independentSseProbe": {
+    "result": "PASS",
+    "verifiedTLS": true,
+    "proxyOrigin": "https://portal.lvh.me:18113",
+    "expectedOrigin": "https://portal.lvh.me",
+    "runtimeSource": "af2e6a21d49bbc35fc2adc36dcc1fe243275f457",
+    "bootstrap": 200,
+    "run": 200,
+    "snapshot": 200,
+    "events": [
+      {
+        "type": "RUN_STARTED",
+        "elapsedMs": 356
+      },
+      {
+        "type": "MESSAGES_SNAPSHOT",
+        "elapsedMs": 356
+      },
+      {
+        "type": "STATE_SNAPSHOT",
+        "elapsedMs": 356
+      },
+      {
+        "type": "CUSTOM",
+        "elapsedMs": 432
+      },
+      {
+        "type": "STATE_SNAPSHOT",
+        "elapsedMs": 447
+      },
+      {
+        "type": "CUSTOM",
+        "elapsedMs": 8648
+      },
+      {
+        "type": "STATE_SNAPSHOT",
+        "elapsedMs": 8684
+      },
+      {
+        "type": "CUSTOM",
+        "elapsedMs": 8730
+      },
+      {
+        "type": "MESSAGES_SNAPSHOT",
+        "elapsedMs": 8760
+      },
+      {
+        "type": "STATE_SNAPSHOT",
+        "elapsedMs": 8789
+      },
+      {
+        "type": "CUSTOM",
+        "elapsedMs": 8842
+      },
+      {
+        "type": "STATE_SNAPSHOT",
+        "elapsedMs": 8870
+      },
+      {
+        "type": "RUN_FINISHED",
+        "elapsedMs": 8900
+      }
+    ],
+    "chunks": 11,
+    "newGuestTurns": 1,
+    "visitorDeadlineRenewedOnAcceptedTurn": true,
+    "replyAndReadsPreservedAcceptedDeadline": true,
+    "artifacts": 1,
+    "cookiesPersisted": false,
+    "modelCalls": 0,
+    "smsCalls": 0
+  },
+  "initialProbeFailure": {
+    "result": "FAIL",
+    "category": "incorrect test expectation",
+    "failedStage": "guest quota/deadline combined assertion",
+    "partialChecksPassed": [
+      "strictTLS",
+      "newRuntimeMarker",
+      "SSELifecycle",
+      "multipleChunks",
+      "firstToLastFrameAtLeast6000ms"
+    ],
+    "exactPartialTimingValuesRetained": false,
+    "rootCause": "contract guest deadline renews on accepted message; absolute 8h applies to authenticated user session",
+    "productChanged": false,
+    "serviceChanged": false,
+    "newAnonymousTurns": 1
+  },
+  "cleanup": {
+    "result": "PASS",
+    "checkedAt": "2026-11-05T07:58:35.811Z",
+    "removedOwnedTemporaryContainers": [
+      {
+        "name": "yunhezhiyuan-aibackend-copilotruntime-comboproxy-af2e6a2",
+        "idPrefix": "3e7cb51b1834"
+      },
+      {
+        "name": "yunhezhiyuan-aibackend-copilotruntime-combo-af2e6a2",
+        "idPrefix": "8634ea2d31a2"
+      }
+    ],
+    "temporaryContainersRemaining": 0,
+    "protectedContainersUnchanged": 8,
+    "comparedFields": [
+      "id",
+      "image",
+      "startedAt",
+      "restarts",
+      "running",
+      "mounts",
+      "fakeModelFlag",
+      "entrypoint",
+      "cmd",
+      "revision"
+    ],
+    "temporaryListeners": [
+      {
+        "url": "http://127.0.0.1:18112/healthz",
+        "closed": true
+      },
+      {
+        "url": "https://portal.lvh.me:18113/healthz",
+        "closed": true
+      }
+    ],
+    "previousRuntimeHealth": 200,
+    "existingVolumesDeleted": false,
+    "existingDataDeleted": false,
+    "testImagesDeleted": false,
+    "nginxChanged": false,
+    "credentialsCopiedOrPrinted": false,
+    "formalFlagChanged": false
+  },
+  "backendOwner": {
+    "checkedAtUtc": "2026-11-05 07:59:25 UTC",
+    "passed": true,
+    "sharedServicesChecked": 4,
+    "servicesPreserved": true,
+    "http": {
+      "issuer": "https://sso.lvh.me",
+      "canonicalEndpoints": true,
+      "jwksSha256": "95e08466aa1697674540419be3d535fc92a33b004d839576b849f3120a3b2b6a",
+      "tenantCode": 0,
+      "portalStatus": 200,
+      "portalHtmlSha256": "6d0c17c0c75eb5edc3588f45e437be8c90569788f2e41d6062e4b4f1f84f4995"
+    },
+    "fullContractFilesBytePreserved": false,
+    "aguiWirePreserved": true,
+    "checkAfterCandidateCleanup": true,
+    "parallelContractChange": {
+      "mainRevision": "v1.0.6",
+      "beforeSha256": "d6544d6edeebd2c685a49d0c7a523e4ecd7ce8e0b237a3a74c3cd0a6c671cde6",
+      "currentSha256": "cbf78e851b73924bf190425ae9a58dbfe3d4da257eb3babc1a85e25fa96d2a88",
+      "sourceThreadId": "01a1a9c5-4172-72f3-8736-c0f2b9115127",
+      "sourceThreadTitle": "规划接待与采购商 Agent",
+      "description": "Parallel Collaborator reception section 11 B1/B3 request-envelope and company-field clarification; matched file revision and read_thread progress. Existing AG-UI normative JSON and derived schema remain unchanged.",
+      "restoredOrOverwritten": false
+    },
+    "smsRequests": 0,
+    "paidModelRequests": 0,
+    "sourceReceipt": {
+      "path": "D:/Code/deploy/local-deploy/docs/deployment/2026-11-05-combination-backend-preservation.json",
+      "sha256": "1b58448fff70c0bda8a7c33c4cdd9a1ed8798104d31a3d9ef7da5c2b6e72e0d1"
+    }
+  },
+  "contract": {
+    "initialObservedVersion": "v1.0.5",
+    "initialObservedDocumentSha256": "d6544d6edeebd2c685a49d0c7a523e4ecd7ce8e0b237a3a74c3cd0a6c671cde6",
+    "currentDocumentVersion": "v1.0.6",
+    "currentDocumentSha256": "cbf78e851b73924bf190425ae9a58dbfe3d4da257eb3babc1a85e25fa96d2a88",
+    "schemaSha256": "2c51b56490026013b10aec9b6d92917dad63aaaf1381e2a80e67d6bf95009b83",
+    "documentBytesPreserved": false,
+    "canonicalJsonEqualIgnoringComment": true,
+    "newReceptionBusinessExcluded": true
+  },
+  "historicalG2": {
+    "reused": true,
+    "reexecuted": false,
+    "report": "docs/xiaohe/operations/2026-11-05-copilot-candidate-auth.md"
+  },
+  "newData": {
+    "rootGuestProbeSessions": 2,
+    "browserGuestContexts": 4,
+    "observedBrowserRuntimeRunRequests": 8,
+    "testDataDeleted": false,
+    "normalRetentionPreserved": true
+  },
+  "screenshots": {
+    "launcher": {
+      "path": "C:/Users/70367/.codex/worktrees/xiaohe-auth-card/yunhezhiyuan-portal/docs/previews/xiaohe-copilot-combo-launcher-20261105.png",
+      "sha256": "482c4b0b75fcb61c810c42c1cef75b63f86e380aa47bd5fc1d645f9c8f17eede"
+    },
+    "welcome": {
+      "path": "C:/Users/70367/.codex/worktrees/xiaohe-auth-card/yunhezhiyuan-portal/docs/previews/xiaohe-copilot-combo-welcome-20261105.png",
+      "stage": "initial connecting after welcome rendered",
+      "sha256": "f02def233313f19b8c76a710d725a1cfef65b44ea12fc7ff768a6c228df6b6fd"
+    }
+  },
+  "constraints": {
+    "existingDeploymentReplaced": false,
+    "formalFlagChanged": false,
+    "ssomutations": 0,
+    "automaticSms": 0,
+    "paidModelCalls": 0,
+    "releaseApproved": false
+  },
+  "remaining": {
+    "runningRuntimeStillOld": "spike-2c8132e",
+    "memberG2NotRepeated": true,
+    "realModelTokenStreamingNotTested": true,
+    "sameArtifactV1ToV2NotTested": true,
+    "capacityAndUatNotTested": true,
+    "previousSecurityBoundariesRetained": true
+  }
+}
