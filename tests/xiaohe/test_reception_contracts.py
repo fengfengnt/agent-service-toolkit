@@ -1,5 +1,6 @@
 import hashlib
 import json
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
@@ -59,3 +60,18 @@ def test_reception_actions_keep_original_admission_identifier_limit(key):
     contracts.ReceptionAction.model_validate(action | {key: "x" * 128})
     with pytest.raises(ValidationError):
         contracts.ReceptionAction.model_validate(action | {key: "x" * 129})
+
+
+@pytest.mark.parametrize(
+    "name,key",
+    [
+        ("buyer-name-only", "painPoints"),
+        ("supplier-name-only", "capabilityTags"),
+        ("organization-minimum", "aiNeeds"),
+    ],
+)
+def test_formal_array_values_follow_shared_schema_uniqueness(name, key):
+    value = deepcopy(next(case["value"] for case in CASES if case["name"] == name))
+    value["requestFields"][key] = ["重复", "重复"]
+    with pytest.raises(ValidationError):
+        contracts.Submission.model_validate(value)

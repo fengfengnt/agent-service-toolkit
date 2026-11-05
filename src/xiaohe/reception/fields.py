@@ -117,6 +117,7 @@ def validate_fields(direction: str, fields: dict) -> dict:
             valid = len(value) <= 32 and all(
                 isinstance(item, str) and len(item) <= 256 for item in value
             )
+            valid = valid and len(set(value)) == len(value)
         if key == "companyName":
             valid = isinstance(value, str) and bool(value.strip()) and len(value) <= 200
         if direction == "organization":
