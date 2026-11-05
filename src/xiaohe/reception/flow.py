@@ -88,9 +88,23 @@ def recognize_direction(text: str) -> str | None:
 
 
 def _switch(text):
-    return bool(re.search(r"切换|换成|换到|转到|改用|改为", text)) and not re.search(
-        r"不要|不想|不用|不切换", text
+    if re.search(r"不要|不想|不用|不切换", text):
+        return None
+    roles = "|".join(ALIASES.values())
+    prefix = (
+        rf"(?:^|[，,。；;！!])\s*(?:请帮我|帮我|请|我想|我要|麻烦)?\s*"
+        rf"(?:从(?:{roles})\s*)?"
+        r"(?:(?:把|将)(?:我(?:的(?:接待身份|身份|服务方向))?|身份|服务方向|接待方向)\s*)?"
+        r"(?:切换(?:到|为|成)?|换成|换到|转到|改用|改为)\s*"
     )
+    found = [
+        direction
+        for direction, aliases in ALIASES.items()
+        if re.search(
+            prefix + rf"(?:{aliases})(?:身份|方向|服务|接待)?吧?\s*(?=$|[，,。；;！!？?])", text
+        )
+    ]
+    return found[0] if len(found) == 1 else None
 
 
 def _explicit_confirmation(text):
@@ -331,9 +345,9 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
             flow.pending_request_id = None
         return AgentOutcome(parts=body, wait_for_input=wait, artifact_version_ids=[])
 
-    chosen = recognize_direction(text)
+    switching = _switch(text)
+    chosen = switching or recognize_direction(text)
     current = conversation.direction
-    switching = chosen and _switch(text)
     if current == "unknown" or switching:
         if not chosen:
             return reply(WELCOME, suggestions=list(LABELS.values()))

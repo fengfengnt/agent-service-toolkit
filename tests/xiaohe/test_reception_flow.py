@@ -13,7 +13,7 @@ from xiaohe.graph import build_graph
 from xiaohe.models import Command, Run
 from xiaohe.reception.contracts import CreateDraft, ReceptionAction
 from xiaohe.reception.fields import map_member_size
-from xiaohe.reception.flow import apply_reception_action, recognize_direction
+from xiaohe.reception.flow import _switch, apply_reception_action, recognize_direction
 from xiaohe.reception.store import create_draft, load_reception, patch_draft
 
 
@@ -48,6 +48,36 @@ def test_member_size_maps_clear_counts_and_clarifies_endpoints(text, expected):
 )
 def test_negation_and_two_roles_clarify(text, expected):
     assert recognize_direction(text) == expected
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("从采购商切换到供应商", "supplier"),
+        ("请把我的接待身份切换到采购商", "buyer"),
+        ("把ERP改为供应商系统怎么集成？", None),
+        ("我想改用供应商的系统", None),
+        ("不要切换到供应商", None),
+    ],
+)
+def test_switch_requires_explicit_target_identity_clause(text, expected):
+    assert _switch(text) == expected
+
+
+@pytest.mark.pg
+@pytest.mark.asyncio
+async def test_system_replacement_question_does_not_switch_but_explicit_from_to_does(
+    pg_factory, runtime_env, monkeypatch
+):
+    await install(pg_factory, runtime_env, monkeypatch)
+    who, conversation = await visitor(pg_factory)
+    await talk(pg_factory, runtime_env, who, conversation, "采购商")
+    message, view = await talk(
+        pg_factory, runtime_env, who, conversation, "把ERP改为供应商系统怎么集成？"
+    )
+    assert view.direction == "buyer" and "ERP" in message.model_dump_json()
+    _, view = await talk(pg_factory, runtime_env, who, conversation, "从采购商切换到供应商")
+    assert view.direction == "supplier"
 
 
 @pytest.mark.pg
