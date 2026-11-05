@@ -1,6 +1,6 @@
 # Copilot 候选会员认证准备
 
-日期：2026-11-05。G1 完成后，按已授权 P3 范围准备候选可信认证；**无短信适配通过，真实会员与 G2 尚未验收**。
+日期：2026-11-05。G1 完成后，按已授权 P3 范围准备候选可信认证。A5/A6 无短信适配通过；其后门户 Owner 已回报真实浏览器 G2 达标，见末尾分层补充。整体迁移收尾和正式部署仍未批准。
 
 ## 变更范围
 
@@ -50,6 +50,35 @@
 
 Runtime URL 与 REST base 继续分别为 `https://portal.lvh.me/copilot-candidate/copilot-api`、`https://portal.lvh.me/copilot-candidate/ai-api/v1`。门户在独立浏览器 context 中保留已登记精确 callback `/portal/auth/callback`，由测试网络分流确保相关 `/ai-api` 回调续接到候选18111原 operation，不能改成未登记的候选 callback、复制旧 Cookie 或重放 code。
 
-本次没有提交 browser-completion、verify、claim 或真实登录，没有验证八小时会员会话、账号绑定、访客归并或新旧会员文件连续性。真人验证码仍由用户输入，不自动重发短信。G2 保持待验；不得据此替换正式门户部署或启用正式开关。
+上述 A5/A6 准备探针没有提交 browser-completion、verify、claim 或真实登录，未验证八小时会员会话、账号绑定、访客归并或新旧会员文件连续性。当时 G2 保持待验；后续门户真实浏览器结果单独记录如下，不能用准备探针代替。不自动重发短信，不得据此替换正式门户部署或启用正式开关。
 
-G1 的匿名专项 A4 测试仍要求关闭候选 SSO；当前切换到认证准备模式后只执行了上表新增验证，未把此前匿名专项冒充本模式完整回归。
+G1 的匿名专项 A4 测试仍要求关闭候选 SSO；认证准备阶段只执行了上表新增验证，未把此前匿名专项冒充本模式完整回归。
+
+## G2：门户真实浏览器验收补充
+
+证据来源是门户 Owner 会话 `01a19f12-7f6d-74a0-b853-95fafb351220` 的本轮执行回执，及其隔离控制器 `member-live-commands.js`、真实浏览器 helper `frontend/tests/browser/copilot-real.mjs`；代码位于 `C:/Users/70367/.codex/worktrees/xiaohe-auth-card/yunhezhiyuan-portal`。本方读取了控制器及保留断言，但没有接管浏览器、取得 Cookie 或重新执行真人流程。门户公开总报告 `docs/sso/2026-11-05-copilotkit-validation.md` 由门户 Owner 继续收尾，不将尚未提交的 G2 回执冒称其已有提交内容。
+
+### 门户执行与回报
+
+- 保留原隔离 Edge context，认证 complete 成功 200；超时定位为验收控制器 close 后立即 open、QDialog hide 尚未结束，仅修控制器等待 hidden，没有产品或后端变更。
+- 同一 context 重开后，旧访客与会员两份精确文件版本实际浏览器下载 200，SHA-256 与原值一致。
+- 随后只结束候选 AI 会话，保留中心登录；新增第二段供应商访客消息与文件后，经正常门户登录再次 complete 200，没有自动发送新短信。
+- 门户输出 `G2_RESULT`：`existingHistoryPass=true`、`sameIdentityAndCanonical=true`、`preservedOldFiles=2`、`addedFiles=1`；累计精确浏览器下载 10 次。旧新消息按原 ID 顺序、时间及 parts 完整保持，三个精确文件版本的下载摘要保持。
+- 隔离测试只接管该 context 的静态 GET/精确 callback 接线；API/SSO 使用真实网络，不是成功响应 fixture，也不是以 MinIO 直读替代浏览器下载。
+
+### 本方独立只读佐证
+
+只在候选 PG 的 READ ONLY 事务中聚合合成标记，不输出真实身份、手机号、Cookie、CSRF、授权码或对象路径。按控制器实际第二标记 `我代表供应商，Copilot已有历史追加第二段` 核对：
+
+| 项目 | 只读结果 |
+| --- | --- |
+| 第一段访客 / 会员输入 / 第二段访客标记 | 各 1 条，均在同一 canonical |
+| canonical 匿名摘要 | `65cbe9b971c7`；仍为会员 owner |
+| 已完成归并 | 2 条，均匹配 canonical 同一会员 owner |
+| `mergePending` / 活跃 run | false / 0 |
+| 用户消息 / completed run | 3 / 3 |
+| 文件 / ready version | 3 / 3 |
+
+此前第一轮只读检查还核实旧访客与会员两份对象实际存在、大小和内容摘要匹配；该对象检查只作为存储层证据。上文浏览器下载及第三文件连续性来自门户实际浏览器回执，两个层次不混算。Runtime 从该次测试起点没有安全码日志行，不能据此宣称所有请求均未被拒绝。
+
+**阶段结论：门户 G2 真实浏览器达标已有执行回执及后端只读佐证。** 门户继续旧 SDK 清理、完整回归及整批审查，G2 不代表最终迁移收尾或正式发布批准。本轮本方仅补文档和只读核对，没有重跑 G1、修改数据、重启服务或改变正式开关；现有部署和正式 false 保留。
