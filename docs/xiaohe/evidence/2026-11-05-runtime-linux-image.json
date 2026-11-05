@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-11-05T05:30:07.857Z",
+  "source": {
+    "revision": "4a55b1ef68892018dddba51ba17d93a002638d6d",
+    "productCommit": "1510f25dc056dc626667721c7b7ec204b83ac76b",
+    "archiveSha256": "ff9497fd4db1071d5d85fd8aabcc660555ca08be18b5b8bacb408a86e0cba341",
+    "lockSha256": "8a0d2227a4d27403556c17dfc5d2fc06795a6ee351f4c4c278151245ab491f4b",
+    "imageTag": "yunhezhiyuan-aibackend-copilotruntime:spike-4a55b1e"
+  },
+  "offline": {
+    "result": "PASS",
+    "layer": "Linux production image / network none / no secrets",
+    "node": "v24.21.0",
+    "platform": "linux",
+    "architecture": "x64",
+    "uid": 1000,
+    "entry": {
+      "versions": [
+        "4.6.7"
+      ],
+      "cjsVersion": {
+        "major": 4,
+        "minor": 6,
+        "patch": 7
+      },
+      "visits": 0,
+      "issues": 1,
+      "legacyVersion": "3.25.76"
+    },
+    "health": 200,
+    "info": 200,
+    "rootZod": "4.6.7",
+    "legacyZod": "3.25.76",
+    "runtime": "1.84.1",
+    "publicSubpaths": 5,
+    "invalidSubpaths": 5,
+    "prototypeMinorStillDeferred": true,
+    "image": {
+      "id": "sha256:b77a2b38fa6b317f02ef3ae2bc5acdd1d41cac6abfbfa1f39c166a69c8c8cf2f",
+      "repoDigests": [
+        "yunhezhiyuan-aibackend-copilotruntime@sha256:b77a2b38fa6b317f02ef3ae2bc5acdd1d41cac6abfbfa1f39c166a69c8c8cf2f"
+      ],
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "cmd": [
+        "node",
+        "dist/index.js"
+      ],
+      "revision": "4a55b1ef68892018dddba51ba17d93a002638d6d"
+    },
+    "network": "none",
+    "removedOwnContainer": true
+  },
+  "network": {
+    "result": "PASS",
+    "layer": "new Linux image -> existing candidate Python via verified HTTPS",
+    "verifiedTLS": true,
+    "bootstrap": 200,
+    "health": 200,
+    "info": 200,
+    "connect": 200,
+    "snapshot": 200,
+    "eventTypes": [
+      "MESSAGES_SNAPSHOT",
+      "STATE_SNAPSHOT"
+    ],
+    "readonlyGatewayCalls": [
+      {
+        "method": "POST",
+        "path": "/copilot-candidate/ai-api/v1/agui/status"
+      },
+      {
+        "method": "POST",
+        "path": "/copilot-candidate/ai-api/v1/agui/connect"
+      }
+    ],
+    "userMessages": 0,
+    "preservedWelcomeMessages": 1,
+    "quotaUnchanged": true,
+    "originalDeadlineUnchanged": true,
+    "activeRun": false,
+    "cookiesPersisted": false,
+    "modelCalls": 0,
+    "smsCalls": 0,
+    "existingSessionsUsed": false,
+    "imageId": "sha256:b77a2b38fa6b317f02ef3ae2bc5acdd1d41cac6abfbfa1f39c166a69c8c8cf2f",
+    "revision": "4a55b1ef68892018dddba51ba17d93a002638d6d",
+    "removedOwnContainer": true
+  },
+  "preservation": {
+    "result": "PASS",
+    "checkedAt": "2026-11-05T05:30:07.857Z",
+    "protectedContainersUnchanged": 8,
+    "unchangedFields": [
+      "id",
+      "image",
+      "startedAt",
+      "restarts",
+      "running",
+      "mounts"
+    ],
+    "ownTemporaryContainersRemaining": 0,
+    "oldImageUnchanged": true,
+    "newImage": {
+      "id": "sha256:b77a2b38fa6b317f02ef3ae2bc5acdd1d41cac6abfbfa1f39c166a69c8c8cf2f",
+      "repoDigests": [
+        "yunhezhiyuan-aibackend-copilotruntime@sha256:b77a2b38fa6b317f02ef3ae2bc5acdd1d41cac6abfbfa1f39c166a69c8c8cf2f"
+      ],
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "cmd": [
+        "node",
+        "dist/index.js"
+      ],
+      "revision": "4a55b1ef68892018dddba51ba17d93a002638d6d"
+    },
+    "imagePushed": false,
+    "existingDeploymentReplaced": false,
+    "existingDataDeleted": false,
+    "anonymousFixtureCreated": 1,
+    "realG2Repeated": false,
+    "versionIsTestTag": true,
+    "officialVersionUnchanged": "0.1.0",
+    "officialReleaseArchiveProduced": false
+  }
+}
