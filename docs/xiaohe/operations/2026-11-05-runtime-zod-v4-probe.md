@@ -67,3 +67,11 @@ SSO Owner 独占恢复并放行健康门后，本方北京时间12:15只读复�
 当前 Runtime running，仍是 **`spike-2c8132e`**、revision `2c8132ee9caaf055e7a27629deacc1cfa78fa7ee`、image ID `sha256:eb33944b55f673918a5b6bf8f5cf636e05842579e920041ec689ffeee6e241f8`；**没有采用本次源码修补**。随后Windows直接loopback `/healthz` 与 `/copilot-api/info` 均200。原API/worker的容器ID仍分别为 `9a813112...` / `841dbbf0...`。未构建、启动、重启、重建或替换任何容器，未改 .env/SSO/Nginx/凭据/数据，正式开关保持关闭。卷挂载存在仅证明资源仍在；未重复读取真实会话/文件或重跑已通过G2。
 
 剩余边界：新修补尚未通过 Linux 镜像/正式镜像入口/真实候选网络验证；运行中的旧 Runtime 不能宣称已修复。根/v3 Zod 与门户 KaTeX 风险继续列为发布阻塞，精确v4修补不等于审计全绿或正式发布验收。
+
+## 本批最终审查
+
+产品提交 `1510f25dc056dc626667721c7b7ec204b83ac76b`，范围 `07af55d..1510f25` 全部8文件。`task-done`再次运行42项全通过。唯一 fresh-context reviewer只读审查计划、diff、源码与调用者，另行验证42项、strict和编译入口定向4项均通过；Critical0、Important0，判定本批源码可合并，不代表部署验收。
+
+非阻塞P3待办：`src/zod-v4-resolution.ts` 使用 `resolve()` 归一化目标，`zod/v4/locales/en.js/` 尾斜杠的错误导入在原生ESM报错，本hook可接受；空suffix的目录错误类型也不同。未发现私有文件、v3或包外越界加载，当前SDK无该导入写法。本轮按审查流程记录后暂缓；后续可拒绝空/尾斜杠suffix，并以不加载tsx的原生Node补充回归。
+
+审查边界裁定：Linux门禁留待后续，不推断跨平台通过；旧镜像在线资源由本方只读证据证明，但不推断新补丁已运行或数据完整验收；根/v3及KaTeX继续阻塞发布；历史G2按人类要求复用，真实SSO/SMS/模型不重复执行。保留 `dev-fengfeng`、验收目录和已有并行改动，不推送、不合并到其他分支、不发布。

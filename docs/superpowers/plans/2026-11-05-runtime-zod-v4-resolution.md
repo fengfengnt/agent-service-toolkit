@@ -35,4 +35,4 @@
 - [x] Step 2: `npm test -- zod-v4-resolution`。Expected: RED，实际嵌套v4.0.0与预期4.6.7不符；不可只以不存在文件为失败证据。
 - [x] Step 3: 实现小型同步 resolver，仅官方v4导出，校验版本和实际文件仍在包目录；index在动态SDK导入前注册，测试预加载同一源码，TS paths对齐官方声明。
 - [x] Step 4: `npm test`、`npm run typecheck`、`npm run build`；设置 `XIAOHE_TEST_COMPILED=1` 后运行定向测试。Expected: 原38项和新增安全门全部PASS、strict/build exit0；编译入口health/info200、受控factory run200、事件完成、未支持route404，不调用外网。
-- [ ] Step 5: 记录RED/GREEN、版本/lock摘要、未部署及残留，精确提交本任务文件；`task-done`以完整npm test记录完成，再做一次整批fresh review，保留验收工作目录。
+- [x] Step 5: 记录RED/GREEN、版本/lock摘要、未部署及残留，精确提交本任务文件；`task-done`以完整npm test记录完成，再做一次整批fresh review，保留验收工作目录。
