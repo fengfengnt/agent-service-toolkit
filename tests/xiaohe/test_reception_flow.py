@@ -48,6 +48,15 @@ def test_member_size_maps_clear_counts_and_clarifies_endpoints(text, expected):
         ("想找采购商", "supplier"),
         ("我是采购商，想找供应商", "buyer"),
         ("找采购商或供应商都可以", None),
+        ("帮我找供应商", "buyer"),
+        ("请帮我找供应商", "buyer"),
+        ("我们要找一家供应商", "buyer"),
+        ("请帮我们找采购商", "supplier"),
+        ("客户说他是供应商", None),
+        ("客户说：我是供应商", None),
+        ("我不是一个供应商", None),
+        ("我是采购商或者供应商", None),
+        ("我选择供应商", "supplier"),
     ],
 )
 def test_negation_and_two_roles_clarify(text, expected):
@@ -262,6 +271,60 @@ async def test_fixed_greeting_invitation_and_defer(pg_factory, runtime_env, monk
     message, view = await talk(pg_factory, runtime_env, who, conversation, "我愿意登记需求")
     assert any(part.type == "auth_request" for part in message.parts)
     assert not view.draft_refs
+
+
+@pytest.mark.pg
+@pytest.mark.asyncio
+@pytest.mark.parametrize("signed_in", [False, True])
+@pytest.mark.parametrize("refusal", ["不同意", "我不接受", "我不同意登记"])
+async def test_explicit_refusal_never_accepts_or_creates_draft(
+    pg_factory, runtime_env, monkeypatch, signed_in, refusal
+):
+    await install(pg_factory, runtime_env, monkeypatch)
+    if signed_in:
+        _, token = await login(pg_factory)
+        initial, _, _ = await bootstrap(pg_factory, token)
+        who, conversation = await actor(pg_factory, token), UUID(initial.conversation_id)
+    else:
+        who, conversation = await visitor(pg_factory)
+    await talk(pg_factory, runtime_env, who, conversation, "采购商")
+    await talk(pg_factory, runtime_env, who, conversation, "想看演示")
+    message, view = await talk(pg_factory, runtime_env, who, conversation, refusal)
+    assert view.invitation_state == "deferred" and not view.draft_refs
+    assert all(part.type != "auth_request" for part in message.parts)
+    message, view = await talk(pg_factory, runtime_env, who, conversation, "怎么收费？")
+    assert view.invitation_state == "deferred" and not view.draft_refs
+    assert "是否愿意" not in message.model_dump_json()
+
+
+@pytest.mark.pg
+@pytest.mark.asyncio
+async def test_professional_answer_at_review_preserves_summary_and_does_not_submit(
+    pg_factory, runtime_env, monkeypatch
+):
+    await install(pg_factory, runtime_env, monkeypatch)
+    _, token = await login(pg_factory)
+    initial, _, _ = await bootstrap(pg_factory, token)
+    who, conversation = await actor(pg_factory, token), UUID(initial.conversation_id)
+    await talk(pg_factory, runtime_env, who, conversation, "采购商")
+    _, view = await talk(pg_factory, runtime_env, who, conversation, "我愿意登记需求")
+    async with pg_factory.begin() as db:
+        await patch_draft(
+            db, who, view.active_draft.id, view.active_draft.revision, {"companyName": "甲公司"}
+        )
+    _, view = await talk(pg_factory, runtime_env, who, conversation, "查看汇总")
+    before = view.active_draft
+    message, view = await talk(pg_factory, runtime_env, who, conversation, "资料安全吗？")
+    assert (
+        "访问人员" in message.model_dump_json()
+        and "具体安全承诺待确认" in message.model_dump_json()
+    )
+    assert view.active_draft.state == "review" and view.active_draft.revision == before.revision
+    assert view.active_draft.summary_version == before.summary_version
+    from xiaohe.reception.models import ReceptionSubmission
+
+    async with pg_factory() as db:
+        assert await db.scalar(select(ReceptionSubmission)) is None
 
 
 @pytest.mark.pg

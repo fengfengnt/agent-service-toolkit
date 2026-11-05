@@ -72,24 +72,37 @@ ACTION_TEXT = {
 def recognize_direction(text: str) -> str | None:
     if text.strip() in LABELS:
         return text.strip()
-    all_roles = "|".join(ALIASES.values())
-    positive = re.sub(
-        rf"(?:不是|并非|不做|不要(?:切换到|换成)?|不想(?:切换到|换成)?)\s*(?:{all_roles})", "", text
-    )
+    end = r"(?:身份|方向|服务|接待)?\s*(?=$|[，,。；;！!])"
     identities = [
         direction
         for direction, aliases in ALIASES.items()
-        if re.search(rf"(?:我是|我们是|我代表|我们代表)\s*(?:{aliases})", positive)
+        if re.search(
+            rf"(?:^|[，,。；;！!])\s*(?:我是|我们是|我代表|我们代表)\s*(?:一[个家名])?(?:{aliases})"
+            + end,
+            text,
+        )
     ]
+    if (
+        re.search(r"或者|或|兼任|也是|又是", text)
+        and sum(bool(re.search(pattern, text)) for pattern in ALIASES.values()) > 1
+    ):
+        return None
     if identities:
         return identities[0] if len(identities) == 1 else None
     for target, direction in (("supplier", "buyer"), ("buyer", "supplier")):
         if re.fullmatch(
-            rf"(?:我|我们)?(?:想|要|需要)?(?:寻找|找|寻求|对接)\s*(?:{ALIASES[target]})(?:合作)?[。！!？?\s]*",
-            positive.strip(),
+            rf"(?:请|麻烦)?(?:帮(?:助)?(?:我|我们)|协助(?:我|我们))?(?:我|我们)?(?:正在|现在|在)?(?:想|要|需要|希望)?(?:寻找|找|寻求|对接)\s*(?:一[家个位]|(?:合适|可靠|优质|靠谱)的?)?\s*(?:{ALIASES[target]})(?:合作)?[。！!？?\s]*",
+            text.strip(),
         ):
             return direction
-    found = [direction for direction, aliases in ALIASES.items() if re.search(aliases, positive)]
+    found = [
+        direction
+        for direction, aliases in ALIASES.items()
+        if re.fullmatch(
+            rf"(?:我选择|我选|选择|选)?\s*(?:{aliases})(?:身份|方向|服务|接待)?[。！!？?\s]*",
+            text.strip(),
+        )
+    ]
     return found[0] if len(found) == 1 else None
 
 
@@ -384,6 +397,15 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
             OPENERS[chosen],
             suggestions=["寻源慢", "难比价", "想看效果"] if chosen == "buyer" else None,
         )
+    if chosen is None:
+        chosen = next(
+            (
+                direction
+                for direction, aliases in ALIASES.items()
+                if re.match(rf"\s*(?:{aliases})\s*(?:怎么用|如何使用|入驻|注册|服务)", text)
+            ),
+            None,
+        )
     if (
         chosen
         and chosen != current
@@ -432,13 +454,13 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
                 return reply("请先选择一份要继续的草稿，也可以明确要求新建需求。")
             flow.active_draft_id = match[0].id
     accepted = bool(
-        re.search(
-            r"我(?:愿意|要|想|希望).{0,6}(?:登记|留资|注册|登录|开始)|(?:同意|接受|愿意)(?:登记|留资|邀请)?$",
+        re.fullmatch(
+            r"\s*(?:好的[，,]\s*)?(?:(?:我|我们)(?:愿意|要|想|希望)(?:现在|先)?(?:登记|留资|注册|登录|开始)(?:需求|资料|信息|接待|服务)?|(?:我|我们)?(?:同意|接受|愿意)(?:登记|留资|邀请)?)[。！!\s]*",
             text,
         )
     )
     if (
-        re.search(r"暂时?不|稍后|以后|再说|不用|不愿|不想", text)
+        re.search(r"暂时?不|稍后|以后|再说|不用|不愿|不想|不同意|不接受", text)
         and flow.invitation_state == "offered"
     ):
         flow.invitation_state = "deferred"
@@ -530,7 +552,8 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
         if row.state == "review":
             missing = missing_required(current, row.fields)
             return reply(
-                (
+                (skill.text + "\n\n" if skill else "")
+                + (
                     "还缺少最低提交资料：" + "、".join(FIELD_LABELS[key] for key in missing) + "。"
                     if missing
                     else ""
