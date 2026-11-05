@@ -103,3 +103,26 @@ class ReceptionAction(WireModel):
         if self.action == "confirm" and self.summary_version is None:
             raise ValueError("confirmation requires summaryVersion")
         return self
+
+
+class SkillContext(WireModel):
+    direction: Direction
+    fields: dict[str, FieldValue] = Field(default_factory=dict, repr=False)
+
+
+class KnowledgeRequest(WireModel):
+    direction: Direction
+    skill_id: Id
+    query: Annotated[str, Field(max_length=200)]
+
+
+class KnowledgeHit(WireModel):
+    text: Annotated[str, Field(min_length=1, max_length=4000)]
+    source: Annotated[Id, Field(max_length=200)]
+    version: Annotated[Id, Field(max_length=100)]
+    conditions: Annotated[str, Field(max_length=1000)]
+
+
+class SkillAnswer(WireModel):
+    text: str
+    sources: list[KnowledgeHit] = Field(default_factory=list)
