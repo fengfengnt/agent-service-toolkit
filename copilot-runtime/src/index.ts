@@ -1,3 +1,4 @@
+import "./zod-v4-resolution.js";
 import { loadConfig } from "./config.js";
 
 process.env.COPILOTKIT_TELEMETRY_DISABLED = "true";

@@ -1,6 +1,6 @@
 # Runtime Zod v4 精确解析隔离验证
 
-日期：2026-11-05。结论：**Windows Node 隔离进程验证可行；未修改产品包、SDK、lockfile、候选镜像或服务。** 根入口/v3 残留保留，不能称依赖审计全绿，也不代表 Linux 容器已采用该方案。
+日期：2026-11-05。结论：**隔离探针通过后，已将精确解析纳入 Runtime 源码和正式入口；Windows 源码/编译门禁通过，未更新运行镜像。** 根入口/v3 残留保留，不能称依赖审计全绿，也不代表 Linux 容器已采用该方案。下文先保留探针阶段记录，末节记录正式源码采用与迁移后复核。
 
 ## 范围与制品
 
@@ -47,3 +47,23 @@
 随后 SSO Owner 报告 `Wsl/Service/E_UNEXPECTED`，本方停止进一步 WSL 调用。用户已在 SSO 会话允许其独占恢复，当前在线健康门仍未放行；本报告不把启动阶段瞬时 Portal200或历史 G2 当作当前在线通过。
 
 已保存的 [G2分层证据](2026-11-05-copilot-candidate-auth.md)继续复用，不重跑真实会员、短信、G2或付费模型。迁移健康门通过后，再只读核实原部署及候选的容器、镜像、卷和专用库/桶；本方此轮未执行 up/recreate/restart、数据变更或正式开关变更。
+
+## 正式源码采用与迁移恢复后的复核
+
+本阶段在 `dev-fengfeng`、基线 `07af55d` 上执行 [单任务实施计划](../../superpowers/plans/2026-11-05-runtime-zod-v4-resolution.md)。直接读取门户对话确认人类恢复指令晚于旧暂停；没有重复请求同一范围授权。
+
+- 新增 `copilot-runtime/src/zod-v4-resolution.ts`：从当前模块解析根包 manifest，校验4.6.7，使用官方 exports 的 import/require 分支；只接管明确 `zod/v4` 公共子路径，校验实际文件留在包内。
+- `src/index.ts` 先安装同步 hook，再动态导入 SDK；`tsconfig.json` 将同一批 v4 类型路径指向根包官方声明。无 skipLibCheck、SDK JS patch 或根/v3全局覆盖，无新增依赖。
+- 原测试入口预加载同一产品 hook。新增四项安全/组合测试与只读 load observer；独立入口子进程显式清空继承的 resolver 参数，避免测试预加载掩盖正式入口遗漏。
+
+RED 实测：实际 client 的 v4为4.0.0，子进程同时加载4.6.7和嵌套3.25.76内的旧v4；路径一致性断言也失败。随后 GREEN：ESM与CJS仅加载4.6.7，三元素超限样本一个 `too_big`、元素访问0；官方公共子路径可用，根/v3仍3.25.76，v3同样本仍4个issues。补充 Windows 反斜杠穿越样本后先观察到 RED，再在 wildcard suffix 拒绝反斜杠并恢复 GREEN；防止包内私有文件或v3通过路径归一化绕过官方导出。
+
+本轮验证：**42项全部通过、零跳过**（原38项加4项），严格 `tsc --noEmit`、正式 `tsc -p tsconfig.build.json` 均 exit0；`XIAOHE_TEST_COMPILED=1` 的四项定向验证通过。源码及 `dist/index.js` 独立进程实际 health/info200；编译 Runtime factory 使用受控网关 run200、四类事件完成、run/connect各1、stop0、非支持route404。这里的业务网关是 fixture，不是真实 Python、SSO 或模型。
+
+manifest/lock没有变化，lock SHA-256仍 `8a0d2227a4d27403556c17dfc5d2fc06795a6ee351f4c4c278151245ab491f4b`。证据保存在忽略目录 `.superpowers/sdd/2026-11-05-runtime-zod-v4-resolution/` 的 red/green/backslash-red/suite/typecheck/build/compiled 日志；未用 npm audit 结果替代实际解析断言，未重跑 audit。
+
+SSO Owner 独占恢复并放行健康门后，本方北京时间12:15只读复核：候选 API/worker 仍为 `spike-0d18e81`、revision `0d18e819bfe3a0b7295efc609a3289caf1392ead`；候选 PG/MinIO running，分别保留 `yunhezhiyuan-copilot-candidate-pg` 和 `yunhezhiyuan-copilot-candidate-minio` 卷。原API/worker也在运行。首次旧worker使用错误名称未查到，随后通过只读容器列表纠正为 `yunhezhiyuan-aibackend-0.1.0-worker`；不把首次inspect非零当完整通过。
+
+当前 Runtime running，仍是 **`spike-2c8132e`**、revision `2c8132ee9caaf055e7a27629deacc1cfa78fa7ee`、image ID `sha256:eb33944b55f673918a5b6bf8f5cf636e05842579e920041ec689ffeee6e241f8`；**没有采用本次源码修补**。随后Windows直接loopback `/healthz` 与 `/copilot-api/info` 均200。原API/worker的容器ID仍分别为 `9a813112...` / `841dbbf0...`。未构建、启动、重启、重建或替换任何容器，未改 .env/SSO/Nginx/凭据/数据，正式开关保持关闭。卷挂载存在仅证明资源仍在；未重复读取真实会话/文件或重跑已通过G2。
+
+剩余边界：新修补尚未通过 Linux 镜像/正式镜像入口/真实候选网络验证；运行中的旧 Runtime 不能宣称已修复。根/v3 Zod 与门户 KaTeX 风险继续列为发布阻塞，精确v4修补不等于审计全绿或正式发布验收。

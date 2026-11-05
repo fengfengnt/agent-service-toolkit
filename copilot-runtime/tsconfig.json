@@ -2,7 +2,14 @@
   "compilerOptions": {
     "target": "ES2022", "module": "NodeNext", "moduleResolution": "NodeNext",
     "strict": true, "noEmit": true, "esModuleInterop": true,
-    "types": ["node"], "lib": ["ES2022", "DOM", "DOM.Iterable"]
+    "types": ["node"], "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "paths": {
+      "zod/v4": ["./node_modules/zod/v4/index.d.cts"],
+      "zod/v4/core": ["./node_modules/zod/v4/core/index.d.cts"],
+      "zod/v4/mini": ["./node_modules/zod/v4/mini/index.d.cts"],
+      "zod/v4/locales": ["./node_modules/zod/v4/locales/index.d.cts"],
+      "zod/v4/locales/*": ["./node_modules/zod/v4/locales/*"]
+    }
   },
   "include": ["src/**/*.ts", "tests/**/*.ts"]
 }
