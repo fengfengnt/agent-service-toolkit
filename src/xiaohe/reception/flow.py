@@ -81,8 +81,14 @@ def recognize_direction(text: str) -> str | None:
         for direction, aliases in ALIASES.items()
         if re.search(rf"(?:我是|我们是|我代表|我们代表)\s*(?:{aliases})", positive)
     ]
-    if len(identities) == 1:
-        return identities[0]
+    if identities:
+        return identities[0] if len(identities) == 1 else None
+    for target, direction in (("supplier", "buyer"), ("buyer", "supplier")):
+        if re.fullmatch(
+            rf"(?:我|我们)?(?:想|要|需要)?(?:寻找|找|寻求|对接)\s*(?:{ALIASES[target]})(?:合作)?[。！!？?\s]*",
+            positive.strip(),
+        ):
+            return direction
     found = [direction for direction, aliases in ALIASES.items() if re.search(aliases, positive)]
     return found[0] if len(found) == 1 else None
 
@@ -122,6 +128,12 @@ def _new_need(text):
 
 def _next_round(text):
     return bool(re.fullmatch(r"保存本轮(?:资料)?|(?:继续)?下一轮", text.strip()))
+
+
+def _summary_requested(text):
+    return bool(
+        re.fullmatch(r"跳过(?:选填)?(?:[，,]查看汇总)?|查看汇总|查看资料汇总", text.strip())
+    )
 
 
 class Candidate(WireModel):
@@ -280,7 +292,8 @@ async def _prepare_reception_step(
             and not _new_need(text)
             and not _next_round(text)
             and not _switch(text)
-            and text.strip() not in ("查看汇总", "跳过选填", "跳过")
+            and not _summary_requested(text)
+            and text.strip() not in ("继续采集资料", "Continue collecting details")
         )
         command_id = command.id
         direction = conversation.direction
@@ -488,8 +501,7 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
                 row.step = next_step
                 row.revision += 1
         elif (
-            operation in ("skip_optional", "show_summary")
-            or re.fullmatch(r"跳过(?:选填)?|查看汇总|查看资料汇总", text.strip())
+            operation in ("skip_optional", "show_summary") or _summary_requested(text)
         ) and row.state in ("collecting", "review"):
             if row.step != "summary":
                 row.step = "summary"

@@ -44,6 +44,10 @@ def test_member_size_maps_clear_counts_and_clarifies_endpoints(text, expected):
         ("不要切换到供应商", None),
         ("我是采购总监", "buyer"),
         ("我是供应商，想找采购商", "supplier"),
+        ("我想找供应商", "buyer"),
+        ("想找采购商", "supplier"),
+        ("我是采购商，想找供应商", "buyer"),
+        ("找采购商或供应商都可以", None),
     ],
 )
 def test_negation_and_two_roles_clarify(text, expected):
@@ -133,16 +137,80 @@ async def test_buyer_supplier_question_is_answered_and_natural_round_controls_wo
     assert view.active_draft.state == "review"
 
 
-async def install(pg_factory, runtime_env, monkeypatch, business_client=None):
+async def install(pg_factory, runtime_env, monkeypatch, business_client=None, model=None):
     from agents.agents import agents
 
     graph = build_graph(
         factory=pg_factory,
-        model=DecisionModel(result={"fields": {}}),
+        model=model or DecisionModel(result={"fields": {}}),
         business_client=business_client,
     )
     graph.checkpointer, graph.store = runtime_env.graph.checkpointer, runtime_env.graph.store
     monkeypatch.setattr(agents["xiaohe"], "graph_like", graph)
+
+
+@pytest.mark.pg
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "text", ["继续采集资料", "Continue collecting details", "跳过选填，查看汇总"]
+)
+async def test_navigation_text_never_runs_field_extraction(
+    pg_factory, runtime_env, monkeypatch, text
+):
+    model = DecisionModel(result={"fields": {"companyName": {"value": text, "evidence": text}}})
+    await install(pg_factory, runtime_env, monkeypatch, model=model)
+    who, conversation = await visitor(pg_factory)
+    async with pg_factory.begin() as db:
+        await create_draft(
+            db,
+            who,
+            conversation,
+            CreateDraft(client_draft_id="navigation", kind="service", direction="buyer"),
+        )
+    _, view = await talk(pg_factory, runtime_env, who, conversation, text)
+    assert model.requests == []
+    assert "companyName" not in view.active_draft.fields
+
+
+@pytest.mark.pg
+@pytest.mark.asyncio
+@pytest.mark.parametrize("accept", [True, False])
+async def test_login_claim_continues_only_accepted_invitation_once(
+    pg_factory, runtime_env, monkeypatch, job_app, accept
+):
+    from test_guest_claim import prepare
+    from test_http_api import client_for, session
+
+    await install(pg_factory, runtime_env, monkeypatch)
+    async with client_for(pg_factory) as (client, app):
+        initial = await session(client)
+        who = await actor(pg_factory, client.cookies.get("__Host-XIAOHESESSION"))
+        conversation = UUID(initial["conversationId"])
+        await talk(pg_factory, runtime_env, who, conversation, "采购商")
+        await talk(pg_factory, runtime_env, who, conversation, "想看演示")
+        await talk(
+            pg_factory, runtime_env, who, conversation, "我愿意登记需求" if accept else "暂时不用"
+        )
+        operation_id, _ = await prepare(client, app)
+        result = await client.post(f"/ai-api/v1/auth/operations/{operation_id}/complete", json={})
+        assert result.status_code == 200
+        current = result.json()
+        who = await actor(pg_factory, client.cookies.get("__Host-XIAOHESESSION"))
+        if current["activeRun"] and current["activeRun"]["status"] == "queued":
+            await runtime_env.worker.execute_run(UUID(current["activeRun"]["id"]))
+        _, view = await talk(
+            pg_factory, runtime_env, who, UUID(current["conversationId"]), "继续采集资料"
+        )
+        assert view.direction == "buyer"
+        if accept:
+            assert view.active_draft is not None
+            draft_id = view.active_draft.id
+            _, again = await talk(
+                pg_factory, runtime_env, who, UUID(current["conversationId"]), "继续采集资料"
+            )
+            assert len(again.draft_refs) == 1 and again.active_draft.id == draft_id
+        else:
+            assert view.invitation_state == "deferred" and not view.draft_refs
 
 
 async def talk(factory, env, who, conversation, text):
