@@ -43,7 +43,7 @@ async def test_authorized_context_excludes_foreign_system_and_untrusted_state(
     monkeypatch.setattr(agents["xiaohe"], "graph_like", graph)
     await runtime_env.worker.execute_run(fence.run_id)
     async with pg_factory() as db:
-        assert (await db.get(Run, fence.run_id)).status == "completed"
+        assert (await db.get(Run, fence.run_id)).status == "waiting_input"
         assert (await db.get(Conversation, conversation)).direction == "supplier"
 
 

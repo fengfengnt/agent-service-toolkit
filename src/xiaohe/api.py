@@ -35,6 +35,11 @@ _MESSAGES = {
     "EVENT_CURSOR_EXPIRED": "事件游标已过期，请重新读取快照。",
     "CSRF_INVALID": "请求验证失败，请重新读取会话。",
     "UPSTREAM_UNAVAILABLE": "服务暂时不可用，请稍后重试。",
+    "DRAFT_CONFLICT": "资料已更新，请读取当前版本后重新确认。",
+    "SUBJECT_CONFLICT": "企业或组织资料存在冲突，请核对后重试。",
+    "FILE_INVALID": "文件类型或内容不符合要求。",
+    "FILE_TOO_LARGE": "文件超过大小限制。",
+    "SUBMISSION_UNKNOWN": "正式受理结果尚未确认，请稍后重试。",
 }
 
 

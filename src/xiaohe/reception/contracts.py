@@ -38,6 +38,11 @@ class CreateDraft(WireModel):
         return self
 
 
+class PatchDraft(WireModel):
+    expected_revision: Positive
+    fields: dict[str, FieldValue]
+
+
 class FileRef(WireModel):
     id: Id
     category: FileCategory

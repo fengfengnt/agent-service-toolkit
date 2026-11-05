@@ -12,6 +12,7 @@ from xiaohe.api import create_public_router, install_error_handlers
 from xiaohe.artifacts import ArtifactService
 from xiaohe.database import create_database_engine
 from xiaohe.graph import build_graph
+from xiaohe.reception.api import create_reception_router
 from xiaohe.settings import Settings
 from xiaohe.toolkit_runtime import create_execution_router
 
@@ -118,6 +119,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     install_error_handlers(app)
     app.include_router(create_public_router(factory))
+    app.include_router(create_reception_router(factory))
     app.include_router(create_agui_router(factory))
     app.include_router(internal)
     app.mount("/internal/toolkit", upstream_app)

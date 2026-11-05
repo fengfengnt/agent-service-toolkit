@@ -289,16 +289,24 @@ def build_graph(
                 pass
             if fence is None:
                 raise ServiceError("FORBIDDEN", 403)
-            async with factory.begin() as db:
-                context = await build_reception_context(db, fence)
             state["write_fence"] = fence.model_dump(mode="json")
-            outcome = await reception_outcome(
-                context, state, model or reception_model(), handlers or {}
-            )
+            if handlers is None:
+                from xiaohe.reception.flow import run_reception_step
+
+                outcome = await run_reception_step(factory, fence, model)
+            else:
+                async with factory.begin() as db:
+                    context = await build_reception_context(db, fence)
+                outcome = await reception_outcome(
+                    context, state, model or reception_model(), handlers
+                )
             async with factory.begin() as db:
                 run = await require_write(db, fence)
                 conversation = await db.get(Conversation, run.conversation_id)
-                conversation.direction = state["direction"]
+                if handlers is None:
+                    state["direction"] = conversation.direction
+                else:
+                    conversation.direction = state["direction"]
         else:
             outcome = await handler(state)
         result = outcome.model_dump(mode="json", by_alias=True)

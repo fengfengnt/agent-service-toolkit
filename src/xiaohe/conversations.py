@@ -107,13 +107,13 @@ async def ensure_welcome(db: AsyncSession, conversation: Conversation) -> None:
         tenant_id=conversation.tenant_id,
         role="assistant",
         parts=[
-            {"type": "text", "text": "您好，我是小鹤。请选择服务方向，或直接告诉我您的问题。"},
+            {"type": "text", "text": "您好，我是小鹤，欢迎来到云鹤智元。请选择您的服务身份：采购商、社群组织或供应商。"},
             {
                 "type": "suggestions",
                 "items": [
                     {"id": key, "text": label}
                     for key, label in (
-                        ("buyer", "采购方"),
+                        ("buyer", "采购商"),
                         ("organization", "社群组织"),
                         ("supplier", "供应商"),
                     )

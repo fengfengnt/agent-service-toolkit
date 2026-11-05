@@ -66,7 +66,7 @@ def validate_fields(direction: str, fields: dict) -> dict:
             if key in ORG_ENUMS:
                 valid = isinstance(value, str) and value in ORG_ENUMS[key]
             elif key == "organizationName":
-                valid = isinstance(value, str) and bool(value.strip()) and 2 <= len(value) <= 40
+                valid = isinstance(value, str) and 2 <= len(value.strip()) <= 40
             elif key == "contactName":
                 valid = isinstance(value, str) and bool(value.strip()) and len(value) <= 100
             elif key == "email":
@@ -98,3 +98,31 @@ def validate_fields(direction: str, fields: dict) -> dict:
 
 def missing_required(direction: str, fields: dict) -> list[str]:
     return [key for key in REQUIRED[direction] if not fields.get(key)]
+
+
+def map_member_size(text: str) -> str | None:
+    for value in ORG_ENUMS["memberSize"]:
+        if value in text:
+            return value
+    match = re.search(r"([0-9]+|[零一二两三四五六七八九十百千万]+)\s*(?:家|个|会员|企业)", text)
+    if not match:
+        return None
+    token = match[1]
+    if token.isdecimal():
+        size = int(token)
+    else:
+        digits = dict(zip("零一二两三四五六七八九", (0, 1, 2, 2, 3, 4, 5, 6, 7, 8, 9)))
+        units = {"十": 10, "百": 100, "千": 1000, "万": 10000}
+        size, current = 0, 0
+        for char in token:
+            if char in digits:
+                current = digits[char]
+            else:
+                size += (current or 1) * units[char]
+                current = 0
+        size += current
+    if size in (100, 500, 2000) or size <= 0:
+        return None
+    return ORG_ENUMS["memberSize"][
+        0 if size < 100 else 1 if size < 500 else 2 if size < 2000 else 3
+    ]

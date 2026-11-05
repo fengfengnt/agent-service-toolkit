@@ -18,13 +18,17 @@ def _uuid(value: str | UUID) -> UUID:
 
 
 async def flow_record(db: AsyncSession, actor: Actor, conversation_id: UUID) -> ReceptionFlow:
-    await require_conversation(db, actor, conversation_id)
-    row = await db.get(ReceptionFlow, conversation_id)
+    conversation = await require_conversation(db, actor, conversation_id)
+    return await locked_flow(db, conversation)
+
+
+async def locked_flow(db, conversation) -> ReceptionFlow:
+    row = await db.get(ReceptionFlow, conversation.id)
     if row is None:
         row = ReceptionFlow(
-            conversation_id=conversation_id,
-            system_id=actor.system.system_id,
-            tenant_id=actor.system.tenant_id,
+            conversation_id=conversation.id,
+            system_id=conversation.system_id,
+            tenant_id=conversation.tenant_id,
         )
         db.add(row)
         await db.flush()
@@ -128,6 +132,12 @@ async def patch_draft(
     db: AsyncSession, actor: Actor, draft_id: str | UUID, expected_revision: int, fields: dict
 ) -> DraftView:
     row = await require_draft(db, actor, draft_id, expected_revision)
+    return await patch_locked_draft(db, row, expected_revision, fields)
+
+
+async def patch_locked_draft(db, row, expected_revision, fields) -> DraftView:
+    if row.revision != expected_revision:
+        raise ServiceError("DRAFT_CONFLICT", 409)
     if row.state in ("submitting", "accepted"):
         raise ServiceError("DRAFT_CONFLICT", 409)
     merged = row.fields | validate_fields(row.direction, fields)
@@ -136,8 +146,6 @@ async def patch_draft(
         row.revision += 1
         row.summary_version = None
         row.state = "collecting"
-        if row.step == "summary":
-            row.step = "round1"
         await db.flush()
     return await draft_view(db, row)
 
