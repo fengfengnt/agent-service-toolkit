@@ -42,6 +42,7 @@ async def test_unassigned_and_ungraded_are_null_and_identity_is_server_derived(p
     async with client_for(pg_factory) as (client, app):
         app.include_router(create_reception_router(pg_factory, business))
         client.cookies.set(SESSION_COOKIE, token)
+        await session(client)
         response = await client.get("/ai-api/v1/reception/progress?cursor=opaque-page")
         assert response.status_code == 200, response.text
         item = response.json()["groups"][0]["applications"][0]
@@ -66,6 +67,7 @@ async def test_progress_filters_internal_notes_and_fails_closed(pg_factory):
     async with client_for(pg_factory) as (client, app):
         app.include_router(create_reception_router(pg_factory, business))
         client.cookies.set(SESSION_COOKIE, token)
+        await session(client)
         response = await client.get("/ai-api/v1/reception/progress")
         assert response.status_code == 503
         assert "private-manager-notes" not in response.text
@@ -112,6 +114,7 @@ async def test_subjects_require_login_and_forward_only_typed_queries(pg_factory)
         _, token = await login(pg_factory)
         client.cookies.clear()
         client.cookies.set(SESSION_COOKIE, token)
+        await session(client)
         assert (await client.get("/ai-api/v1/reception/subjects?kind=member")).status_code == 422
         assert (
             await client.get("/ai-api/v1/reception/subjects?kind=company&kind=organization")
@@ -119,3 +122,30 @@ async def test_subjects_require_login_and_forward_only_typed_queries(pg_factory)
         response = await client.get("/ai-api/v1/reception/subjects?kind=company")
         assert response.status_code == 200 and response.json() == {"items": [], "nextCursor": None}
         assert len(requests) == 1
+
+
+@pytest.mark.parametrize("path", ["progress", "subjects?kind=company"])
+async def test_shared_cookie_account_switch_cannot_read_another_directory_with_old_snapshot(
+    pg_factory, path
+):
+    requests = []
+    business = ReceptionBusinessClient(
+        configured(),
+        transport=httpx.MockTransport(
+            lambda request: (
+                requests.append(request),
+                httpx.Response(200, json={"code": 0, "data": progress()}),
+            )[1]
+        ),
+    )
+    _, first = await login(pg_factory, sub="account-A")
+    _, second = await login(pg_factory, sub="account-B")
+    async with client_for(pg_factory) as (client, app):
+        app.include_router(create_reception_router(pg_factory, business))
+        client.cookies.set(SESSION_COOKIE, first)
+        await session(client)
+        client.cookies.clear()
+        client.cookies.set(SESSION_COOKIE, second)
+        response = await client.get("/ai-api/v1/reception/" + path)
+        assert response.status_code == 403 and response.json()["error"]["code"] == "CSRF_INVALID"
+        assert requests == [] and "groups" not in response.text

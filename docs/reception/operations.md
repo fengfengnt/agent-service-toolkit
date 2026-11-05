@@ -6,7 +6,7 @@
 
 接待接口位于 `/ai-api/v1/reception`，沿现有 Cookie、Origin、CSRF 和对象授权。分轮保存只更新草稿；选择服务方向不改变认证身份。文件关联 DELETE 的 JSON 正文为 `{expectedRevision}`。
 
-`GET /subjects?kind=company|organization&cursor=...` 与 `GET /progress?cursor=...` 仅供登录用户，由服务端身份代理 Collaborator 的真实记录，查询前后均校验当前会话。内部备注或额外字段导致严格校验失败，不透传。未分派经理、未定级、未约定联系时间保持 `null`。进展每页最多 50 个申请，同一公司可能跨页，门户按公司和申请 ID 合并去重。
+`GET /subjects?kind=company|organization&cursor=...` 与 `GET /progress?cursor=...` 仅供登录用户，必须携带当前 ChatSnapshot.csrf 指定的会话校验头。小鹤比较 Cookie 会话内的随机令牌，拒绝旧快照与已换号 Cookie 的组合，再代理 Collaborator 的真实记录；查询前后均校验当前会话。内部备注或额外字段导致严格校验失败，不透传。未分派经理、未定级、未约定联系时间保持 `null`。进展每页最多 50 个申请，同一公司可能跨页，门户按公司和申请 ID 合并去重。
 
 接待动作的 `clientActionId`、`requestId` 沿原聊天受理的 128 字符限制；其他接待 ID 最多 200 字符。同一次动作重试复用原键。聊天可明确说“保存本轮”“下一轮”“查看汇总”或“我要新建需求”；普通“好的”不构成最终确认。提交结果未核实的草稿仍可在方向切换后续接并核对原提交。
 

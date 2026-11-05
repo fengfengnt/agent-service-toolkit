@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from xiaohe.api import _actor, _body
 from xiaohe.contracts import ServiceError
+from xiaohe.identity import CSRF_HEADER, require_session
 from xiaohe.models import User
 from xiaohe.reception.contracts import (
     CreateDraft,
@@ -47,6 +48,14 @@ def create_reception_router(factory, business_client=None):
             actor = await _actor(request, db)
             if actor.user_id is None:
                 raise ServiceError("AUTH_REQUIRED", 401)
+            record = await require_session(db, actor)
+            proof = request.headers.getlist(CSRF_HEADER)
+            if (
+                len(proof) != 1
+                or not proof[0].isascii()
+                or not hmac.compare_digest(proof[0], record.csrf_token)
+            ):
+                raise ServiceError("CSRF_INVALID", 403)
             authority = actor_from_user(await db.get(User, actor.user_id))
         if business_client is None:
             raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
