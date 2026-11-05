@@ -84,10 +84,10 @@ def install_error_handlers(app: FastAPI):
         return await service_error(request, ServiceError("UPSTREAM_UNAVAILABLE", 503))
 
 
-async def _body(request, model):
+async def _body(request, model, *, max_bytes=65536):
     raw = bytearray()
     async for chunk in request.stream():
-        if len(raw) + len(chunk) > 65536:
+        if len(raw) + len(chunk) > max_bytes:
             raise ServiceError("INPUT_INVALID", 422)
         raw.extend(chunk)
     result = None

@@ -62,6 +62,7 @@ class ReceptionDraft(Base):
     system_id: Mapped[str]
     tenant_id: Mapped[int] = mapped_column(BigInteger)
     client_draft_id: Mapped[str]
+    creation_request: Mapped[dict] = mapped_column(JSONB, default=dict)
     kind: Mapped[str]
     direction: Mapped[str]
     subject_id: Mapped[str | None]
@@ -72,6 +73,7 @@ class ReceptionDraft(Base):
     step: Mapped[str] = mapped_column(default="round1")
     state: Mapped[str] = mapped_column(default="collecting")
     fields: Mapped[dict] = mapped_column(JSONB, default=dict)
+    source_files: Mapped[list] = mapped_column(JSONB, default=list)
     summary_version: Mapped[int | None] = mapped_column(BigInteger)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.clock_timestamp()

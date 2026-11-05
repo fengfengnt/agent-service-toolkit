@@ -49,10 +49,14 @@ def test_negation_and_two_roles_clarify(text, expected):
     assert recognize_direction(text) == expected
 
 
-async def install(pg_factory, runtime_env, monkeypatch):
+async def install(pg_factory, runtime_env, monkeypatch, business_client=None):
     from agents.agents import agents
 
-    graph = build_graph(factory=pg_factory, model=DecisionModel(result={"fields": {}}))
+    graph = build_graph(
+        factory=pg_factory,
+        model=DecisionModel(result={"fields": {}}),
+        business_client=business_client,
+    )
     graph.checkpointer, graph.store = runtime_env.graph.checkpointer, runtime_env.graph.store
     monkeypatch.setattr(agents["xiaohe"], "graph_like", graph)
 

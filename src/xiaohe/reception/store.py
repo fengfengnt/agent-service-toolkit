@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from xiaohe.contracts import Actor, ServiceError
 from xiaohe.conversations import require_conversation
 from xiaohe.reception.contracts import CreateDraft, DraftRef, DraftView, FileRef, ReceptionView
-from xiaohe.reception.fields import missing_required, validate_fields
+from xiaohe.reception.fields import PUBLIC_FIELDS, missing_required, validate_fields
 from xiaohe.reception.models import ReceptionDraft, ReceptionFile, ReceptionFlow
 
 
@@ -77,7 +77,8 @@ async def draft_view(db: AsyncSession, row: ReceptionDraft) -> DraftView:
         fields=row.fields,
         missing_required=missing_required(row.direction, row.fields),
         summary_version=row.summary_version,
-        files=[
+        files=[FileRef.model_validate(file) for file in row.source_files]
+        + [
             FileRef(
                 id=str(file.id),
                 category=file.category,
@@ -93,7 +94,7 @@ async def draft_view(db: AsyncSession, row: ReceptionDraft) -> DraftView:
 
 
 async def create_draft(
-    db: AsyncSession, actor: Actor, conversation_id: UUID, request: CreateDraft
+    db: AsyncSession, actor: Actor, conversation_id: UUID, request: CreateDraft, *, source=None
 ) -> DraftView:
     flow = await flow_record(db, actor, conversation_id)
     existing = await db.scalar(
@@ -103,25 +104,48 @@ async def create_draft(
         )
     )
     if existing is not None:
-        for key in (
-            "kind",
-            "direction",
-            "subject_id",
-            "source_application_id",
-            "source_onboarding_id",
+        if existing.creation_request != request.model_dump(
+            mode="json", by_alias=True, exclude_none=True
         ):
-            if getattr(existing, key) != getattr(request, key):
-                raise ServiceError("DRAFT_CONFLICT", 409)
+            raise ServiceError("DRAFT_CONFLICT", 409)
         return await draft_view(db, existing)
-    if request.subject_id or request.source_application_id:
+    if (request.subject_id or request.source_application_id) and source is None:
         # Linked formal data must first be loaded and authorized by the business-client path.
         raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
     row = ReceptionDraft(
         conversation_id=conversation_id,
         system_id=actor.system.system_id,
         tenant_id=actor.system.tenant_id,
+        creation_request=request.model_dump(mode="json", by_alias=True, exclude_none=True),
         **request.model_dump(),
     )
+    if source is not None:
+        if request.kind != "service":
+            raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
+        if request.source_application_id:
+            if (
+                source.id != request.source_application_id
+                or source.direction != request.direction
+                or request.subject_id is not None
+                and source.subject_id != request.subject_id
+            ):
+                raise ServiceError("FORBIDDEN", 403)
+            row.subject_id = source.subject_id
+            row.source_revision = source.revision
+            row.fields = source.public_fields | source.request_fields
+            row.source_files = [
+                file.model_dump(mode="json", by_alias=True) for file in source.files
+            ]
+        else:
+            kind = "organization" if request.direction == "organization" else "company"
+            if source.id != request.subject_id or source.kind != kind:
+                raise ServiceError("FORBIDDEN", 403)
+            row.fields = {
+                key: value
+                for key, value in source.public_fields.items()
+                if key in PUBLIC_FIELDS[request.direction]
+            }
+        row.fields = validate_fields(request.direction, row.fields)
     db.add(row)
     await db.flush()
     flow.active_draft_id = row.id

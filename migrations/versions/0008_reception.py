@@ -18,6 +18,7 @@ def upgrade():
         sa.Column("system_id", sa.String(), nullable=False),
         sa.Column("tenant_id", sa.BigInteger(), nullable=False),
         sa.Column("client_draft_id", sa.String(), nullable=False),
+        sa.Column("creation_request", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("kind", sa.String(), nullable=False),
         sa.Column("direction", sa.String(), nullable=False),
         sa.Column("subject_id", sa.String(), nullable=True),
@@ -28,6 +29,7 @@ def upgrade():
         sa.Column("step", sa.String(), nullable=False),
         sa.Column("state", sa.String(), nullable=False),
         sa.Column("fields", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("source_files", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("summary_version", sa.BigInteger(), nullable=True),
         sa.Column(
             "created_at",

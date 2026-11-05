@@ -44,6 +44,20 @@ ORG_ENUMS = {
     "contactRole": ("会长", "副会长", "秘书长", "运营负责人", "专职工作人员", "其他"),
 }
 CHANNELS = ("公众号", "小程序", "APP", "官网", "微信群", "暂无")
+PUBLIC_FIELDS = {
+    "buyer": ("companyName", "industry", "companyScale", "city"),
+    "organization": (
+        "organizationName",
+        "organizationType",
+        "memberSize",
+        "coverage",
+        "city",
+        "industries",
+        "services",
+        "onlineChannels",
+    ),
+    "supplier": ("companyName", "companyType", "city"),
+}
 
 
 def validate_fields(direction: str, fields: dict) -> dict:

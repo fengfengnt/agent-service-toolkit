@@ -272,6 +272,7 @@ def build_graph(
     factory=None,
     model: BaseChatModel | None = None,
     handlers=None,
+    business_client=None,
 ):
     async def respond(state: GraphState, config: RunnableConfig):
         if handler is None:
@@ -293,7 +294,9 @@ def build_graph(
             if handlers is None:
                 from xiaohe.reception.flow import run_reception_step
 
-                outcome = await run_reception_step(factory, fence, model)
+                outcome = await run_reception_step(
+                    factory, fence, model, business_client=business_client
+                )
             else:
                 async with factory.begin() as db:
                     context = await build_reception_context(db, fence)

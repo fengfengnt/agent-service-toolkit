@@ -11,7 +11,7 @@ from xiaohe.contracts import AgentOutcome, ServiceError, WireModel, WriteFence
 from xiaohe.models import Command, Conversation, Message
 from xiaohe.reception.contracts import FieldValue, ReceptionAction, SkillContext
 from xiaohe.reception.fields import ROUNDS, map_member_size, missing_required, validate_fields
-from xiaohe.reception.models import ReceptionDraft
+from xiaohe.reception.models import ReceptionDraft, ReceptionFlow
 from xiaohe.reception.skills import answer_skill
 from xiaohe.reception.store import flow_record, locked_flow, patch_locked_draft, require_draft
 from xiaohe.runs import require_write
@@ -219,7 +219,7 @@ async def apply_reception_action(db, actor, draft_id, request: ReceptionAction):
     return accepted
 
 
-async def run_reception_step(
+async def _prepare_reception_step(
     factory, fence: WriteFence, model=None, knowledge_query=None
 ) -> AgentOutcome:
     async with factory.begin() as db:
@@ -389,6 +389,11 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
             system_id=conversation.system_id,
             tenant_id=conversation.tenant_id,
             client_draft_id="invitation:" + str(command.id),
+            creation_request={
+                "clientDraftId": "invitation:" + str(command.id),
+                "kind": "service",
+                "direction": current,
+            },
             kind="service",
             direction=current,
         )
@@ -439,7 +444,11 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
                 raise ServiceError("DRAFT_CONFLICT", 409)
             if missing_required(current, row.fields):
                 return reply("还缺少最低提交资料，请补齐后重新查看汇总并确认。")
-            row.state = "submitting"
+            from xiaohe.reception.submission import confirm_locked_draft
+
+            await confirm_locked_draft(
+                db, row, row.revision, row.summary_version, command.message_id, run.user_id
+            )
             return reply("已收到您对当前汇总的明确确认，正式受理结果仍待核实。", wait=False)
         if row.state == "review":
             missing = missing_required(current, row.fields)
@@ -450,6 +459,13 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
         if row.state == "submitting":
             return reply(
                 "正在核实正式受理结果，请稍后查看；不会把尚未核实的结果当成提交成功。", wait=False
+            )
+        if row.state == "accepted":
+            return reply(
+                skill.text
+                if skill
+                else "该需求已记录，可在“我的进展”查看真实跟进；如有新需求可以明确提出。",
+                wait=False,
             )
         return reply(
             (skill.text + "\n\n" if skill else "")
@@ -472,3 +488,71 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
         flow.invitation_state = "offered"
         answer += "\n\n是否愿意登录并登记需求，方便后续跟进？也可以继续咨询或暂缓。"
     return reply(answer)
+
+
+async def run_reception_step(
+    factory, fence, model=None, knowledge_query=None, business_client=None
+):
+    from xiaohe.reception.models import ReceptionSubmission
+    from xiaohe.reception.submission import submit_confirmed
+
+    outcome = await _prepare_reception_step(factory, fence, model, knowledge_query)
+    async with factory.begin() as db:
+        run = await require_write(db, fence)
+        command = await db.scalar(
+            select(Command).where(Command.run_id == run.id, Command.completed_at.is_(None))
+        )
+        flow = await db.get(ReceptionFlow, run.conversation_id)
+        if flow is None or flow.active_draft_id is None:
+            return outcome
+        submission = await db.scalar(
+            select(ReceptionSubmission)
+            .where(ReceptionSubmission.draft_id == flow.active_draft_id)
+            .order_by(ReceptionSubmission.draft_revision.desc())
+            .limit(1)
+        )
+        if (
+            submission is None
+            or submission.status != "pending"
+            and submission.confirmation_message_id != command.message_id
+        ):
+            return outcome
+        submission_id, command_id = submission.id, command.id
+    try:
+        await submit_confirmed(factory, fence, submission_id, business_client)
+    except ServiceError as error:
+        if error.code == "SUBMISSION_UNKNOWN":
+            return AgentOutcome(
+                parts=[
+                    {
+                        "type": "text",
+                        "text": "正式受理结果尚未确认，请稍后重试；系统会核对原提交，不重复创建。",
+                    }
+                ],
+                wait_for_input=False,
+                artifact_version_ids=[],
+            )
+        raise
+    async with factory.begin() as db:
+        await require_write(db, fence)
+        command = await db.get(Command, command_id, populate_existing=True)
+        submission = await db.get(ReceptionSubmission, submission_id)
+        draft = await db.get(ReceptionDraft, submission.draft_id)
+        name = draft.fields.get("companyName") or draft.fields.get("organizationName") or "本次"
+        result = AgentOutcome(
+            parts=[
+                {
+                    "type": "text",
+                    "text": name
+                    + "的"
+                    + LABELS[draft.direction]
+                    + "需求已记录；请在“我的进展”查看后续安排与实际跟进状态。",
+                }
+            ],
+            wait_for_input=False,
+            artifact_version_ids=[],
+        )
+        command.payload = command.payload | {
+            "receptionOutcome": result.model_dump(mode="json", by_alias=True)
+        }
+        return result

@@ -13,6 +13,7 @@ from xiaohe.artifacts import ArtifactService
 from xiaohe.database import create_database_engine
 from xiaohe.graph import build_graph
 from xiaohe.reception.api import create_reception_router
+from xiaohe.reception.business_client import ReceptionBusinessClient
 from xiaohe.settings import Settings
 from xiaohe.toolkit_runtime import create_execution_router
 
@@ -32,6 +33,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         raise ValueError("xiaohe requires the existing PostgreSQL saver/store configuration")
     engine = create_database_engine(settings.database_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
+    reception_client = ReceptionBusinessClient(settings)
     internal = create_execution_router(factory, settings)
 
     @asynccontextmanager
@@ -42,7 +44,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         _active_app = app
         previous = agents.get("xiaohe")
         agents["xiaohe"] = Agent(
-            description="小鹤门户三方向接待", graph_like=build_graph(factory=factory)
+            description="小鹤门户三方向接待",
+            graph_like=build_graph(factory=factory, business_client=reception_client),
         )
         try:
             async with AsyncExitStack() as stack:
@@ -119,7 +122,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     install_error_handlers(app)
     app.include_router(create_public_router(factory))
-    app.include_router(create_reception_router(factory))
+    app.include_router(create_reception_router(factory, reception_client))
     app.include_router(create_agui_router(factory))
     app.include_router(internal)
     app.mount("/internal/toolkit", upstream_app)

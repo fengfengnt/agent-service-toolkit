@@ -39,3 +39,30 @@ async def test_draft_routes_share_auth_csrf_and_safe_errors(pg_factory):
         assert view.json()["activeDraft"]["fields"] == {"companyName": "甲公司"}
         client.cookies.clear()
         assert (await client.get(path)).status_code == 401
+
+
+async def test_valid_multifield_unicode_round_fits_reception_body_budget(pg_factory):
+    async with client_for(pg_factory) as (client, app):
+        app.include_router(create_reception_router(pg_factory))
+        snapshot = await session(client)
+        result = await client.post(
+            "/ai-api/v1/reception/conversations/" + snapshot["conversationId"] + "/drafts",
+            json={"clientDraftId": "long", "kind": "service", "direction": "buyer"},
+        )
+        fields = {
+            key: "中文" * 2000
+            for key in (
+                "category",
+                "requirement",
+                "annualPurchase",
+                "painPoints",
+                "contactName",
+                "contactRole",
+            )
+        }
+        saved = await client.patch(
+            "/ai-api/v1/reception/drafts/" + result.json()["id"],
+            json={"expectedRevision": 1, "fields": fields},
+        )
+        assert saved.status_code == 200
+        assert saved.json()["fields"] == fields

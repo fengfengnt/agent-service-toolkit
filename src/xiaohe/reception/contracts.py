@@ -42,6 +42,16 @@ class PatchDraft(WireModel):
     expected_revision: Positive
     fields: dict[str, FieldValue]
 
+    @model_validator(mode="after")
+    def known_fields(self) -> Self:
+        from xiaohe.reception.fields import ROUNDS
+
+        if self.fields.keys() - {
+            key for rounds in ROUNDS.values() for group in rounds for key in group
+        }:
+            raise ValueError("unknown draft field")
+        return self
+
 
 class FileRef(WireModel):
     id: Id
@@ -131,3 +141,137 @@ class KnowledgeHit(WireModel):
 class SkillAnswer(WireModel):
     text: str
     sources: list[KnowledgeHit] = Field(default_factory=list)
+
+
+class ReceptionActor(WireModel):
+    ai_user_id: Id
+    system_id: Id
+    issuer: Id
+    sub: Id
+    source_tenant_id: Id
+
+
+class ApplicationView(WireModel):
+    id: Id
+    subject_id: Id
+    direction: Direction
+    revision: Positive
+    public_fields: dict[str, FieldValue]
+    request_fields: dict[str, FieldValue]
+    files: list[FileRef]
+
+    @model_validator(mode="after")
+    def valid_profile(self) -> Self:
+        _check_formal_fields(self.direction, self.public_fields, self.request_fields, self.files)
+        return self
+
+
+def _check_formal_fields(direction, public, request, files):
+    from xiaohe.contracts import ServiceError
+    from xiaohe.reception.fields import PUBLIC_FIELDS, missing_required, validate_fields
+
+    if public.keys() - set(PUBLIC_FIELDS[direction]) or request.keys() & set(
+        PUBLIC_FIELDS[direction]
+    ):
+        raise ValueError("invalid public/request field partition")
+    try:
+        fields = validate_fields(direction, public | request)
+    except ServiceError:
+        raise ValueError("invalid formal fields") from None
+    if missing_required(direction, fields) or any(file.status != "ready" for file in files):
+        raise ValueError("incomplete formal submission")
+
+
+class Submission(WireModel):
+    submission_key: Id
+    draft_id: Id
+    draft_revision: Positive
+    operation: Literal["create", "update"]
+    application_id: Id | None = None
+    expected_application_revision: Positive | None = None
+    subject_id: Id | None = None
+    subject_kind: Literal["company", "organization"]
+    direction: Direction
+    public_fields: dict[str, FieldValue]
+    request_fields: dict[str, FieldValue]
+    files: list[FileRef]
+
+    @model_validator(mode="after")
+    def valid_submission(self) -> Self:
+        _check_formal_fields(self.direction, self.public_fields, self.request_fields, self.files)
+        if (self.direction == "organization") != (self.subject_kind == "organization"):
+            raise ValueError("subject kind does not match direction")
+        if self.operation == "update" and not (
+            self.application_id and self.expected_application_revision
+        ):
+            raise ValueError("update requires current application revision")
+        if self.operation == "create" and (
+            self.application_id is not None or self.expected_application_revision is not None
+        ):
+            raise ValueError("create cannot carry update target")
+        return self
+
+
+class SubmitReceipt(WireModel):
+    submission_key: Id
+    kind: DraftKind
+    application_id: Id
+    onboarding_id: Id | None = None
+    revision: Positive
+    status: Literal["accepted", "pending", "unknown", "failed"]
+
+    @model_validator(mode="after")
+    def linked_receipt(self) -> Self:
+        if self.kind == "onboarding" and self.status == "accepted" and not self.onboarding_id:
+            raise ValueError("onboarding receipt requires onboardingId")
+        return self
+
+
+class SubmissionResult(WireModel):
+    status: Literal["not_found", "pending", "accepted"]
+    receipt: SubmitReceipt | None
+
+    @model_validator(mode="after")
+    def accepted_result(self) -> Self:
+        if (self.status == "accepted") != (self.receipt is not None):
+            raise ValueError("result and receipt do not match")
+        if self.receipt is not None and self.receipt.status != "accepted":
+            raise ValueError("result requires accepted receipt")
+        return self
+
+
+class SubjectView(WireModel):
+    id: Id
+    kind: Literal["company", "organization"]
+    name: Annotated[Id, Field(max_length=200)]
+    public_fields: dict[str, FieldValue]
+
+    @model_validator(mode="after")
+    def valid_subject(self) -> Self:
+        from xiaohe.reception.fields import PUBLIC_FIELDS, validate_fields
+
+        allowed = (
+            set(PUBLIC_FIELDS["organization"])
+            if self.kind == "organization"
+            else set(PUBLIC_FIELDS["buyer"]) | set(PUBLIC_FIELDS["supplier"])
+        )
+        if self.public_fields.keys() - allowed:
+            raise ValueError("unknown subject profile field")
+        for key, value in self.public_fields.items():
+            direction = (
+                "organization"
+                if self.kind == "organization"
+                else "supplier"
+                if key == "companyType"
+                else "buyer"
+            )
+            validate_fields(direction, {key: value})
+        name_key = "organizationName" if self.kind == "organization" else "companyName"
+        if self.public_fields.get(name_key) != self.name:
+            raise ValueError("subject name does not match profile")
+        return self
+
+
+class SubjectPage(WireModel):
+    items: list[SubjectView]
+    next_cursor: Id | None

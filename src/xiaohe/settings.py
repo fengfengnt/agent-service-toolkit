@@ -40,6 +40,15 @@ class Settings(BaseSettings):
     minio_secret_key: SecretStr | None = Field(
         default=None, validation_alias="XIAOHE_MINIO_SECRET_KEY"
     )
+    reception_base_url: str | None = Field(
+        default=None, validation_alias="XIAOHE_RECEPTION_BASE_URL"
+    )
+    reception_application_id: str | None = Field(
+        default=None, validation_alias="XIAOHE_RECEPTION_APPLICATION_ID"
+    )
+    reception_secret: SecretStr | None = Field(
+        default=None, validation_alias="XIAOHE_RECEPTION_APPLICATION_SECRET"
+    )
     trusted_proxy_cidrs: list[str] = Field(
         default_factory=list, validation_alias="XIAOHE_TRUSTED_PROXY_CIDRS"
     )
@@ -84,6 +93,23 @@ class Settings(BaseSettings):
     @classmethod
     def minio_origin(cls, value):
         return cls.internal_origin(value) if value is not None else None
+
+    @field_validator("reception_base_url")
+    @classmethod
+    def reception_origin(cls, value):
+        return cls.internal_origin(value) if value is not None else None
+
+    @field_validator("reception_secret")
+    @classmethod
+    def reception_credential(cls, value):
+        import re
+
+        if (
+            value is not None
+            and re.fullmatch(r"[A-Za-z0-9._~-]{32,256}", value.get_secret_value()) is None
+        ):
+            raise ValueError("invalid reception service credential")
+        return value
 
     @field_validator("sso_bridge_base_url")
     @classmethod
