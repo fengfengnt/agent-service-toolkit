@@ -56,7 +56,12 @@ G1 的匿名专项 A4 测试仍要求关闭候选 SSO；认证准备阶段只执
 
 ## G2：门户真实浏览器验收补充
 
-证据来源是门户 Owner 会话 `01a19f12-7f6d-74a0-b853-95fafb351220` 的本轮执行回执，及其隔离控制器 `member-live-commands.js`、真实浏览器 helper `frontend/tests/browser/copilot-real.mjs`；代码位于 `C:/Users/70367/.codex/worktrees/xiaohe-auth-card/yunhezhiyuan-portal`。本方读取了控制器及保留断言，但没有接管浏览器、取得 Cookie 或重新执行真人流程。门户公开总报告 `docs/sso/2026-11-05-copilotkit-validation.md` 由门户 Owner 继续收尾，不将尚未提交的 G2 回执冒称其已有提交内容。
+证据来源是门户 Owner 会话 `01a19f12-7f6d-74a0-b853-95fafb351220` 的本轮执行回执及已保存脱敏制品，代码根为 `C:/Users/70367/.codex/worktrees/xiaohe-auth-card/yunhezhiyuan-portal`：
+
+- `docs/sso/evidence/2026-11-05-copilot-member-result.json`：本方已读取，包含两段实际结果、`completeStatuses=[200,200]` 及未验证项；前端源码基线 `b2a6654`，AI 基线 `b81eb0f61a523191a714d07ba7851d0d91ab6133`，主合同 v1.0.4/hash 与 G1 一致。
+- `docs/sso/evidence/2026-11-05-copilot-member-controller.js`：与实际执行的忽略目录 `member-live-commands.js` 逐字节 SHA-256 一致，摘要 `98dadd71a22cf0cd203dcba4cc978bf67a0468d6410962b0cfa9383afd3c9e62`。真实网络与保留断言复用 `frontend/tests/browser/copilot-real.mjs`。
+
+本方读取了结果及控制断言，没有接管浏览器、取得 Cookie 或重新执行真人流程。上述门户证据制品尚待其 P3 整批提交，公开总报告 `docs/sso/2026-11-05-copilotkit-validation.md` 仍由门户 Owner 收尾；不将工作区制品冒称已存在于前端基线提交。
 
 ### 门户执行与回报
 
@@ -82,3 +87,5 @@ G1 的匿名专项 A4 测试仍要求关闭候选 SSO；认证准备阶段只执
 此前第一轮只读检查还核实旧访客与会员两份对象实际存在、大小和内容摘要匹配；该对象检查只作为存储层证据。上文浏览器下载及第三文件连续性来自门户实际浏览器回执，两个层次不混算。Runtime 从该次测试起点没有安全码日志行，不能据此宣称所有请求均未被拒绝。
 
 **阶段结论：门户 G2 真实浏览器达标已有执行回执及后端只读佐证。** 门户继续旧 SDK 清理、完整回归及整批审查，G2 不代表最终迁移收尾或正式发布批准。本轮本方仅补文档和只读核对，没有重跑 G1、修改数据、重启服务或改变正式开关；现有部署和正式 false 保留。
+
+脱敏结果明确未验证：同一文件 v1→v2 编辑、手机号卡片真实注册、付费专业 Agent，以及 UAT/生产部署。这些不能从登录与三份文件归并结果推导通过。
