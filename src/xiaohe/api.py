@@ -7,7 +7,12 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from starlette.datastructures import MutableHeaders
 
-from xiaohe.admission import accept_action, accept_message
+from xiaohe.admission import (
+    accept_action,
+    accept_agent_action,
+    accept_agent_message,
+    accept_message,
+)
 from xiaohe.contracts import ApiError, ChatAction, EmptyBody, MessageInput, ServiceError
 from xiaohe.conversations import load_snapshot
 from xiaohe.events import stream_events
@@ -40,6 +45,7 @@ _MESSAGES = {
     "FILE_INVALID": "文件类型或内容不符合要求。",
     "FILE_TOO_LARGE": "文件超过大小限制。",
     "SUBMISSION_UNKNOWN": "正式受理结果尚未确认，请稍后重试。",
+    "AGENT_NOT_FOUND": "未找到该服务。",
 }
 
 
@@ -149,6 +155,22 @@ def create_public_router(factory):
                 body.request_id,
                 body.option_id,
                 body.text,
+            )
+
+    @router.post("/agents/{agent_id}/conversations/{conversation_id}/messages", status_code=202)
+    async def agent_message(agent_id: str, conversation_id: UUID, request: Request):
+        body = await _body(request, MessageInput)
+        async with factory.begin() as db:
+            return await accept_agent_message(
+                db, await _actor(request, db), agent_id, conversation_id, body
+            )
+
+    @router.post("/agents/{agent_id}/conversations/{conversation_id}/actions", status_code=202)
+    async def agent_action(agent_id: str, conversation_id: UUID, request: Request):
+        body = await _body(request, ChatAction)
+        async with factory.begin() as db:
+            return await accept_agent_action(
+                db, await _actor(request, db), agent_id, conversation_id, body
             )
 
     @router.get("/conversations/{conversation_id}/events")
