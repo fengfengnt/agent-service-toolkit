@@ -11,7 +11,7 @@ from pydantic import (
     model_validator,
 )
 
-from xiaohe.reception.fields import FIELD_LABELS
+from xiaohe.reception.fields import ALLOWED_FIELDS, FIELD_LABELS
 
 AgentId = Literal["xiaohe-reception", "xiaohe-buyer", "xiaohe-organization", "xiaohe-supplier"]
 AGENT_IDS: tuple[AgentId, ...] = (
@@ -67,7 +67,7 @@ class DefinitionModel(BaseModel):
 class RoundDefinition(DefinitionModel):
     id: Literal["round1", "round2", "round3", "files", "summary"]
     name: Label
-    fields: list[str] = Field(min_length=1)
+    fields: list[str] = Field(default_factory=list)
 
     @field_validator("fields")
     @classmethod
@@ -75,6 +75,14 @@ class RoundDefinition(DefinitionModel):
         if len(values) != len(set(values)) or set(values) - FIELD_LABELS.keys():
             raise ValueError("unsupported or duplicate field")
         return values
+
+    @model_validator(mode="after")
+    def collection_round_has_fields(self) -> Self:
+        if self.id in ("round1", "round2", "round3") and not self.fields:
+            raise ValueError("collection round requires fields")
+        if self.id in ("files", "summary") and self.fields:
+            raise ValueError("files and summary do not introduce fields")
+        return self
 
 
 class NodeBase(DefinitionModel):
@@ -158,6 +166,10 @@ class WorkflowDefinition(DefinitionModel):
             self.rounds or self.required_fields or self.skills
         ):
             raise ValueError("reception cannot collect professional details")
+        if self.agent_id != "xiaohe-reception" and set(fields) - set(
+            ALLOWED_FIELDS[self.agent_id.removeprefix("xiaohe-")]
+        ):
+            raise ValueError("field is not supported for this role")
         for node in self.nodes:
             if isinstance(node, (UnderstandNode, AnswerNode)) and node.prompt not in self.prompts:
                 raise ValueError("missing prompt reference")

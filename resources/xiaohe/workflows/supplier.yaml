@@ -1,0 +1,140 @@
+# 一轮命令的实际执行流程；跨轮等待由 result 与持久草稿 step 推进。
+schema_version: 1
+agent_id: xiaohe-supplier
+name: 供应商 Agent
+workflow_version: '1'
+entry: understand
+prompts:
+  intent: supplier-intent.md
+  answer: supplier-answer.md
+skills:
+- supplier.capability
+- supplier.ontology-evolution
+- supplier.negotiation
+- supplier.security
+required_fields:
+- companyName
+rounds:
+- id: round1
+  name: 基础资料
+  fields:
+  - companyName
+  - companyType
+  - category
+  - city
+- id: round2
+  name: 需求和联系信息
+  fields:
+  - productDescription
+  - capabilityTags
+  - qualifications
+  - serviceAreas
+  - orderTypes
+  - contactName
+- id: round3
+  name: 选填补充
+  fields:
+  - capacity
+  - deliveryCycle
+  - revenue
+  - teamSize
+  - targetCustomers
+  - targetAreas
+- id: files
+  name: 供应商材料（选填）
+  fields: []
+- id: summary
+  name: 核对并确认当前汇总
+  fields: []
+nodes:
+- id: understand
+  name: 理解当前表达
+  type: understand
+  prompt: intent
+  next: decide
+- id: decide
+  name: 校验动作并选择路径
+  type: decide
+  routes:
+    consultation: answer
+    provide_details: collect
+    consultation_with_details: answer_details
+    accept_invitation: auth
+    defer_invitation: result
+    save_round: save
+    skip_optional: summary
+    show_summary: summary
+    confirm_current_summary: submit
+    resume_draft: resume
+    new_need: new
+    record_intent: clarify
+    start_onboarding: clarify
+    query_progress: progress
+    switch_direction: handoff
+    unclear: clarify
+    off_topic: answer
+  fallback: clarify
+- id: answer
+  name: 结合资料回答
+  type: answer
+  prompt: answer
+  next: result
+- id: answer_details
+  name: 先准备答复再保存资料
+  type: answer
+  prompt: answer
+  next: collect
+- id: collect
+  name: 采集资料
+  type: operation
+  operation: collect_details
+  next: result
+- id: auth
+  name: 登录或准备草稿
+  type: operation
+  operation: request_auth
+  next: result
+- id: save
+  name: 保存本轮
+  type: operation
+  operation: save_round
+  next: result
+- id: summary
+  name: 展示当前汇总
+  type: operation
+  operation: show_summary
+  next: result
+- id: submit
+  name: 核验并正式提交
+  type: operation
+  operation: confirm_submission
+  next: result
+- id: resume
+  name: 恢复草稿
+  type: operation
+  operation: resume_draft
+  next: result
+- id: new
+  name: 新建需求
+  type: operation
+  operation: new_draft
+  next: result
+- id: progress
+  name: 查询真实进展
+  type: operation
+  operation: query_progress
+  next: result
+- id: handoff
+  name: 交接至目标 Agent
+  type: handoff
+  targets:
+  - xiaohe-buyer
+  - xiaohe-organization
+- id: clarify
+  name: 询问必要信息
+  type: result
+  wait_for_input: true
+- id: result
+  name: 返回本轮结果并等待
+  type: result
+  wait_for_input: true

@@ -8,30 +8,45 @@ from test_admission import visitor
 
 from xiaohe.contracts import ServiceError
 from xiaohe.reception.contracts import CreateDraft
-from xiaohe.reception.fields import ROUNDS, missing_required, validate_fields
+from xiaohe.reception.fields import missing_required, validate_fields
 from xiaohe.reception.models import ReceptionDraft
 from xiaohe.reception.store import create_draft, load_reception, patch_draft
+from xiaohe.workflows.definitions import RESOURCE_ROOT
+from xiaohe.workflows.loader import load_bundle, workflow_for
+
+
+def definition(direction):
+    return workflow_for(load_bundle(RESOURCE_ROOT), "xiaohe-" + direction)
 
 
 def test_minimum_fields_and_explicit_clear():
-    assert missing_required("buyer", {"companyName": "甲公司"}) == []
-    assert missing_required("supplier", {"companyName": "甲公司"}) == []
-    assert missing_required("buyer", {"companyName": None}) == ["companyName"]
+    assert (
+        missing_required("buyer", {"companyName": "甲公司"}, definition=definition("buyer")) == []
+    )
+    assert (
+        missing_required("supplier", {"companyName": "甲公司"}, definition=definition("supplier"))
+        == []
+    )
+    assert missing_required("buyer", {"companyName": None}, definition=definition("buyer")) == [
+        "companyName"
+    ]
     fields = dict(
         organizationName="行业协会",
         memberSize="100—500",
         coverage="本省",
         onlineChannels=["微信群"],
     )
-    assert missing_required("organization", fields) == ["contactName"]
+    assert missing_required("organization", fields, definition=definition("organization")) == [
+        "contactName"
+    ]
 
 
 def test_field_catalog_matches_frozen_shared_contract():
     schema = json.loads(
         (Path(__file__).parent / "contracts/reception-v1.schema.json").read_text("utf-8")
     )
-    for direction, rounds in ROUNDS.items():
-        assert {key for group in rounds for key in group} == set(
+    for direction in ("buyer", "organization", "supplier"):
+        assert {key for group in definition(direction).rounds for key in group.fields} == set(
             schema["$defs"][direction + "DraftFields"]["properties"]
         )
 

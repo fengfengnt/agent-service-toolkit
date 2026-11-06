@@ -45,41 +45,61 @@ FIELD_LABELS = {
     "targetAreas": "目标区域",
 }
 
-ROUNDS = {
+ALLOWED_FIELDS = {
     "buyer": (
-        ("companyName", "industry", "companyScale", "city"),
-        ("category", "requirement", "annualPurchase", "painPoints", "contactName", "contactRole"),
-        ("existingSystems", "projectStatus", "budget", "desiredTime", "decisionProcess"),
+        "companyName",
+        "industry",
+        "companyScale",
+        "city",
+        "category",
+        "requirement",
+        "annualPurchase",
+        "painPoints",
+        "contactName",
+        "contactRole",
+        "existingSystems",
+        "projectStatus",
+        "budget",
+        "desiredTime",
+        "decisionProcess",
     ),
     "organization": (
-        (
-            "organizationName",
-            "organizationType",
-            "memberSize",
-            "coverage",
-            "city",
-            "onlineChannels",
-        ),
-        ("industries", "services", "aiNeeds", "contactName", "contactRole", "email"),
-        ("activeRatio", "revenueStructure", "desiredLaunchTime", "decisionProcess", "resources"),
+        "organizationName",
+        "organizationType",
+        "memberSize",
+        "coverage",
+        "city",
+        "onlineChannels",
+        "industries",
+        "services",
+        "aiNeeds",
+        "contactName",
+        "contactRole",
+        "email",
+        "activeRatio",
+        "revenueStructure",
+        "desiredLaunchTime",
+        "decisionProcess",
+        "resources",
     ),
     "supplier": (
-        ("companyName", "companyType", "category", "city"),
-        (
-            "productDescription",
-            "capabilityTags",
-            "qualifications",
-            "serviceAreas",
-            "orderTypes",
-            "contactName",
-        ),
-        ("capacity", "deliveryCycle", "revenue", "teamSize", "targetCustomers", "targetAreas"),
+        "companyName",
+        "companyType",
+        "category",
+        "city",
+        "productDescription",
+        "capabilityTags",
+        "qualifications",
+        "serviceAreas",
+        "orderTypes",
+        "contactName",
+        "capacity",
+        "deliveryCycle",
+        "revenue",
+        "teamSize",
+        "targetCustomers",
+        "targetAreas",
     ),
-}
-REQUIRED = {
-    "buyer": ("companyName",),
-    "supplier": ("companyName",),
-    "organization": ("organizationName", "memberSize", "coverage", "onlineChannels", "contactName"),
 }
 ORG_ENUMS = {
     "memberSize": ("100 家以下", "100—500", "500—2000", "2000 以上"),
@@ -104,7 +124,7 @@ PUBLIC_FIELDS = {
 
 
 def validate_fields(direction: str, fields: dict) -> dict:
-    allowed = {key for group in ROUNDS.get(direction, ()) for key in group}
+    allowed = set(ALLOWED_FIELDS.get(direction, ()))
     if not allowed or not isinstance(fields, dict) or fields.keys() - allowed:
         raise ServiceError("INPUT_INVALID", 422)
     result = {}
@@ -154,8 +174,10 @@ def validate_fields(direction: str, fields: dict) -> dict:
     return result
 
 
-def missing_required(direction: str, fields: dict) -> list[str]:
-    return [key for key in REQUIRED[direction] if not fields.get(key)]
+def missing_required(direction: str, fields: dict, *, definition) -> list[str]:
+    if definition.agent_id != "xiaohe-" + direction:
+        raise ServiceError("INPUT_INVALID", 422)
+    return [key for key in definition.required_fields if not fields.get(key)]
 
 
 def map_member_size(text: str) -> str | None:

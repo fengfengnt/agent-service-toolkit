@@ -22,6 +22,7 @@ from xiaohe.reception.store import create_draft, locked_flow, patch_locked_draft
 from xiaohe.reception.submission import actor_from_user, confirm_locked_draft, submit_confirmed
 from xiaohe.runs import require_write
 from xiaohe.workflows.compiler import ORGANIZATION_OPERATIONS
+from xiaohe.workflows.definitions import draft_definition
 from xiaohe.workflows.loader import workflow_for
 from xiaohe.workflows.models import OperationName
 
@@ -99,7 +100,8 @@ async def build_agent_frame(factory, fence, agent_id, bundle):
         ).all()
         from xiaohe.graph import _safe_model_text, visible_text
 
-        allowed = [key for group in definition.rounds for key in group.fields]
+        draft_rules = await draft_definition(db, row) if row else definition
+        allowed = [key for group in draft_rules.rounds for key in group.fields]
         return AgentFrame(
             fence=fence,
             command_id=command.id,
@@ -465,7 +467,8 @@ def make_node_executors(factory, *, model, business_client, bundle):
                             frame.draft_revision,
                             {key: item.value for key, item in decision.candidates.items()},
                         )
-                    steps = [group.id for group in workflow_for(bundle, frame.agent_id).rounds]
+                    draft_rules = await draft_definition(db, row)
+                    steps = [group.id for group in draft_rules.rounds]
                     if node.operation == "save_round":
                         target = steps[min(steps.index(row.step) + 1, len(steps) - 1)]
                     elif node.operation == "show_summary":
@@ -477,7 +480,9 @@ def make_node_executors(factory, *, model, business_client, bundle):
                         row.summary_version = None
                     if row.step == "summary":
                         row.state, row.summary_version = "review", row.revision
-                        missing = missing_required(row.direction, row.fields)
+                        missing = missing_required(
+                            row.direction, row.fields, definition=await draft_definition(db, row)
+                        )
                         text = (
                             "还缺少最低资料："
                             + "、".join(FIELD_LABELS[key] for key in missing)
@@ -487,11 +492,7 @@ def make_node_executors(factory, *, model, business_client, bundle):
                         ) + "请核对当前汇总，确认无误后再提交。"
                     else:
                         fields = next(
-                            (
-                                group.fields
-                                for group in workflow_for(bundle, frame.agent_id).rounds
-                                if group.id == row.step
-                            ),
+                            (group.fields for group in draft_rules.rounds if group.id == row.step),
                             [],
                         )
                         text = (

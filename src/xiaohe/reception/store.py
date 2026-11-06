@@ -15,6 +15,7 @@ from xiaohe.reception.models import (
     ReceptionFlow,
     ReceptionSubmission,
 )
+from xiaohe.workflows.definitions import draft_definition
 
 
 def _uuid(value: str | UUID) -> UUID:
@@ -82,7 +83,9 @@ async def draft_view(db: AsyncSession, row: ReceptionDraft) -> DraftView:
         step=row.step,
         state=row.state,
         fields=row.fields,
-        missing_required=missing_required(row.direction, row.fields),
+        missing_required=missing_required(
+            row.direction, row.fields, definition=await draft_definition(db, row)
+        ),
         summary_version=row.summary_version,
         files=[FileRef.model_validate(file) for file in row.source_files]
         + [
@@ -175,6 +178,9 @@ async def patch_locked_draft(db, row, expected_revision, fields) -> DraftView:
         raise ServiceError("DRAFT_CONFLICT", 409)
     if row.state in ("submitting", "accepted"):
         raise ServiceError("DRAFT_CONFLICT", 409)
+    definition = await draft_definition(db, row)
+    if fields.keys() - {key for group in definition.rounds for key in group.fields}:
+        raise ServiceError("INPUT_INVALID", 422)
     merged = row.fields | validate_fields(row.direction, fields)
     if merged != row.fields:
         row.fields = merged

@@ -1,0 +1,60 @@
+# 一轮命令的实际执行流程；跨轮等待由 result 与持久草稿 step 推进。
+schema_version: 1
+agent_id: xiaohe-reception
+name: 小鹤接待 Agent
+workflow_version: '1'
+entry: understand
+prompts:
+  intent: reception-intent.md
+  answer: reception-answer.md
+skills: []
+required_fields: []
+rounds: []
+nodes:
+- id: understand
+  name: 理解当前表达
+  type: understand
+  prompt: intent
+  next: decide
+- id: decide
+  name: 校验动作并选择路径
+  type: decide
+  routes:
+    consultation: handoff
+    provide_details: clarify
+    consultation_with_details: clarify
+    accept_invitation: clarify
+    defer_invitation: result
+    save_round: clarify
+    skip_optional: clarify
+    show_summary: clarify
+    confirm_current_summary: clarify
+    resume_draft: clarify
+    new_need: clarify
+    record_intent: clarify
+    start_onboarding: clarify
+    query_progress: clarify
+    switch_direction: handoff
+    unclear: clarify
+    off_topic: answer
+  fallback: clarify
+- id: answer
+  name: 结合资料回答
+  type: answer
+  prompt: answer
+  next: result
+- id: handoff
+  name: 交接至目标 Agent
+  type: handoff
+  targets:
+  - xiaohe-buyer
+  - xiaohe-organization
+  - xiaohe-supplier
+- id: clarify
+  name: 询问必要信息
+  type: result
+  wait_for_input: true
+- id: result
+  name: 返回本轮结果并等待
+  type: result
+  wait_for_input: true

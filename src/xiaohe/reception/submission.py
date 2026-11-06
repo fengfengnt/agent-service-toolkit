@@ -14,6 +14,7 @@ from xiaohe.reception.fields import PUBLIC_FIELDS, missing_required
 from xiaohe.reception.models import ReceptionDraft, ReceptionFile, ReceptionSubmission
 from xiaohe.reception.store import create_draft, require_draft
 from xiaohe.runs import require_write
+from xiaohe.workflows.definitions import draft_definition
 
 
 def actor_from_user(user: User) -> ReceptionActor:
@@ -100,7 +101,7 @@ async def confirm_locked_draft(
     )
     if run.runtime_version != "dsl-v1" and not (explicit_action or _explicit_confirmation(text)):
         raise ServiceError("INPUT_INVALID", 422)
-    if missing_required(row.direction, row.fields):
+    if missing_required(row.direction, row.fields, definition=await draft_definition(db, row)):
         raise ServiceError("INPUT_INVALID", 422)
     files = (
         await db.scalars(

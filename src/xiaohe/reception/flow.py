@@ -13,7 +13,6 @@ from xiaohe.models import Command, Conversation, Message
 from xiaohe.reception.contracts import FieldValue, ReceptionAction, SkillContext
 from xiaohe.reception.fields import (
     FIELD_LABELS,
-    ROUNDS,
     map_member_size,
     missing_required,
     validate_fields,
@@ -22,6 +21,7 @@ from xiaohe.reception.models import ReceptionDraft, ReceptionFlow
 from xiaohe.reception.skills import answer_skill
 from xiaohe.reception.store import flow_record, locked_flow, patch_locked_draft, require_draft
 from xiaohe.runs import require_write
+from xiaohe.workflows.definitions import draft_definition
 
 LABELS = {"buyer": "采购商", "organization": "社群组织", "supplier": "供应商"}
 ALIASES = {
@@ -158,7 +158,7 @@ class Extraction(WireModel):
     fields: dict[str, Candidate] = Field(default_factory=dict)
 
 
-async def _extract(model, direction, step, text):
+async def _extract(model, direction, step, text, definition):
     if re.search(
         r"[？?]|吗|怎么|如何|是否|多少|多久|不是|并非|不要|不确定|也许|或者|可能|不叫", text
     ):
@@ -171,9 +171,9 @@ async def _extract(model, direction, step, text):
         except ServiceError:
             return {}
     allowed = (
-        [key for group in ROUNDS[direction] for key in group]
+        [key for group in definition.rounds for key in group.fields]
         if step == "summary"
-        else ROUNDS[direction][int(step[-1]) - 1]
+        else next(group.fields for group in definition.rounds if group.id == step)
         if step.startswith("round")
         else []
     )
@@ -257,7 +257,7 @@ async def apply_reception_action(db, actor, draft_id, request: ReceptionAction):
             or row.summary_version != row.revision
         ):
             raise ServiceError("DRAFT_CONFLICT", 409)
-        if missing_required(row.direction, row.fields):
+        if missing_required(row.direction, row.fields, definition=await draft_definition(db, row)):
             raise ServiceError("INPUT_INVALID", 422)
     accepted = await accept_action(
         db,
@@ -297,6 +297,7 @@ async def _prepare_reception_step(
         flow = await locked_flow(db, conversation)
         draft = await db.get(ReceptionDraft, flow.active_draft_id) if flow.active_draft_id else None
         snapshot = (draft.id, draft.revision, draft.direction, draft.step) if draft else None
+        definition = await draft_definition(db, draft) if draft else None
         may_extract = (
             draft is not None
             and draft.state in ("collecting", "review")
@@ -311,7 +312,7 @@ async def _prepare_reception_step(
         command_id = command.id
         direction = conversation.direction
     extracted = (
-        await _extract(model, snapshot[2], snapshot[3], text) if snapshot and may_extract else {}
+        await _extract(model, snapshot[2], snapshot[3], text, definition) if snapshot and may_extract else {}
     )
     skill = None
     if direction in TOPICS:
@@ -500,6 +501,7 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
         else None
     )
     if row is not None and row.direction == current:
+        definition = await draft_definition(db, row)
         action = command.payload.get("reception", {})
         if action and action.get("action") != "resume":
             if action.get("draftId") != str(row.id) or action["expectedRevision"] != row.revision:
@@ -513,11 +515,7 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
             "collecting",
             "review",
         ):
-            steps = (
-                ["round1", "round2", "round3"]
-                + (["files"] if current == "supplier" else [])
-                + ["summary"]
-            )
+            steps = [group.id for group in definition.rounds]
             next_step = steps[min(steps.index(row.step) + 1, len(steps) - 1)]
             if next_step != row.step:
                 row.step = next_step
@@ -541,7 +539,7 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
                 or (operation == "confirm" and action.get("summaryVersion") != row.summary_version)
             ):
                 raise ServiceError("DRAFT_CONFLICT", 409)
-            if missing_required(current, row.fields):
+            if missing_required(current, row.fields, definition=definition):
                 return reply("还缺少最低提交资料，请补齐后重新查看汇总并确认。")
             from xiaohe.reception.submission import confirm_locked_draft
 
@@ -550,7 +548,7 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
             )
             return reply("已收到您对当前汇总的明确确认，正式受理结果仍待核实。", wait=False)
         if row.state == "review":
-            missing = missing_required(current, row.fields)
+            missing = missing_required(current, row.fields, definition=definition)
             return reply(
                 (skill.text + "\n\n" if skill else "")
                 + (
@@ -575,7 +573,7 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
             (skill.text + "\n\n" if skill else "")
             + (
                 "本轮可以提供："
-                + "、".join(FIELD_LABELS[key] for key in ROUNDS[current][int(row.step[-1]) - 1])
+                + "、".join(FIELD_LABELS[key] for group in definition.rounds if group.id == row.step for key in group.fields)
                 + "。选填内容可以跳过；保存本轮只保存当前信息。"
                 if row.step != "files"
                 else "可以选填上传企业材料，也可以直接查看汇总。"

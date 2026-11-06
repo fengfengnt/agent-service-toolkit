@@ -47,10 +47,10 @@ class PatchDraft(WireModel):
 
     @model_validator(mode="after")
     def known_fields(self) -> Self:
-        from xiaohe.reception.fields import ROUNDS
+        from xiaohe.reception.fields import ALLOWED_FIELDS
 
         if self.fields.keys() - {
-            key for rounds in ROUNDS.values() for group in rounds for key in group
+            key for fields in ALLOWED_FIELDS.values() for key in fields
         }:
             raise ValueError("unknown draft field")
         return self
@@ -202,7 +202,7 @@ class ApplicationView(WireModel):
 
 def _check_formal_fields(direction, public, request, files):
     from xiaohe.contracts import ServiceError
-    from xiaohe.reception.fields import PUBLIC_FIELDS, missing_required, validate_fields
+    from xiaohe.reception.fields import PUBLIC_FIELDS, validate_fields
 
     if public.keys() - set(PUBLIC_FIELDS[direction]) or request.keys() & set(
         PUBLIC_FIELDS[direction]
@@ -212,7 +212,9 @@ def _check_formal_fields(direction, public, request, files):
         fields = validate_fields(direction, public | request)
     except ServiceError:
         raise ValueError("invalid formal fields") from None
-    if missing_required(direction, fields) or any(file.status != "ready" for file in files):
+    # 后台正式 payload 的最低契约独立于可调整的采集流程，不能由 YAML 降低。
+    minimum = ("organizationName", "memberSize", "coverage", "onlineChannels", "contactName") if direction == "organization" else ("companyName",)
+    if any(not fields.get(key) for key in minimum) or any(file.status != "ready" for file in files):
         raise ValueError("incomplete formal submission")
 
 

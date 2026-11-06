@@ -12,6 +12,7 @@ AGENT_IDS = (
 
 
 def workflow_data(agent_id: str = "xiaohe-buyer") -> dict:
+    name_field = "organizationName" if agent_id == "xiaohe-organization" else "companyName"
     return copy.deepcopy(
         {
             "schema_version": 1,
@@ -21,10 +22,10 @@ def workflow_data(agent_id: str = "xiaohe-buyer") -> dict:
             "entry": "understand",
             "prompts": {"intent": "intent.md", "answer": "answer.md"},
             "skills": [],
-            "required_fields": [] if agent_id == "xiaohe-reception" else ["companyName"],
+            "required_fields": [] if agent_id == "xiaohe-reception" else [name_field],
             "rounds": []
             if agent_id == "xiaohe-reception"
-            else [{"id": "round1", "name": "企业信息", "fields": ["companyName", "city"]}],
+            else [{"id": "round1", "name": "企业信息", "fields": [name_field, "city"]}],
             "nodes": [
                 {
                     "id": "understand",
