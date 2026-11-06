@@ -91,9 +91,11 @@ def load_bundle(resource_root: Path) -> WorkflowBundle:
             try:
                 from xiaohe.reception.skills import SkillDefinition
 
-                entries = json.loads(
-                    _read_resource(resource_root / "skills", "catalog.json", MAX_RESOURCE_BYTES)
+                catalog_text = _read_resource(
+                    resource_root / "skills", "catalog.json", MAX_RESOURCE_BYTES
                 )
+                resources["skills/catalog.json"] = catalog_text
+                entries = json.loads(catalog_text)
                 catalog = {}
                 for entry in entries:
                     item = SkillDefinition.model_validate(entry)

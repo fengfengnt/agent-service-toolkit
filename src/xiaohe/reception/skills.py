@@ -1,4 +1,5 @@
 import asyncio
+import json
 from functools import lru_cache
 from pathlib import Path
 
@@ -14,6 +15,7 @@ from xiaohe.reception.contracts import (
     SkillContext,
 )
 from xiaohe.reception.knowledge import KnowledgeQuery
+from xiaohe.workflows.models import AgentId, WorkflowBundle
 
 _ROOT = Path(__file__).resolve().parents[3] / "resources/xiaohe/skills"
 
@@ -31,6 +33,36 @@ def skill_catalog() -> dict[str, SkillDefinition]:
         (_ROOT / "catalog.json").read_text("utf-8")
     )
     return {item.id: item for item in definitions}
+
+
+def load_skill_materials(
+    bundle: WorkflowBundle, agent_id: AgentId, skill_ids: list[str]
+) -> list[KnowledgeHit]:
+    definition = bundle.definitions[agent_id]
+    if set(skill_ids) - set(definition.skills):
+        raise ServiceError("FORBIDDEN", 403)
+    if not skill_ids:
+        return []
+    try:
+        catalog = TypeAdapter(list[SkillDefinition]).validate_python(
+            json.loads(bundle.resources["skills/catalog.json"])
+        )
+        allowed = {
+            item.id: item for item in catalog if item.direction == agent_id.removeprefix("xiaohe-")
+        }
+        return [
+            KnowledgeHit(
+                text=bundle.resources["skills/" + allowed[skill_id].path]
+                .removeprefix("# ")
+                .strip(),
+                source=skill_id,
+                version=bundle.bundle_id,
+                conditions="接待资料，不代表已执行业务；未确认的政策和效果需顾问核实。",
+            )
+            for skill_id in skill_ids
+        ]
+    except (KeyError, ValueError, TypeError):
+        raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True) from None
 
 
 async def answer_skill(
