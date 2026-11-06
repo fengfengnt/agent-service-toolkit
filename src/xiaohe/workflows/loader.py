@@ -1,9 +1,12 @@
 import json
+from collections.abc import Hashable
 from pathlib import Path, PurePosixPath
+from typing import Any
 
 import yaml
 from pydantic import ValidationError
 from yaml.events import AliasEvent
+from yaml.nodes import MappingNode
 
 from xiaohe.workflows.models import (
     AGENT_IDS,
@@ -24,8 +27,8 @@ class DefinitionLoader(yaml.SafeLoader):
             raise WorkflowValidationError("workflow aliases are not allowed")
         return super().compose_node(parent, index)
 
-    def construct_mapping(self, node, deep=False):
-        result = {}
+    def construct_mapping(self, node: MappingNode, deep: bool = False) -> dict[Hashable, Any]:
+        result: dict[Hashable, Any] = {}
         for key_node, value_node in node.value:
             key = self.construct_object(key_node, deep=deep)
             if not isinstance(key, str) or key in result:
@@ -105,7 +108,7 @@ def load_bundle(resource_root: Path) -> WorkflowBundle:
             except (ValueError, TypeError, ValidationError):
                 raise WorkflowValidationError("invalid skill catalog") from None
         for skill_id in definition.skills:
-            item = catalog.get(skill_id)
+            item = catalog.get(skill_id) if catalog is not None else None
             if item is None or item.direction != stem:
                 raise WorkflowValidationError("skill is not allowed for this agent")
             resources["skills/" + item.path] = _read_resource(

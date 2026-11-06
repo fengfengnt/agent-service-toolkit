@@ -72,6 +72,7 @@ async def draft_view(db: AsyncSession, row: ReceptionDraft) -> DraftView:
             .order_by(ReceptionFile.created_at, ReceptionFile.id)
         )
     ).all()
+    definition = await draft_definition(db, row)
     return DraftView(
         id=str(row.id),
         kind=row.kind,
@@ -83,9 +84,11 @@ async def draft_view(db: AsyncSession, row: ReceptionDraft) -> DraftView:
         step=row.step,
         state=row.state,
         fields=row.fields,
-        missing_required=missing_required(
-            row.direction, row.fields, definition=await draft_definition(db, row)
-        ),
+        missing_required=missing_required(row.direction, row.fields, definition=definition),
+        field_layout={
+            "rounds": [group.model_dump() for group in definition.rounds],
+            "requiredFields": definition.required_fields,
+        },
         summary_version=row.summary_version,
         files=[FileRef.model_validate(file) for file in row.source_files]
         + [
@@ -132,7 +135,7 @@ async def create_draft(
         conversation_id=conversation_id,
         system_id=actor.system.system_id,
         tenant_id=actor.system.tenant_id,
-        definition_bundle_id=definition_bundle_id,
+        definition_bundle_id=definition_bundle_id or db.info.get("workflow_bundle_id"),
         creation_request=request.model_dump(mode="json", by_alias=True, exclude_none=True),
         **request.model_dump(),
     )
@@ -167,6 +170,7 @@ async def create_draft(
         row.fields = validate_fields(request.direction, row.fields)
     db.add(row)
     await db.flush()
+    row.step = (await draft_definition(db, row)).rounds[0].id
     conversation = await db.get(Conversation, conversation_id)
     conversation.direction = request.direction
     flow.active_draft_id = row.id

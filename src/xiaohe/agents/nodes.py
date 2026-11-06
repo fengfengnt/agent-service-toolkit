@@ -1,12 +1,14 @@
-from typing import get_args
+from typing import cast, get_args
 from uuid import UUID, uuid5
 
 from sqlalchemy import select
 
 from xiaohe.agents.contracts import (
+    AgentDirection,
     AgentFrame,
     AnswerDraft,
     ConfirmationEvidence,
+    InvitationState,
     ModelContext,
     SemanticDecision,
     VisibleTurn,
@@ -21,18 +23,18 @@ from xiaohe.reception.skills import load_skill_materials
 from xiaohe.reception.store import create_draft, locked_flow, patch_locked_draft
 from xiaohe.reception.submission import actor_from_user, confirm_locked_draft, submit_confirmed
 from xiaohe.runs import require_write
-from xiaohe.workflows.compiler import ORGANIZATION_OPERATIONS
+from xiaohe.workflows.compiler import ORGANIZATION_OPERATIONS, NodeExecutor
 from xiaohe.workflows.definitions import draft_definition
 from xiaohe.workflows.loader import workflow_for
-from xiaohe.workflows.models import DecideNode, OperationName
+from xiaohe.workflows.models import DecideNode, NodeType, OperationName, RouteEvent
 
-ROLE_DIRECTIONS = {
+ROLE_DIRECTIONS: dict[str, AgentDirection] = {
     "xiaohe-reception": "unknown",
     "xiaohe-buyer": "buyer",
     "xiaohe-organization": "organization",
     "xiaohe-supplier": "supplier",
 }
-BUTTON_EVENTS = {
+BUTTON_EVENTS: dict[str, RouteEvent] = {
     "save_round": "save_round",
     "skip_optional": "skip_optional",
     "show_summary": "show_summary",
@@ -126,7 +128,7 @@ async def build_agent_frame(factory, fence, agent_id, bundle):
             draft_revision=row.revision if row else None,
             summary_version=row.summary_version if row else None,
             pending_request_id=flow.pending_request_id,
-            invitation_state=flow.invitation_state,
+            invitation_state=cast(InvitationState, flow.invitation_state),
             model_context=ModelContext(
                 text=_safe_model_text(visible_text(message.parts)),
                 direction=ROLE_DIRECTIONS[agent_id],
@@ -157,10 +159,10 @@ async def build_agent_frame(factory, fence, agent_id, bundle):
                     row and row.state == "review" and row.summary_version == row.revision
                 ),
                 eligible_topics=definition.skills,
-                invitation_state=flow.invitation_state,
+                invitation_state=cast(InvitationState, flow.invitation_state),
                 allowed_actions=list(
                     dict.fromkeys(
-                        ["unclear"]
+                        [cast(RouteEvent, "unclear")]
                         + [
                             event
                             for node in definition.nodes
@@ -310,7 +312,7 @@ def validate_confirmation_evidence(evidence, row, command, run, message_id, user
             raise ServiceError("ACTION_STALE", 409)
 
 
-def make_node_executors(factory, *, model, business_client, bundle):
+def make_node_executors(factory, *, model, business_client, bundle) -> dict[NodeType, NodeExecutor]:
     async def understand(node, state, config):
         frame = AgentFrame.model_validate(state["frame"])
         async with factory.begin() as db:

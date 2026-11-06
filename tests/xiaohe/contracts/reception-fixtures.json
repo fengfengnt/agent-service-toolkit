@@ -1,6 +1,6 @@
 {
   "schemaVersion": "reception.v1",
-  "schemaSha256": "e310762f5c78970454c4ccfe0de279dcf9ebb20ccdf396a4af4a75f43b9893dc",
+  "schemaSha256": "cfc323b58e95e7aebb336243d538f83154914a0f3a59c2c4ce112d6d2c7c27cc",
   "schemaCases": [
     {
       "name": "buyer-name-only",

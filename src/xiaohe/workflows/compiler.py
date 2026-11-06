@@ -1,5 +1,5 @@
 from collections.abc import Awaitable, Callable, Mapping
-from typing import Any, TypedDict, get_args
+from typing import Any, TypedDict, cast, get_args
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
@@ -113,7 +113,7 @@ def _router(node: DecideNode):
         event = state.get("event")
         if event not in get_args(RouteEvent):
             raise WorkflowValidationError("invalid runtime route event")
-        return node.routes.get(event, node.fallback)
+        return node.routes.get(cast(RouteEvent, event), node.fallback)
 
     return route
 

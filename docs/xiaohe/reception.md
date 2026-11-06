@@ -1,34 +1,42 @@
-# P5 接待图与专业能力边界
+# 小鹤接待与独立专业 Agent
 
-首版接待使用 `build_graph(factory=...)`。内部执行路由提供业务 run/attempt/ownership_epoch，节点通过 `build_reception_context(db,fence)` 再次确认权限，从当前 run 的 conversation 取最近至多 20 条消息；不采用浏览器提交的历史、方向状态或任意租户参数。方向持久保存在业务 Conversation，回复仍由 P4 worker 提交。
+新任务默认通过四个独立 LangGraph 执行：接待负责理解服务方向并交接；采购、社群组织、供应商各自持续接待和处理业务。Skill 是专业 Agent 使用的受控资料，不再代替 Agent。实现使用现有 LangChain／LangGraph，没有引入 DeepAgents。
 
-## 方向与接待
+## 流程和提示词位置
 
-方向使用 buyer（采购方）、organization（协会等组织机构）、supplier（供应商）及 unknown。明确自称、切换指令和方向选择优先于模型推断；临时询问其他方向可以获得本轮回答，保留已明确的当前方向。否定或含糊表达采取保守处理；未确认方向时返回三个选项，继续使用同一 run 的持久等待/动作协议。
+| Agent | 实际流程定义 | 提示词 |
+| --- | --- | --- |
+| 小鹤接待 | `resources/xiaohe/workflows/reception.yaml` | `resources/xiaohe/prompts/reception-{intent,answer}.md` |
+| 采购 | `resources/xiaohe/workflows/buyer.yaml` | `resources/xiaohe/prompts/buyer-{intent,answer}.md` |
+| 社群组织 | `resources/xiaohe/workflows/organization.yaml` | `resources/xiaohe/prompts/organization-{intent,answer}.md` |
+| 供应商 | `resources/xiaohe/workflows/supplier.yaml` | `resources/xiaohe/prompts/supplier-{intent,answer}.md` |
 
-模型仅返回 RoutingAnswer 的 direction、intent、answer。intent 只有 reception/professional/clarify/off_topic，不包含认证、保存、调用工具或执行成功等状态。无关请求使用固定引导；结构错误、额外字段、超过 4000 字符或 30 秒超时均转换为不含原始异常的 UPSTREAM_UNAVAILABLE。
+YAML 是实际运行定义。`schema_version` 是 DSL 格式版本，`workflow_version` 是人工可读版本；`agent_id` 固定角色；`entry` 指向起点。`prompts` 引用角色提示词，`skills` 列出本方向允许的资料。`rounds` 按顺序定义采集轮次、名称及字段，`required_fields` 定义流程的最终必填项。正式业务接口另有不能被 YAML 降低的最低要求。
 
-认证卡片由服务端从当前用户的明确正向表达产生，例如“我要留资”“我想注册”“请帮我登录”。包含不要、不想、暂时不、以后再说等否定/推迟表达时不产生卡片；含糊表达保守地不自动开启认证。当前识别规则面向简体中文，需要更多表达时按真实用例补充，不声称覆盖全部语言。卡片只是请求，不代表发送短信或认证成功。
+`nodes` 支持六种节点：`understand` 调用 LLM 得到结构化理解；`decide` 由代码校验后选择分支；`answer` 结合受权上下文与冻结材料生成答复；`operation` 调用固定允许的业务操作；`handoff` 交给允许的目标 Agent；`result` 生成结果并决定是否继续等待。节点 `name` 用于阅读；`next`、`routes`、`fallback` 表达执行关系。修改时同时检查分支目标和节点名称，不加入任意 Python、表达式、工具名或 URL。
 
-## 模型及敏感数据
+Pydantic 在 `src/xiaohe/workflows/models.py` 定义格式；`loader.py` 安全加载文件、提示词及资料并生成摘要；`compiler.py` 校验节点、可达性、循环和业务守卫，然后编译 LangGraph。启动时加载四份图，非法定义阻止启动，不静默采用旧文件。
 
-`reception_model()` 直接使用上游 DEFAULT_MODEL、AVAILABLE_MODELS 与 `core.get_model`，不新增供应商客户端或第二套模型配置。兼容 OpenAI 模型继续使用上游 COMPATIBLE_MODEL/COMPATIBLE_BASE_URL/COMPATIBLE_API_KEY；DeepSeek 使用上游配置。无可用选择或 FakeModel 时产品调用安全失败，测试模型仅通过显式 fixture 注入；没有调用付费模型。
+## 修改与恢复
 
-模型输入仅包含接待策略、当前方向和最多 20 条经过过滤的可见文本。auth_request、认证字段、任意 confirmed_facts、内部标识和认证请求的额外字段不序列化给模型；当前还没有可供模型使用的受控业务事实字段，因此只使用已确认方向。标准手机号/验证码及 Bearer/token 标记再次检查，命中时整段替换为认证信息占位。原认证表、短信值、browserVerifier 不参与模型或图输入。
+本期修改文件后需重启服务，没有热更新、编辑界面或导出功能。每次加载形成不可变 bundle，数据库保存四份定义、提示词和资料快照。新任务绑定当前 bundle；既有 run、等待输入、重试及草稿继续使用其绑定版本，不能在恢复时换成最新文件。缺失或校验失败的旧定义阻止恢复，不重新猜测。旧无绑定任务走兼容路径；旧草稿通过原规则摘要绑定最早匹配的快照，不将其解释为当前新规则。
 
-所有模型内部消息流默认不作为公开 token。只有受信 handler 显式标记 xiaohe_public 的用户可见文本才允许增量，首版结构化接待没有使用该标记，只发布受控最终 ChatPart，避免把路由 JSON 或中间分析发给用户。模型原文不能创建 auth_request、产出物、认证结果或后台保存结果。
+新服务返回 `DraftView.fieldLayout`，仅含绑定版本的轮次与必填信息，门户据此显示表单。没有该字段的旧服务保留原布局兼容显示。提示词和整份流程不传给门户。
 
-策略位于 `resources/xiaohe/reception-policy.md`。首版只采用保守的公司与三方向介绍；[历史知识审阅表](../../../docs/knowledge/2026-10-30-source-review.md)及 PPT 演示数字没有直接导入。涉及费用、免费、分成、排期、保证和部分成功断言的输出使用固定中性口径。规则检测和策略提示不能证明模型永不出错，真实模型及对客内容仍需独立验证。
+## 语义与代码的分工
 
-## 专业 handler 接口
+意图、表达、否定、条件、指代、多意图与字段候选由 LLM 结构化理解，没有关键词猜测回退。字段候选必须有本轮原文证据，字段类型、枚举和数值区间规范化由代码校验。表达不清时澄清；模型超时、非法结果或不可用时提示重试，不据此推进方向或草稿。
 
-```python
-ProfessionalHandler = Callable[[GraphState], Awaitable[AgentOutcome]]
-await dispatch_direction(direction, state, handlers)
-```
+代码控制身份、系统与租户范围、当前任务所有权、草稿版本、必填、当前汇总确认及幂等。按钮同样走这些守卫。明确自然语言可以确认已展示的当前汇总；单独“好的”、否定、条件或修改加确认不能直接提交。后台结果不确定时保存原提交键并查询，不另造一次申请。
 
-P6 在注册图时传入已登记的 handlers 映射，不新增插件框架。业务节点提供 run_id、当前 direction 和 write_fence；handler 的查询、工具、对象与事件写入必须使用该 fence 复核权限，不能仅信任 state 内的文本身份。handler 返回受控 AgentOutcome，只有后台真实执行结果才能表示成功。认证卡片由接待控制层统一决定，专业 handler 自行返回的认证卡片会被移除。
+专业答复允许标注一般建议；公司报价、政策、案例、效果承诺必须有已确认资料，否则说明待确认。模型不能声明认证或提交成功。只有真实业务回执才能形成成功状态。
 
-本阶段没有登记三个专业业务流程；方向未登记时说明“专业业务办理尚未开放”，可以继续接待介绍。没有假装注册绑定、人工任务、会员进展或文档生成已经执行成功。真实接口随相应已批准任务装配并分别验收。
+## 入口与宿主边界
 
-测试覆盖三方向、明确/否定切换、临时跨方向问答、澄清、无关引导、正向认证、拒绝留资、敏感字段、非法结构、超时、假模型拒绝，以及真实 PostgreSQL 图执行的范围隔离和内部模型文本不外发。
+原消息／动作入口保留；专业 Agent 还有 `POST /ai-api/v1/agents/{agent_id}/conversations/{conversation_id}/messages` 和对应 `/actions`。它们使用现有认证、CSRF、系统范围与消息／动作协议，不接受浏览器自报的可信身份或租户。专业动作入口必须对应当前持久 Agent，不能借入口切换来确认别的草稿。
+
+`Actor`／`TrustedSystem` 与 `src/xiaohe/reception/business_client.py` 的 `BusinessBackend` 的认证／业务边界允许其他宿主提供自己的受信身份与业务后台；当前门户只是默认装配。四个图目前共用执行外壳和部署，未来独立部署的装配位置已注释预留，本期没有单独包、远程调用框架或新部署服务。
+
+交接仅包含必要摘要、近期可见文本与目标方向自己的草稿。返回原方向恢复原草稿；认证凭据、内部推理、私有附件原文及其他方向整份草稿不进入交接。
+
+验收证据见 [本次记录](../reception/2026-11-06-independent-agents-acceptance.md)。有限模型评测、受控业务回归、联合真实服务及浏览器结果应分别读取，不能相互替代。

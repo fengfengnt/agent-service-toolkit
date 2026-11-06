@@ -50,6 +50,7 @@ def api_app(config, settings):
     from psycopg.rows import dict_row
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
+    from xiaohe.agents.runtime import load_agent_registry
     from xiaohe.agui import create_agui_router
     from xiaohe.api import create_public_router, install_error_handlers
     from xiaohe.artifacts import ArtifactService
@@ -61,7 +62,41 @@ def api_app(config, settings):
     from xiaohe.toolkit_runtime import create_execution_router
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from langchain_core.runnables import RunnableLambda
     from test_reception_graph import DecisionModel
+
+    class JourneyModel(DecisionModel):
+        def with_structured_output(self, schema, **kwargs):
+            async def respond(messages):
+                if schema.__name__ != "SemanticDecision":
+                    return {
+                        "text": "当前具体安全承诺待确认，请以正式材料为准。",
+                        "basis": "needs_confirmation",
+                        "source_ids": [],
+                    }
+                context = json.loads(messages[-1].content)
+                message = context["text"]
+                scripted = {
+                    "继续采集资料": {"action": "provide_details"},
+                    "查看汇总": {"action": "show_summary"},
+                    "好的": {"action": "unclear", "needs_clarification": True},
+                    "确认提交当前汇总": {"action": "confirm_current_summary"},
+                    "查询提交结果": {"action": "query_progress"},
+                    "切换到供应商": {
+                        "action": "switch_direction",
+                        "target_direction": "supplier",
+                        "explicit_switch": True,
+                    },
+                    "切换到采购商": {
+                        "action": "switch_direction",
+                        "target_direction": "buyer",
+                        "explicit_switch": True,
+                    },
+                    "我们想优化采购寻源": {"action": "consultation", "target_direction": "buyer"},
+                }
+                return scripted.get(message, {"action": "consultation"})
+
+            return RunnableLambda(respond)
 
     upstream.AUTH_SECRET = settings.auth_secret
     engine = create_database_engine(settings.database_url)
@@ -79,10 +114,15 @@ def api_app(config, settings):
             saver, store = AsyncPostgresSaver(saver_conn), AsyncPostgresStore(store_conn)
             await saver.setup()
             await store.setup()
+            model = JourneyModel(result={})
+            registry = await load_agent_registry(
+                factory, Path(config["resource_root"]), model, business
+            )
             graph = build_graph(
                 factory=factory,
-                model=DecisionModel(result={"fields": {}}),
+                model=model,
                 business_client=business,
+                agent_registry=registry,
             )
             graph.checkpointer, graph.store = saver, store
             agents["xiaohe"] = Agent(description="隔离接待验收，未调用付费模型", graph_like=graph)

@@ -42,6 +42,7 @@ async def test_formal_payload_and_draft_api_use_same_bound_definition(pg_factory
         original = row.definition_bundle_id
     data = yaml.safe_load((root / "workflows/buyer.yaml").read_text("utf-8"))
     data["required_fields"] = ["companyName", "city"]
+    data["rounds"][0], data["rounds"][1] = data["rounds"][1], data["rounds"][0]
     (root / "workflows/buyer.yaml").write_text(yaml.safe_dump(data), "utf-8")
     latest = load_bundle(root)
     async with pg_factory.begin() as db:
@@ -49,6 +50,18 @@ async def test_formal_payload_and_draft_api_use_same_bound_definition(pg_factory
         row = await db.get(ReceptionDraft, UUID(view.id))
         assert row.definition_bundle_id == original != latest.bundle_id
         assert (await draft_view(db, row)).missing_required == ["companyName"]
+        layout = (await draft_view(db, row)).field_layout
+        assert layout.required_fields == ["companyName"]
+        assert layout.rounds[0].fields == ["companyName", "industry", "companyScale", "city"]
+        db.info["workflow_bundle_id"] = latest.bundle_id
+        new = await create_draft(
+            db,
+            who,
+            conversation,
+            CreateDraft(client_draft_id="latest", direction="buyer", kind="service"),
+        )
+        assert new.field_layout.required_fields == ["companyName", "city"]
+        assert new.step == "round2"
     with pytest.raises(ValidationError):
         Submission(
             submission_key="key",

@@ -5,6 +5,7 @@ import ipaddress
 import json
 import os
 import secrets
+import shutil
 import socket
 import subprocess
 import sys
@@ -109,8 +110,9 @@ def main():
         raise RuntimeError("请显式设置 RECEPTION_REAL_JOURNEY_ENABLED=1")
     assert ROOT.name == "reception-agents" and JAVA.is_dir() and PORTAL.is_dir()
     nonce = secrets.token_hex(5)
-    directory = ROOT / ".superpowers/sdd/2026-11-05-xiaohe-reception-agents" / ("j1-" + nonce)
+    directory = ROOT / ".superpowers/sdd/2026-11-06-xiaohe-independent-agents" / ("j1-" + nonce)
     directory.mkdir(parents=True)
+    shutil.copytree(ROOT / "resources/xiaohe", directory / "resources")
     control, secret, file_secret, toolkit_secret = [secrets.token_hex(24) for _ in range(4)]
     pg_password, mysql_password, minio_secret = [secrets.token_hex(24) for _ in range(3)]
     containers = []
@@ -345,7 +347,8 @@ def main():
             "api_port": api_port,
             "certificate": str(cert_path),
             "key": str(key_path),
-            "portal_root": str(PORTAL / "build/portal-spa"),
+            "portal_root": str(directory / "portal-spa"),
+            "resource_root": str(directory / "resources"),
             "control": control,
             "settings": settings,
         }
@@ -435,10 +438,12 @@ def main():
             "SSO_DEV_API_TARGET": "",
             "AI_DEV_API_TARGET": "",
             "RECEPTION_REAL_PORTAL_ORIGIN": origin,
+            "PLAYWRIGHT_CHANNEL": "chrome",
+            "RECEPTION_TEST_DIST": str(directory / "portal-spa"),
         }
         command("npm.cmd run build", PORTAL, portal_env, "portal-build")
         command(
-            "npm.cmd run test:browser -- --config playwright.reception-real.config.ts",
+            "npm.cmd run test:browser -- --config playwright.reception-real.config.ts --headed",
             PORTAL,
             portal_env,
             "browser",

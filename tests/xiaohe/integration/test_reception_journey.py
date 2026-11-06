@@ -9,6 +9,7 @@ from uuid import uuid4
 
 import httpx
 import pytest
+import yaml
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -92,21 +93,22 @@ async def test_actual_reception_application_progress_onboarding_and_private_file
                 else False
             )
 
-        async def turn(message):
+        async def turn(message, *, entry_agent=None, replay=False):
             current = await wait(idle)
             pending = (await view())["pendingRequestId"]
+            entry = "/ai-api/v1/" + ("agents/" + entry_agent + "/" if entry_agent else "") + "conversations/" + conversation
             if current["activeRun"]:
-                response = await client.post(
-                    "/ai-api/v1/conversations/" + conversation + "/actions",
-                    json={"clientActionId": str(uuid4()), "requestId": pending, "text": message},
-                )
+                endpoint = entry + "/actions"
+                body = {"clientActionId": str(uuid4()), "requestId": pending, "text": message}
             else:
-                response = await client.post(
-                    "/ai-api/v1/conversations/" + conversation + "/messages",
-                    json={"clientMessageId": str(uuid4()), "text": message},
-                )
+                endpoint = entry + "/messages"
+                body = {"clientMessageId": str(uuid4()), "text": message}
+            response = await client.post(endpoint, json=body)
             assert response.status_code == 202, response.text
             await wait(idle)
+            if replay:
+                duplicate = await client.post(endpoint, json=body)
+                assert duplicate.status_code == 202 and duplicate.json()["run"]["id"] == response.json()["run"]["id"]
             return await view()
 
         async def create(direction, fields, **source):
@@ -175,7 +177,19 @@ async def test_actual_reception_application_progress_onboarding_and_private_file
             assert replay.status_code == 202
             return receipt(draft_id)
 
+        welcomed = await turn("我们想优化采购寻源")
+        assert welcomed["direction"] == "buyer" and welcomed["activeDraft"] is None
         buyer_draft = await create("buyer", {"companyName": "联合甲公司"})
+        with engine.connect() as db:
+            assert (
+                db.scalar(
+                    text(
+                        "SELECT runtime_version FROM xiaohe.runs WHERE conversation_id=:id ORDER BY created_at DESC LIMIT 1"
+                    ),
+                    {"id": conversation},
+                )
+                == "dsl-v1"
+            )
         switched = await turn("切换到供应商")
         assert switched["direction"] == "supplier" and switched["activeDraft"] is None
         resumed = await turn("切换到采购商")
@@ -198,7 +212,7 @@ async def test_actual_reception_application_progress_onboarding_and_private_file
         await create("buyer", {"companyName": "联合乙公司"})
         await turn("查看汇总")
         assert (await turn("好的"))["activeDraft"]["state"] == "review"
-        await turn("确认提交当前汇总")
+        await turn("确认提交当前汇总", entry_agent="xiaohe-buyer", replay=True)
         await wait(submitted)
         third = receipt((await view())["activeDraft"]["id"])
         await create(
@@ -418,6 +432,14 @@ async def test_process_kill_after_java_accept_recovers_original_submission():
         await wait(has_question)
 
         async def act(kind):
+            async def ready_for_action():
+                response = await client.get(
+                    "/ai-api/v1/conversations/" + snapshot["conversationId"]
+                )
+                value = response.json()
+                return value.get("activeRun", {}).get("status") == "waiting_input"
+
+            await wait(ready_for_action)
             value = await current()
             draft = value["activeDraft"]
             body = {
@@ -449,6 +471,12 @@ async def test_process_kill_after_java_accept_recovers_original_submission():
 
         await wait(held)
         with engine.connect() as db:
+            original_bundle = db.scalar(
+                text(
+                    "SELECT workflow_bundle_id FROM xiaohe.runs WHERE conversation_id=:id ORDER BY created_at DESC LIMIT 1"
+                ),
+                {"id": snapshot["conversationId"]},
+            )
             assert (
                 db.scalar(
                     text("SELECT receipt FROM xiaohe.reception_submissions WHERE draft_id=:id"),
@@ -456,6 +484,10 @@ async def test_process_kill_after_java_accept_recovers_original_submission():
                 )
                 is None
             )
+        workflow = Path(config["resource_root"]) / "workflows/buyer.yaml"
+        changed = yaml.safe_load(workflow.read_text("utf-8"))
+        changed["workflow_version"] += "-restart-test"
+        workflow.write_text(yaml.safe_dump(changed, allow_unicode=True), "utf-8")
         (directory / "restart-runtime").write_text("kill-owned-runtime", "utf-8")
 
         async def restarted():
@@ -469,6 +501,15 @@ async def test_process_kill_after_java_accept_recovers_original_submission():
 
         await wait(accepted, 210)
         with engine.connect() as db:
+            assert (
+                db.scalar(
+                    text(
+                        "SELECT workflow_bundle_id FROM xiaohe.runs WHERE conversation_id=:id ORDER BY created_at DESC LIMIT 1"
+                    ),
+                    {"id": snapshot["conversationId"]},
+                )
+                == original_bundle
+            )
             receipt = db.scalar(
                 text("SELECT receipt FROM xiaohe.reception_submissions WHERE draft_id=:id"),
                 {"id": draft["id"]},

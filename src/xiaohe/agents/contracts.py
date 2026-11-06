@@ -7,6 +7,9 @@ from xiaohe.contracts import Actor, InternalModel, WriteFence
 from xiaohe.reception.contracts import FieldValue
 from xiaohe.workflows.models import AgentId, RouteEvent
 
+AgentDirection = Literal["unknown", "buyer", "organization", "supplier"]
+InvitationState = Literal["none", "offered", "deferred", "accepted"]
+
 
 class StrictAgentModel(BaseModel):
     model_config = ConfigDict(
@@ -25,7 +28,7 @@ class VisibleTurn(StrictAgentModel):
 
 class ModelContext(StrictAgentModel):
     text: str = Field(max_length=10000)
-    direction: Literal["unknown", "buyer", "organization", "supplier"]
+    direction: AgentDirection
     recent_turns: list[VisibleTurn] = Field(default_factory=list, max_length=20)
     draft_step: Literal["round1", "round2", "round3", "files", "summary"] | None = None
     draft_state: Literal["collecting", "review", "submitting", "accepted"] | None = None
@@ -34,7 +37,7 @@ class ModelContext(StrictAgentModel):
     field_options: dict[str, list[str]] = Field(default_factory=dict)
     saved_fields: dict[str, FieldValue] = Field(default_factory=dict)
     summary_visible: bool = False
-    invitation_state: Literal["none", "offered", "deferred", "accepted"] = "none"
+    invitation_state: InvitationState = "none"
     eligible_topics: list[str] = Field(default_factory=list)
     allowed_actions: list[RouteEvent] = Field(default_factory=list)
 
@@ -53,7 +56,7 @@ class AgentFrame(InternalModel):
     draft_revision: int | None = Field(default=None, ge=1)
     summary_version: int | None = Field(default=None, ge=1)
     pending_request_id: UUID | None = None
-    invitation_state: Literal["none", "offered", "deferred", "accepted"] = "none"
+    invitation_state: InvitationState = "none"
     model_context: ModelContext
 
 
@@ -93,17 +96,19 @@ class ConfirmationEvidence(InternalModel):
 
     @classmethod
     def from_frame(cls, frame: AgentFrame, *, source: Literal["semantic", "button"]):
-        return cls(
-            command_id=frame.command_id,
-            run_id=frame.fence.run_id,
-            message_id=frame.message_id,
-            user_id=frame.actor.user_id,
-            draft_id=frame.draft_id,
-            revision=frame.draft_revision,
-            summary_version=frame.summary_version,
-            bundle_id=frame.bundle_id,
-            agent_id=frame.agent_id,
-            source=source,
+        return cls.model_validate(
+            dict(
+                command_id=frame.command_id,
+                run_id=frame.fence.run_id,
+                message_id=frame.message_id,
+                user_id=frame.actor.user_id,
+                draft_id=frame.draft_id,
+                revision=frame.draft_revision,
+                summary_version=frame.summary_version,
+                bundle_id=frame.bundle_id,
+                agent_id=frame.agent_id,
+                source=source,
+            )
         )
 
 

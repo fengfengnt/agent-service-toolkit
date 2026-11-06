@@ -979,6 +979,9 @@
         },
         "summaryVersion": {
           "$ref": "#/$defs/Revision"
+        },
+        "fieldLayout": {
+          "$ref": "#/$defs/FieldLayout"
         }
       },
       "required": [
@@ -2497,6 +2500,57 @@
       "required": [
         "actor",
         "payload"
+      ],
+      "additionalProperties": false
+    },
+    "FieldRound": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/DraftStep"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "fields"
+      ],
+      "additionalProperties": false
+    },
+    "FieldLayout": {
+      "type": "object",
+      "properties": {
+        "rounds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/FieldRound"
+          }
+        },
+        "requiredFields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "rounds",
+        "requiredFields"
       ],
       "additionalProperties": false
     }

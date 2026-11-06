@@ -103,6 +103,17 @@ class OperationalDownload(WireModel):
     owner_ai_user_id: Id
 
 
+class FieldRound(WireModel):
+    id: DraftStep
+    name: Annotated[str, Field(min_length=1, max_length=200)]
+    fields: list[str]
+
+
+class FieldLayout(WireModel):
+    rounds: list[FieldRound]
+    required_fields: list[str]
+
+
 class DraftView(WireModel):
     id: Id
     kind: DraftKind
@@ -117,6 +128,7 @@ class DraftView(WireModel):
     missing_required: list[str]
     files: list[FileRef]
     summary_version: Positive | None = None
+    field_layout: FieldLayout | None = None
 
 
 class DraftRef(WireModel):
