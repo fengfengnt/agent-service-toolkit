@@ -109,6 +109,7 @@ async def start_onboarding(
     client_draft_id,
     onboarding_id=None,
     fence=None,
+    definition_bundle_id=None,
 ):
     request = CreateDraft(
         client_draft_id=client_draft_id,
@@ -118,7 +119,8 @@ async def start_onboarding(
         source_onboarding_id=onboarding_id,
     )
     return await create_draft_from_business(
-        factory, actor, conversation_id, request, client, fence=fence
+        factory, actor, conversation_id, request, client, fence=fence,
+        definition_bundle_id=definition_bundle_id,
     )
 
 

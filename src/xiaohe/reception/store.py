@@ -104,7 +104,13 @@ async def draft_view(db: AsyncSession, row: ReceptionDraft) -> DraftView:
 
 
 async def create_draft(
-    db: AsyncSession, actor: Actor, conversation_id: UUID, request: CreateDraft, *, source=None
+    db: AsyncSession,
+    actor: Actor,
+    conversation_id: UUID,
+    request: CreateDraft,
+    *,
+    source=None,
+    definition_bundle_id=None,
 ) -> DraftView:
     flow = await flow_record(db, actor, conversation_id)
     existing = await db.scalar(
@@ -126,6 +132,7 @@ async def create_draft(
         conversation_id=conversation_id,
         system_id=actor.system.system_id,
         tenant_id=actor.system.tenant_id,
+        definition_bundle_id=definition_bundle_id,
         creation_request=request.model_dump(mode="json", by_alias=True, exclude_none=True),
         **request.model_dump(),
     )

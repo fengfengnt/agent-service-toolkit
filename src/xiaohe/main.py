@@ -43,11 +43,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise RuntimeError("only one xiaohe app may own the upstream registry per process")
         _active_app = app
         previous = agents.get("xiaohe")
-        agents["xiaohe"] = Agent(
-            description="小鹤门户三方向接待",
-            graph_like=build_graph(factory=factory, business_client=reception_client),
-        )
         try:
+            from xiaohe.agents.runtime import load_agent_registry
+            from xiaohe.workflows.definitions import RESOURCE_ROOT
+
+            # 后续独立部署只替换宿主认证和 BusinessBackend 装配；本期共用进程。
+            registry = await load_agent_registry(factory, RESOURCE_ROOT, None, reception_client)
+            app.state.xiaohe_agent_registry = registry
+            agents["xiaohe"] = Agent(
+                description="小鹤执行与暂停外壳",
+                graph_like=build_graph(
+                    factory=factory, business_client=reception_client, agent_registry=registry
+                ),
+            )
             async with AsyncExitStack() as stack:
                 # An open transaction would block upstream CREATE INDEX CONCURRENTLY.
                 async with engine.connect() as guard:

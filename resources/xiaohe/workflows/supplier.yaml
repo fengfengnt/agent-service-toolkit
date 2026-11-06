@@ -60,7 +60,7 @@ nodes:
     provide_details: collect
     consultation_with_details: answer_details
     accept_invitation: auth
-    defer_invitation: result
+    defer_invitation: answer
     save_round: save
     skip_optional: summary
     show_summary: summary

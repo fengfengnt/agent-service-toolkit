@@ -97,11 +97,13 @@ def create_reception_router(factory, business_client=None):
             async with factory.begin() as db:
                 actor = await _actor(request, db)
             view = await create_draft_from_business(
-                factory, actor, conversation_id, body, business_client
+                factory, actor, conversation_id, body, business_client,
+                definition_bundle_id=db.info.get("workflow_bundle_id"),
             )
             return view.model_dump(mode="json", by_alias=True, exclude_none=True)
         async with factory.begin() as db:
-            view = await create_draft(db, await _actor(request, db), conversation_id, body)
+            view = await create_draft(db, await _actor(request, db), conversation_id, body,
+                                      definition_bundle_id=db.info.get("workflow_bundle_id"))
             return view.model_dump(mode="json", by_alias=True, exclude_none=True)
 
     @router.patch("/drafts/{draft_id}")

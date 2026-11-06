@@ -260,7 +260,7 @@ async def submit_confirmed(factory, fence, submission_id, client) -> SubmitRecei
 
 
 async def create_draft_from_business(
-    factory, actor, conversation_id, request, client, *, fence=None
+    factory, actor, conversation_id, request, client, *, fence=None, definition_bundle_id=None
 ):
     from xiaohe.conversations import require_conversation
 
@@ -279,7 +279,9 @@ async def create_draft_from_business(
             )
         )
         if existing is not None:
-            return await create_draft(db, actor, conversation_id, request)
+            return await create_draft(
+                db, actor, conversation_id, request, definition_bundle_id=definition_bundle_id
+            )
         user = await db.get(User, actor.user_id)
         trusted = actor_from_user(user)
     if client is None:
@@ -328,4 +330,11 @@ async def create_draft_from_business(
         if fence is not None:
             await require_conversation(db, actor, conversation_id)
             await require_write(db, fence)
-        return await create_draft(db, actor, conversation_id, request, source=source)
+        return await create_draft(
+            db,
+            actor,
+            conversation_id,
+            request,
+            source=source,
+            definition_bundle_id=definition_bundle_id,
+        )

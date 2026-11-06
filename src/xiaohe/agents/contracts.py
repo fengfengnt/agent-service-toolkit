@@ -28,6 +28,8 @@ class ModelContext(StrictAgentModel):
     direction: Literal["unknown", "buyer", "organization", "supplier"]
     recent_turns: list[VisibleTurn] = Field(default_factory=list, max_length=20)
     draft_step: Literal["round1", "round2", "round3", "files", "summary"] | None = None
+    draft_state: Literal["collecting", "review", "submitting", "accepted"] | None = None
+    handoff_summary: str | None = Field(default=None, max_length=1000)
     allowed_fields: list[str] = Field(default_factory=list)
     saved_fields: dict[str, FieldValue] = Field(default_factory=dict)
     summary_visible: bool = False

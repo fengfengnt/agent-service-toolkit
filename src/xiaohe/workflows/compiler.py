@@ -141,4 +141,4 @@ def compile_workflow(
             graph.add_edge(node.id, END)
         else:
             graph.add_edge(node.id, node.next)
-    return graph.compile(name=definition.agent_id)
+    return graph.compile(name=definition.agent_id, checkpointer=False)

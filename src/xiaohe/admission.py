@@ -183,6 +183,9 @@ async def _accept(
                 ownership_epoch=conversation.ownership_epoch,
             )
             db.add(run)
+            if bundle_id := db.info.get("workflow_bundle_id"):
+                run.runtime_version = "dsl-v1"
+                run.workflow_bundle_id = bundle_id
         else:
             run.status, run.holds_slot, run.pending_request = "queued", True, None
             run.updated_at = func.clock_timestamp()
