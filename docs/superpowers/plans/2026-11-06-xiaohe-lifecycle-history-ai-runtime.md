@@ -10,7 +10,7 @@
 
 **Spec:** [用户已批准的共同设计](C:/Users/70367/.codex/worktrees/xiaohe-auth-card/yunhezhiyuan-portal/docs/superpowers/specs/2026-11-06-xiaohe-lifecycle-history-design.md)；唯一 wire 来源为 [共享主契约 §12](D:/Code/yunhezhiyuan-agents/docs/contracts/2026-11-03-xiaohe-integration-v1.md)。此计划不复制另一份 DTO 规范。
 
-状态：2026-11-06，北京时间，**设计已批准，实施计划待用户审阅**。本轮只写计划/契约文档；全部任务未执行，命令仅供批准后的实现者使用，不是本轮运行记录。
+状态：2026-11-06，北京时间，**用户已回复“审阅通过”，三工程计划已批准，按各工程原生方式执行**。AI 当前处于 Task 1 基线确认；未完成的勾选和下列命令仍不代表已经执行或通过。真实库迁移、部署、短信、模型及体验窗口操作仍未授权。
 
 ## Global Constraints
 
@@ -22,7 +22,7 @@
 - 所有业务写入口用同一 admission 原子计数；V1/V2 不各发额度。`systemId↔tenantId` 为服务端一对一，user_id 全球唯一且属于一个业务租户；源身份 sourceTenantId 不替代业务 tenantId。
 - V2 首屏/每页至多10条单条完整消息，稳定 `(createdAt,id)` keyset；parts/精确文件版本不变。activeInput 在首屏之外仅提供定位入口。
 - V2 明确 opt-in，V1 full 保留；不把未知版本或混用降级成成功。历史 cursor、历史 epoch、事件 UUID cursor、单调 sequence、ownership fence 各司其职。
-- 本阶段不执行任何数据库迁移或产品测试。未来测试只用显式 `test_xiaohe_*` 库及 mock transport/受控执行器；现有 pg_factory 会 TRUNCATE，绝不能指向体验/运行库。
+- 不执行真实库迁移；计划批准后的测试只用显式 `test_xiaohe_*` 库及 mock transport/受控执行器。现有 pg_factory 会 TRUNCATE，绝不能指向体验/运行库；Task 1 的稳定基线门仍须先满足。
 
 ## Review Focus
 
@@ -39,6 +39,8 @@
 当前嵌套仓库 HEAD `4f4c690`，分支 `dev-fengfeng`；已有部署文件和验收文档改动不属本任务。主契约在父目录，父目录当前不是 Git 仓库，计划提交不能假装包含它的提交。CodeGraph 现有索引不包含 xiaohe 业务新增部分，已回到源码核对。
 
 并行接待工程 `.scratch/worktrees/reception-agents` 已有 `0008_reception.py`、reception writers/system_notice/control 实现；本仓库迁移当前仅至0007。**实施前必须由对应 Owner 确认接待基线已整合进 dev-fengfeng；未整合则停在文档阶段，不从另一树拷贝产品源码。** 本计划预留迁移 `0009_guest_budget_history.py`，down_revision=`0008`；若实施前实际head又变化，先修订此计划与revision，禁止制造双head或冒用0008。
+
+审批后前置核对：主树 `7e0f2f6` 仍至0007；接待树 `e4f8a79` 已含 `0009_workflow_definitions.py`（revision=0009/down_revision=0008），并有正在实施的未提交认证、admission、schema、工作流和接待修改。**因此下文原预留0009文件名不可直接使用**；待 Owner 确认可整合的稳定提交及整合责任后，依据真实 head 修订编号再实现。此次批准不包含自动合并他树或代提交其脏文件，已通知门户协调前置。
 
 | 文件 | 最小职责/改动 |
 | --- | --- |
@@ -168,4 +170,4 @@ Task 1（统一契约/基线）→ Task 2（数据/身份）→ Task 3（公共a
 
 已按共同设计§4/§5/§6/§7逐项映射：通道ready/EOF→Task6；SSO恢复/原8h→Task5及SSO依赖；长期预算/存量/过期→Task2/3；真分页/卡片/水位→Task4/6；V1兼容→Task1/5/6；组合证据→Task7。五项Review Focus各有具名测试；未把门户滚动、打开意图、前端发送守卫或中心认证实现算成AI代码任务。
 
-本轮未执行产品测试/迁移/服务命令，也未修改上述产品文件。下一步由用户审阅本计划，并确认执行方式和基线整合；推荐原生逐项执行（`superpowers:executing-plans`），因为任务强依赖同一预算/视图契约且主要改同一业务层。不因设计批准或收到跨聊天消息直接开始实施。
+用户已批准三工程计划，原生执行方式不再重新询问，使用 `superpowers:executing-plans`。开工检查尚未满足接待基线前置，目前未执行产品测试/迁移/服务命令、未修改上述产品文件；等对应 Owner 确认可整合稳定基线并处理归属后，重新核对迁移编号，再按任务执行。每项结果写入本计划专属 ledger，不把审批记录视为 Task 1 或新增功能已完成。
