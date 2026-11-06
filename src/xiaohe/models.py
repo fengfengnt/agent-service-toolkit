@@ -23,6 +23,16 @@ class Base(DeclarativeBase):
     metadata = MetaData(schema="xiaohe")
 
 
+class WorkflowDefinitionRecord(Base):
+    __tablename__ = "workflow_definitions"
+
+    bundle_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    payload: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.clock_timestamp()
+    )
+
+
 class System(Base):
     __tablename__ = "systems"
     __table_args__ = (
@@ -204,6 +214,16 @@ class Run(Base):
     __tablename__ = "runs"
     __table_args__ = (
         ForeignKeyConstraint(
+            ["workflow_bundle_id"],
+            ["xiaohe.workflow_definitions.bundle_id"],
+            name="fk_runs_workflow_definition",
+        ),
+        CheckConstraint(
+            "(runtime_version = 'legacy' AND workflow_bundle_id IS NULL) OR "
+            "(runtime_version = 'dsl-v1' AND workflow_bundle_id IS NOT NULL)",
+            name="ck_runs_workflow_runtime",
+        ),
+        ForeignKeyConstraint(
             ["conversation_id", "system_id", "tenant_id"],
             [
                 "xiaohe.conversations.id",
@@ -248,6 +268,8 @@ class Run(Base):
     guest_id: Mapped[UUID | None]
     execution_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     thread_id: Mapped[str | None]
+    workflow_bundle_id: Mapped[str | None] = mapped_column(String(64))
+    runtime_version: Mapped[str] = mapped_column(server_default="legacy")
     outcome: Mapped[dict | None] = mapped_column(JSONB)
     initial_message_id: Mapped[UUID]
     status: Mapped[str] = mapped_column(server_default="queued")

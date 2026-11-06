@@ -6,6 +6,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKeyConstraint,
+    String,
     UniqueConstraint,
     func,
 )
@@ -45,6 +46,11 @@ class ReceptionDraft(Base):
     __tablename__ = "reception_drafts"
     __table_args__ = (
         _conversation_fk(),
+        ForeignKeyConstraint(
+            ["definition_bundle_id"],
+            ["xiaohe.workflow_definitions.bundle_id"],
+            name="fk_reception_drafts_workflow_definition",
+        ),
         UniqueConstraint("conversation_id", "client_draft_id"),
         UniqueConstraint("id", "conversation_id", "system_id", "tenant_id"),
         CheckConstraint("kind IN ('service','onboarding')"),
@@ -65,6 +71,7 @@ class ReceptionDraft(Base):
     creation_request: Mapped[dict] = mapped_column(JSONB, default=dict)
     kind: Mapped[str]
     direction: Mapped[str]
+    definition_bundle_id: Mapped[str | None] = mapped_column(String(64))
     subject_id: Mapped[str | None]
     source_application_id: Mapped[str | None]
     source_onboarding_id: Mapped[str | None]
