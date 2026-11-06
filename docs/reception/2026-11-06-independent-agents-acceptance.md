@@ -53,4 +53,12 @@
 
 Chrome已获用户授权。个人已打开窗口的连接被工具URL安全检查阻止，未操作或验收该窗口；后续使用隔离Chrome会话。
 
-本次工程裁定及错误成本按原执行台账完整保留在 [裁定记录](evidence/2026-11-06-independent-agents/execution-decisions.txt)。最终独立整体审阅正在执行，结论随后补记。
+本次工程裁定及错误成本按原执行台账完整保留在 [裁定记录](evidence/2026-11-06-independent-agents/execution-decisions.txt)。一次独立整体审阅发现3项Important，均以RED→GREEN修复，未派二次审阅。详见[整体审阅与修复记录](2026-11-06-independent-agents-review.md)。
+
+## 整体审阅后的最终复验
+
+- 修复：完整展示布局外保留值；业务布局启动校验；区分首次安装与未绑定旧草稿。45项定向回归通过，合法重排仍可运行，旧快照缺失仍拒绝。
+- 主轮611项通过、1项既有失败精确排除、2项WSL环境setup error；2项部署配置串行重跑全部通过。合计613项逐项验证，但主轮并非单进程无错误全绿。原始记录：[主轮](evidence/2026-11-06-independent-agents/reviewed-regression-tests.txt)、[环境重跑](evidence/2026-11-06-independent-agents/reviewed-docker-retry.txt)。
+- 门户347项单元、类型检查通过；最终J1真实HTTP2项和可见Chrome1项通过。通过“先有历史预算→新版YAML移除预算→从正式申请复用→汇总只读显示保留预算”的真实门户场景。没有静默丢数据，也没有扩大字段采集权限；需改保留值时先取消提交并向服务方核对。
+- [最终联合证据](evidence/2026-11-06-independent-agents/journey-reviewed/result.json)保留独立目录，未覆盖前轮回执。额外同步主合同“fieldLayout不是提交字段全集”的说明及派生摘要后，67项契约／投影测试通过。
+- 真模型第四轮32/32证据的模型／提示词／bundle摘要仍按当时版本读取；本轮修复未改提示词和语义识别协议。没有以重新抽样挑选模型结果来覆盖历史失败。有限语言与两处答复体验限制仍在。

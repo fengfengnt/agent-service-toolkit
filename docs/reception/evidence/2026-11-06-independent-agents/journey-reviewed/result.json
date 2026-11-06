@@ -1,0 +1,24 @@
+{
+  "http": "passed",
+  "browser": "passed",
+  "controlled": [
+    "model",
+    "center",
+    "admin directory"
+  ],
+  "real": [
+    "native runtime",
+    "product routers/worker",
+    "Java controllers/services/filter",
+    "PostgreSQL",
+    "MySQL",
+    "MinIO"
+  ],
+  "workflow_file_changed_before_restart": true,
+  "removed_optional_budget_from_new_workflow": true,
+  "carried_budget_visible_in_review": true,
+  "browser_channel": "chrome",
+  "headed": true,
+  "direct_confirmation_replay": true,
+  "deadlock_detected": false
+}

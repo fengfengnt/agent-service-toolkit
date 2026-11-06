@@ -1,0 +1,100 @@
+........................................................................ [ 11%]
+........................................................................ [ 23%]
+..............................................................EE........ [ 35%]
+........................................................................ [ 46%]
+........................................................................ [ 58%]
+........................................................................ [ 70%]
+........................................................................ [ 82%]
+........................................................................ [ 93%]
+.....................................                                    [100%]
+=================================== ERRORS ====================================
+_______ ERROR at setup of test_images_are_pinned_and_processes_separate _______
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x000001979D7C5CD0>, _basetemp=WindowsPath('C:/Users/70367/AppData/Local/Temp/pytest-of-70367/pytest-127'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def deployment(tmp_path_factory):
+        directory = tmp_path_factory.mktemp("deploy")
+        runtime = directory / "runtime.env"
+        runtime.write_text("AUTH_SECRET=fixture-deploy-secret\n", encoding="utf-8")
+        env_file = directory / "compose.env"
+        root, runtime_path = ROOT.as_posix(), runtime.as_posix()
+        if sys.platform == "win32":
+    
+            def linux(path):
+                return subprocess.check_output(
+                    ["wsl", "-d", "Ubuntu", "--", "wslpath", "-a", path], text=True
+                ).strip()
+    
+>           root, runtime_path = linux(root), linux(runtime_path)
+                                 ^^^^^^^^^^^
+
+tests\xiaohe\test_deploy_contract.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\xiaohe\test_deploy_contract.py:29: in linux
+    return subprocess.check_output(
+C:\Users\70367\AppData\Roaming\uv\python\cpython-3.14.7-windows-x86_64-none\Lib\subprocess.py:473: in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+C:\Users\70367\AppData\Roaming\uv\python\cpython-3.14.7-windows-x86_64-none\Lib\subprocess.py:557: in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\70367\AppData\Roaming\uv\python\cpython-3.14.7-windows-x86_64-none\Lib\subprocess.py:1208: in communicate
+    stdout = self.stdout.read()
+             ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <encodings.utf_8.IncrementalDecoder object at 0x00000197D7C11BB0>
+input = b'1u\x8eN\xde\x8f\xa5c\xb9e(W\x00N\xb5k\xf6e\xf4\x95\x0eT\xa1l\tgcknxT{\rY\x16b\xde\x8f\xa5c\x84v;N:g\xa1l\tg\xcdS\x94...0s\x00l\x00/\x00S\x00e\x00r\x00v\x00i\x00c\x00e\x00/\x000\x00x\x008\x000\x000\x007\x002\x007\x004\x00c\x00\r\x00\n\x00'
+final = True
+
+>   ???
+E   UnicodeDecodeError: 'utf-8' codec can't decode byte 0x8e in position 2: invalid start byte
+
+<frozen codecs>:325: UnicodeDecodeError
+____________ ERROR at setup of test_secrets_not_in_browser_or_logs ____________
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x000001979D7C5CD0>, _basetemp=WindowsPath('C:/Users/70367/AppData/Local/Temp/pytest-of-70367/pytest-127'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def deployment(tmp_path_factory):
+        directory = tmp_path_factory.mktemp("deploy")
+        runtime = directory / "runtime.env"
+        runtime.write_text("AUTH_SECRET=fixture-deploy-secret\n", encoding="utf-8")
+        env_file = directory / "compose.env"
+        root, runtime_path = ROOT.as_posix(), runtime.as_posix()
+        if sys.platform == "win32":
+    
+            def linux(path):
+                return subprocess.check_output(
+                    ["wsl", "-d", "Ubuntu", "--", "wslpath", "-a", path], text=True
+                ).strip()
+    
+>           root, runtime_path = linux(root), linux(runtime_path)
+                                 ^^^^^^^^^^^
+
+tests\xiaohe\test_deploy_contract.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\xiaohe\test_deploy_contract.py:29: in linux
+    return subprocess.check_output(
+C:\Users\70367\AppData\Roaming\uv\python\cpython-3.14.7-windows-x86_64-none\Lib\subprocess.py:473: in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+C:\Users\70367\AppData\Roaming\uv\python\cpython-3.14.7-windows-x86_64-none\Lib\subprocess.py:557: in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\70367\AppData\Roaming\uv\python\cpython-3.14.7-windows-x86_64-none\Lib\subprocess.py:1208: in communicate
+    stdout = self.stdout.read()
+             ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <encodings.utf_8.IncrementalDecoder object at 0x00000197D7C11BB0>
+input = b'1u\x8eN\xde\x8f\xa5c\xb9e(W\x00N\xb5k\xf6e\xf4\x95\x0eT\xa1l\tgcknxT{\rY\x16b\xde\x8f\xa5c\x84v;N:g\xa1l\tg\xcdS\x94...0s\x00l\x00/\x00S\x00e\x00r\x00v\x00i\x00c\x00e\x00/\x000\x00x\x008\x000\x000\x007\x002\x007\x004\x00c\x00\r\x00\n\x00'
+final = True
+
+>   ???
+E   UnicodeDecodeError: 'utf-8' codec can't decode byte 0x8e in position 2: invalid start byte
+
+<frozen codecs>:325: UnicodeDecodeError
+=========================== short test summary info ===========================
+ERROR tests/xiaohe/test_deploy_contract.py::test_images_are_pinned_and_processes_separate
+ERROR tests/xiaohe/test_deploy_contract.py::test_secrets_not_in_browser_or_logs
+611 passed, 1 deselected, 19 warnings, 2 errors in 427.49s (0:07:07)
