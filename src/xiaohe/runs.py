@@ -30,14 +30,13 @@ async def _locked(db: AsyncSession, run_id: UUID):
         row.user_id,
         row.guest_id,
     )
-    session = None
-    if row.guest_id is not None:
-        session = await db.scalar(
-            select(Session)
-            .where(Session.id == row.session_id)
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        )
+    # Repeated Run updates recheck the session FK; lock it before the conversation.
+    session = await db.scalar(
+        select(Session)
+        .where(Session.id == row.session_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     conversation = await db.scalar(
         select(Conversation)
         .where(Conversation.id == row.conversation_id)

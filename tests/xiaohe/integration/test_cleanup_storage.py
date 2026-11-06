@@ -11,7 +11,7 @@ from test_visitor_expiry import due
 
 from integration.minio_support import minio_env as minio_env
 from xiaohe.contracts import ServiceError
-from xiaohe.models import ArtifactVersion, Message, Session
+from xiaohe.models import ArtifactVersion, GuestObjectTombstone, Message, Session
 
 pytestmark = [pytest.mark.pg, pytest.mark.minio, pytest.mark.asyncio]
 
@@ -477,14 +477,26 @@ async def test_large_guest_keeps_object_progress_when_its_time_budget_expires(
     remove = service.delete_expired_object
 
     async def delayed(key):
-        await asyncio.sleep(0.1)
+        calls.append(key)
+        if len(calls) > 1:
+            await asyncio.sleep(10)
         await remove(key)
 
+    calls = []
     monkeypatch.setattr(service, "delete_expired_object", delayed)
-    monkeypatch.setattr(expiry, "CLEANUP_BUDGET_SECONDS", 0.16)
+    monkeypatch.setattr(expiry, "CLEANUP_BUDGET_SECONDS", 1.0)
     await expiry.purge_expired_guests(pg_factory, service)
     async with pg_factory() as db:
         assert (await db.get(Session, who.session_id)).purged_at is None
+        assert (
+            await db.scalar(
+                select(GuestObjectTombstone.checked_at).where(
+                    GuestObjectTombstone.object_key == calls[0]
+                )
+            )
+            is not None
+        )
+    monkeypatch.setattr(service, "delete_expired_object", remove)
     for _ in range(5):
         await expiry.purge_expired_guests(pg_factory, service)
     async with pg_factory() as db:

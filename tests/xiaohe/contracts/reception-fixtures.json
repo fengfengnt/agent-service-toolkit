@@ -1,0 +1,1038 @@
+{
+  "schemaVersion": "reception.v1",
+  "schemaSha256": "cfc323b58e95e7aebb336243d538f83154914a0f3a59c2c4ce112d6d2c7c27cc",
+  "schemaCases": [
+    {
+      "name": "buyer-name-only",
+      "type": "Submission",
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "company",
+        "direction": "buyer",
+        "publicFields": {
+          "companyName": "甲公司"
+        },
+        "requestFields": {},
+        "files": []
+      },
+      "valid": true
+    },
+    {
+      "name": "supplier-name-only",
+      "type": "Submission",
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "company",
+        "direction": "supplier",
+        "publicFields": {
+          "companyName": "甲公司"
+        },
+        "requestFields": {},
+        "files": []
+      },
+      "valid": true
+    },
+    {
+      "name": "organization-minimum",
+      "type": "Submission",
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "organization",
+        "direction": "organization",
+        "publicFields": {
+          "organizationName": "采购协会",
+          "memberSize": "100—500",
+          "coverage": "本省",
+          "onlineChannels": [
+            "公众号",
+            "微信群"
+          ]
+        },
+        "requestFields": {
+          "contactName": "张女士"
+        },
+        "files": []
+      },
+      "valid": true
+    },
+    {
+      "name": "organization-contact-missing",
+      "type": "Submission",
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "organization",
+        "direction": "organization",
+        "publicFields": {
+          "organizationName": "采购协会",
+          "memberSize": "100—500",
+          "coverage": "本省",
+          "onlineChannels": [
+            "公众号",
+            "微信群"
+          ]
+        },
+        "requestFields": {},
+        "files": []
+      },
+      "valid": false
+    },
+    {
+      "name": "company-whitespace",
+      "type": "Submission",
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "company",
+        "direction": "buyer",
+        "publicFields": {
+          "companyName": "  "
+        },
+        "requestFields": {},
+        "files": []
+      },
+      "valid": false
+    },
+    {
+      "name": "company-missing",
+      "type": "Submission",
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "company",
+        "direction": "buyer",
+        "publicFields": {},
+        "requestFields": {},
+        "files": []
+      },
+      "valid": false
+    },
+    {
+      "name": "operations-injection",
+      "type": "Submission",
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "company",
+        "direction": "buyer",
+        "publicFields": {
+          "companyName": "甲公司"
+        },
+        "requestFields": {},
+        "files": [],
+        "managerId": "admin"
+      },
+      "valid": false
+    },
+    {
+      "name": "operations-field-injection",
+      "type": "Submission",
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "company",
+        "direction": "buyer",
+        "publicFields": {
+          "companyName": "甲公司"
+        },
+        "requestFields": {
+          "stage": "completed"
+        },
+        "files": []
+      },
+      "valid": false
+    },
+    {
+      "name": "category-in-public",
+      "type": "Submission",
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "company",
+        "direction": "buyer",
+        "publicFields": {
+          "companyName": "甲公司",
+          "category": "钢材"
+        },
+        "requestFields": {},
+        "files": []
+      },
+      "valid": false
+    },
+    {
+      "name": "wrong-direction-field",
+      "type": "Submission",
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "company",
+        "direction": "buyer",
+        "publicFields": {
+          "companyName": "甲公司"
+        },
+        "requestFields": {
+          "capacity": "100 吨"
+        },
+        "files": []
+      },
+      "valid": false
+    },
+    {
+      "name": "member-id-injection",
+      "type": "Submission",
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "company",
+        "direction": "buyer",
+        "publicFields": {
+          "companyName": "甲公司"
+        },
+        "requestFields": {},
+        "files": [],
+        "memberId": "10"
+      },
+      "valid": false
+    },
+    {
+      "name": "create-must-not-update",
+      "type": "Submission",
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "company",
+        "direction": "buyer",
+        "publicFields": {
+          "companyName": "甲公司"
+        },
+        "requestFields": {},
+        "files": [],
+        "applicationId": "old-app"
+      },
+      "valid": false
+    },
+    {
+      "name": "update-needs-version",
+      "type": "Submission",
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "update",
+        "subjectKind": "company",
+        "direction": "buyer",
+        "publicFields": {
+          "companyName": "甲公司"
+        },
+        "requestFields": {},
+        "files": [],
+        "subjectId": "s-1",
+        "applicationId": "a-1"
+      },
+      "valid": false
+    },
+    {
+      "name": "update-valid",
+      "type": "Submission",
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "update",
+        "subjectKind": "company",
+        "direction": "buyer",
+        "publicFields": {
+          "companyName": "甲公司"
+        },
+        "requestFields": {},
+        "files": [],
+        "subjectId": "s-1",
+        "applicationId": "a-1",
+        "expectedApplicationRevision": 2
+      },
+      "valid": true
+    },
+    {
+      "name": "organization-channel-conflict",
+      "type": "Submission",
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "organization",
+        "direction": "organization",
+        "publicFields": {
+          "organizationName": "采购协会",
+          "memberSize": "100—500",
+          "coverage": "本省",
+          "onlineChannels": [
+            "暂无",
+            "官网"
+          ]
+        },
+        "requestFields": {
+          "contactName": "张女士"
+        },
+        "files": []
+      },
+      "valid": false
+    },
+    {
+      "name": "organization-scale-endpoint",
+      "type": "Submission",
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "organization",
+        "direction": "organization",
+        "publicFields": {
+          "organizationName": "采购协会",
+          "memberSize": "500",
+          "coverage": "本省",
+          "onlineChannels": [
+            "公众号",
+            "微信群"
+          ]
+        },
+        "requestFields": {
+          "contactName": "张女士"
+        },
+        "files": []
+      },
+      "valid": false
+    },
+    {
+      "name": "organization-name-short",
+      "type": "Submission",
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "organization",
+        "direction": "organization",
+        "publicFields": {
+          "organizationName": "会",
+          "memberSize": "100—500",
+          "coverage": "本省",
+          "onlineChannels": [
+            "公众号",
+            "微信群"
+          ]
+        },
+        "requestFields": {
+          "contactName": "张女士"
+        },
+        "files": []
+      },
+      "valid": false
+    },
+    {
+      "name": "organization-name-unicode",
+      "type": "Submission",
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "organization",
+        "direction": "organization",
+        "publicFields": {
+          "organizationName": "𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷",
+          "memberSize": "100—500",
+          "coverage": "本省",
+          "onlineChannels": [
+            "公众号",
+            "微信群"
+          ]
+        },
+        "requestFields": {
+          "contactName": "张女士"
+        },
+        "files": []
+      },
+      "valid": true
+    },
+    {
+      "name": "organization-name-too-long",
+      "type": "Submission",
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "organization",
+        "direction": "organization",
+        "publicFields": {
+          "organizationName": "𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷𠮷",
+          "memberSize": "100—500",
+          "coverage": "本省",
+          "onlineChannels": [
+            "公众号",
+            "微信群"
+          ]
+        },
+        "requestFields": {
+          "contactName": "张女士"
+        },
+        "files": []
+      },
+      "valid": false
+    },
+    {
+      "name": "organization-email-invalid",
+      "type": "Submission",
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "organization",
+        "direction": "organization",
+        "publicFields": {
+          "organizationName": "采购协会",
+          "memberSize": "100—500",
+          "coverage": "本省",
+          "onlineChannels": [
+            "公众号",
+            "微信群"
+          ]
+        },
+        "requestFields": {
+          "contactName": "张女士",
+          "email": "bad-email"
+        },
+        "files": []
+      },
+      "valid": false
+    },
+    {
+      "name": "draft-null-clear",
+      "type": "PatchDraft",
+      "value": {
+        "expectedRevision": 1,
+        "fields": {
+          "companyName": null
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "draft-unknown-field",
+      "type": "PatchDraft",
+      "value": {
+        "expectedRevision": 1,
+        "fields": {
+          "internalNotes": "private"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "confirm-current-shape",
+      "type": "ReceptionAction",
+      "value": {
+        "clientActionId": "action-1",
+        "requestId": "request-1",
+        "expectedRevision": 2,
+        "action": "confirm",
+        "summaryVersion": 2
+      },
+      "valid": true
+    },
+    {
+      "name": "clientActionId-128-valid",
+      "type": "ReceptionAction",
+      "value": {
+        "clientActionId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "requestId": "request-1",
+        "expectedRevision": 2,
+        "action": "confirm",
+        "summaryVersion": 2
+      },
+      "valid": true
+    },
+    {
+      "name": "clientActionId-129-rejected",
+      "type": "ReceptionAction",
+      "value": {
+        "clientActionId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "requestId": "request-1",
+        "expectedRevision": 2,
+        "action": "confirm",
+        "summaryVersion": 2
+      },
+      "valid": false
+    },
+    {
+      "name": "requestId-128-valid",
+      "type": "ReceptionAction",
+      "value": {
+        "clientActionId": "action-1",
+        "requestId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expectedRevision": 2,
+        "action": "confirm",
+        "summaryVersion": 2
+      },
+      "valid": true
+    },
+    {
+      "name": "requestId-129-rejected",
+      "type": "ReceptionAction",
+      "value": {
+        "clientActionId": "action-1",
+        "requestId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expectedRevision": 2,
+        "action": "confirm",
+        "summaryVersion": 2
+      },
+      "valid": false
+    },
+    {
+      "name": "confirm-summary-missing",
+      "type": "ReceptionAction",
+      "value": {
+        "clientActionId": "action-1",
+        "requestId": "request-1",
+        "expectedRevision": 2,
+        "action": "confirm"
+      },
+      "valid": false
+    },
+    {
+      "name": "ready-pdf",
+      "type": "FileRef",
+      "value": {
+        "id": "file-1",
+        "category": "product_manual",
+        "filename": "产品手册.pdf",
+        "mediaType": "application/pdf",
+        "bytes": 2048,
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "status": "ready"
+      },
+      "valid": true
+    },
+    {
+      "name": "file-html-rejected",
+      "type": "FileRef",
+      "value": {
+        "id": "file-1",
+        "category": "product_manual",
+        "filename": "evil.html",
+        "mediaType": "text/html",
+        "bytes": 2048,
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "status": "ready"
+      },
+      "valid": false
+    },
+    {
+      "name": "file-too-large",
+      "type": "FileRef",
+      "value": {
+        "id": "file-1",
+        "category": "product_manual",
+        "filename": "产品手册.pdf",
+        "mediaType": "application/pdf",
+        "bytes": 33554433,
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "status": "ready"
+      },
+      "valid": false
+    },
+    {
+      "name": "file-ready-needs-digest",
+      "type": "FileRef",
+      "value": {
+        "id": "file-1",
+        "category": "product_manual",
+        "filename": "产品手册.pdf",
+        "mediaType": "application/pdf",
+        "bytes": 2048,
+        "sha256": null,
+        "status": "ready"
+      },
+      "valid": false
+    },
+    {
+      "name": "file-pending-not-submittable",
+      "type": "Submission",
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "company",
+        "direction": "buyer",
+        "publicFields": {
+          "companyName": "甲公司"
+        },
+        "requestFields": {},
+        "files": [
+          {
+            "id": "file-1",
+            "category": "product_manual",
+            "filename": "产品手册.pdf",
+            "mediaType": "application/pdf",
+            "bytes": 2048,
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "status": "pending"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "private-storage-key-rejected",
+      "type": "FileRef",
+      "value": {
+        "id": "file-1",
+        "category": "product_manual",
+        "filename": "产品手册.pdf",
+        "mediaType": "application/pdf",
+        "bytes": 2048,
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "status": "ready",
+        "objectKey": "private-key"
+      },
+      "valid": false
+    },
+    {
+      "name": "onboarding-independent-payload",
+      "type": "OnboardingSubmission",
+      "value": {
+        "submissionKey": "onboard-1",
+        "draftId": "draft-onboard",
+        "draftRevision": 1,
+        "applicationId": "app-1",
+        "publicFields": {
+          "organizationName": "采购协会",
+          "memberSize": "100—500",
+          "coverage": "本省",
+          "onlineChannels": [
+            "公众号",
+            "微信群"
+          ]
+        },
+        "requestFields": {
+          "contactName": "张女士"
+        },
+        "files": []
+      },
+      "valid": true
+    },
+    {
+      "name": "onboarding-original-required",
+      "type": "OnboardingSubmission",
+      "value": {
+        "submissionKey": "onboard-1",
+        "draftId": "draft-onboard",
+        "draftRevision": 1,
+        "publicFields": {
+          "organizationName": "采购协会",
+          "memberSize": "100—500",
+          "coverage": "本省",
+          "onlineChannels": [
+            "公众号",
+            "微信群"
+          ]
+        },
+        "requestFields": {
+          "contactName": "张女士"
+        },
+        "files": []
+      },
+      "valid": false
+    },
+    {
+      "name": "progress-unassigned",
+      "type": "ProgressGroup",
+      "value": {
+        "subjectId": "subject-1",
+        "subjectName": "甲公司",
+        "applications": [
+          {
+            "id": "app-1",
+            "direction": "buyer",
+            "summary": "寻源咨询",
+            "submittedAt": "2026-11-05T00:00:00Z",
+            "stage": "recorded",
+            "manager": null,
+            "grade": null,
+            "expectedContactAt": null,
+            "publicRecords": [],
+            "onboarding": null
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "progress-internal-notes-leak",
+      "type": "ProgressGroup",
+      "value": {
+        "subjectId": "subject-1",
+        "subjectName": "甲公司",
+        "applications": [
+          {
+            "id": "app-1",
+            "direction": "buyer",
+            "summary": "寻源咨询",
+            "submittedAt": "2026-11-05T00:00:00Z",
+            "stage": "recorded",
+            "manager": null,
+            "grade": null,
+            "expectedContactAt": null,
+            "publicRecords": [],
+            "onboarding": null,
+            "internalNotes": "内部备注"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "progress-numeric-id-rejected",
+      "type": "ProgressGroup",
+      "value": {
+        "subjectId": 9007199254740993,
+        "subjectName": "甲公司",
+        "applications": [
+          {
+            "id": "app-1",
+            "direction": "buyer",
+            "summary": "寻源咨询",
+            "submittedAt": "2026-11-05T00:00:00Z",
+            "stage": "recorded",
+            "manager": null,
+            "grade": null,
+            "expectedContactAt": null,
+            "publicRecords": [],
+            "onboarding": null
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "accepted-result",
+      "type": "SubmissionResult",
+      "value": {
+        "status": "accepted",
+        "receipt": {
+          "submissionKey": "submit-1",
+          "kind": "service",
+          "applicationId": "app-1",
+          "revision": 1,
+          "status": "accepted"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "unknown-is-not-accepted",
+      "type": "SubmissionResult",
+      "value": {
+        "status": "accepted",
+        "receipt": {
+          "submissionKey": "submit-1",
+          "kind": "service",
+          "applicationId": "app-1",
+          "revision": 1,
+          "status": "unknown"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "result-not-found",
+      "type": "SubmissionResult",
+      "value": {
+        "status": "not_found",
+        "receipt": null
+      },
+      "valid": true
+    },
+    {
+      "name": "profile-shares-company-fields",
+      "type": "SubjectPage",
+      "value": {
+        "items": [
+          {
+            "id": "subject-1",
+            "kind": "company",
+            "name": "甲公司",
+            "publicFields": {
+              "companyName": "甲公司",
+              "industry": "制造业",
+              "companyType": "服务商"
+            }
+          }
+        ],
+        "nextCursor": null
+      },
+      "valid": true
+    },
+    {
+      "name": "internal-envelope",
+      "type": "SubmissionEnvelope",
+      "value": {
+        "actor": {
+          "aiUserId": "ai-uuid",
+          "systemId": "portal",
+          "issuer": "https://sso.test",
+          "sub": "opaque-subject",
+          "sourceTenantId": "2"
+        },
+        "payload": {
+          "submissionKey": "submit-1",
+          "draftId": "draft-1",
+          "draftRevision": 1,
+          "operation": "create",
+          "subjectKind": "company",
+          "direction": "buyer",
+          "publicFields": {
+            "companyName": "甲公司"
+          },
+          "requestFields": {},
+          "files": []
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "internal-envelope-owner-injection",
+      "type": "SubmissionEnvelope",
+      "value": {
+        "actor": {
+          "aiUserId": "ai-uuid",
+          "systemId": "portal",
+          "issuer": "https://sso.test",
+          "sub": "opaque-subject",
+          "sourceTenantId": "2",
+          "collaboratorId": "1"
+        },
+        "payload": {
+          "submissionKey": "submit-1",
+          "draftId": "draft-1",
+          "draftRevision": 1,
+          "operation": "create",
+          "subjectKind": "company",
+          "direction": "buyer",
+          "publicFields": {
+            "companyName": "甲公司"
+          },
+          "requestFields": {},
+          "files": []
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "edit-onboarding-draft",
+      "type": "CreateDraft",
+      "value": {
+        "clientDraftId": "edit-onboard",
+        "kind": "onboarding",
+        "direction": "organization",
+        "sourceApplicationId": "app-1",
+        "sourceOnboardingId": "onboard-1"
+      },
+      "valid": true
+    },
+    {
+      "name": "service-must-not-reference-onboarding",
+      "type": "CreateDraft",
+      "value": {
+        "clientDraftId": "bad-source",
+        "kind": "service",
+        "direction": "buyer",
+        "sourceOnboardingId": "onboard-1"
+      },
+      "valid": false
+    },
+    {
+      "name": "read-current-onboarding",
+      "type": "OnboardingApplicationView",
+      "value": {
+        "id": "onboard-1",
+        "applicationId": "app-1",
+        "revision": 2,
+        "stage": "awaiting_materials",
+        "publicFields": {
+          "organizationName": "采购协会",
+          "memberSize": "100—500",
+          "coverage": "本省",
+          "onlineChannels": [
+            "公众号",
+            "微信群"
+          ]
+        },
+        "requestFields": {
+          "contactName": "张女士"
+        },
+        "files": []
+      },
+      "valid": true
+    }
+  ],
+  "guardCases": [
+    {
+      "name": "current-revision",
+      "operation": "revision",
+      "request": {
+        "expectedRevision": 2
+      },
+      "context": {
+        "revision": 2
+      },
+      "allowed": true
+    },
+    {
+      "name": "stale-revision",
+      "operation": "revision",
+      "request": {
+        "expectedRevision": 1
+      },
+      "context": {
+        "revision": 2
+      },
+      "allowed": false
+    },
+    {
+      "name": "same-key-same-content",
+      "operation": "idempotency",
+      "request": {
+        "digest": "abc"
+      },
+      "context": {
+        "digest": "abc"
+      },
+      "allowed": true
+    },
+    {
+      "name": "same-key-different-content",
+      "operation": "idempotency",
+      "request": {
+        "digest": "changed"
+      },
+      "context": {
+        "digest": "abc"
+      },
+      "allowed": false
+    },
+    {
+      "name": "same-system",
+      "operation": "ownership",
+      "request": {
+        "systemId": "portal"
+      },
+      "context": {
+        "systemId": "portal"
+      },
+      "allowed": true
+    },
+    {
+      "name": "cross-system",
+      "operation": "ownership",
+      "request": {
+        "systemId": "other"
+      },
+      "context": {
+        "systemId": "portal"
+      },
+      "allowed": false
+    },
+    {
+      "name": "onboarding-separate-confirm",
+      "operation": "confirmation",
+      "request": {
+        "kind": "onboarding",
+        "draftId": "draft-onboard",
+        "summaryVersion": 3
+      },
+      "context": {
+        "kind": "onboarding",
+        "draftId": "draft-onboard",
+        "revision": 3
+      },
+      "allowed": true
+    },
+    {
+      "name": "service-cannot-confirm-onboarding",
+      "operation": "confirmation",
+      "request": {
+        "kind": "service",
+        "draftId": "draft-onboard",
+        "summaryVersion": 3
+      },
+      "context": {
+        "kind": "onboarding",
+        "draftId": "draft-onboard",
+        "revision": 3
+      },
+      "allowed": false
+    },
+    {
+      "name": "wrong-draft-confirm",
+      "operation": "confirmation",
+      "request": {
+        "kind": "onboarding",
+        "draftId": "other",
+        "summaryVersion": 3
+      },
+      "context": {
+        "kind": "onboarding",
+        "draftId": "draft-onboard",
+        "revision": 3
+      },
+      "allowed": false
+    },
+    {
+      "name": "stale-summary-confirm",
+      "operation": "confirmation",
+      "request": {
+        "kind": "onboarding",
+        "draftId": "draft-onboard",
+        "summaryVersion": 2
+      },
+      "context": {
+        "kind": "onboarding",
+        "draftId": "draft-onboard",
+        "revision": 3
+      },
+      "allowed": false
+    }
+  ]
+}

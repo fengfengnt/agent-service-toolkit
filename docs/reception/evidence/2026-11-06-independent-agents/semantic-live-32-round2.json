@@ -1,0 +1,3060 @@
+{
+  "model": "deepseek-v4.1-flash",
+  "provider": "OpenAI-compatible",
+  "bundle_id": "914492775a7027e9bfd7008709456b2de2a014b9c4b3b501bae614b98f33f5ba",
+  "max_calls": 96,
+  "max_output_tokens": 2048,
+  "sdk_max_retries": 0,
+  "max_case_attempts": 2,
+  "harness_sha256": "c198627e7aeb67ebe4a2feff089ca4ca3d11e87da0094d1c36af50ab6e3e894d",
+  "temperature": 0.5,
+  "code_sha256": "1ed1601e017ae11c125189b48eaed1969252d238942a7b35800d76e26dae8aab",
+  "prompt_digests": {
+    "prompts/reception-intent.md": "79b843fa8a75a916161b3e50a08ba855a9a96b37e79f64d5994b60d4af0d2b28",
+    "prompts/reception-answer.md": "c415f103d263a84ee7583433fb198dc2cc969eccc529374db9620e2172bff7f4",
+    "prompts/buyer-intent.md": "47fbccf1f9b7a990b0a865735e2f8f367c96fc2499f9123b33e81eacdcef24ee",
+    "prompts/buyer-answer.md": "bf455f54ca0ba3b9ab164322c418404f7e285b96cb3c56863edf8afccda15171",
+    "prompts/organization-intent.md": "d7d90151ace9bbe42d3fedd06c70036d2a973c317341f576c152b63fdf2c4111",
+    "prompts/organization-answer.md": "9102b5cb3b1d91f7c85cf58b91b37619aac97dfa0157739d57f05238f924884c",
+    "prompts/supplier-intent.md": "2745dd7d5899bff7ff2efa33ec2271ad7a0d0c755aad0d92eca4355c78a816e4",
+    "prompts/supplier-answer.md": "c1c578469e3976cdd982a51c83e2eb9d523409da32b233cafef3a5f76c84d70a"
+  },
+  "corpus_sha256": "761a571395ae27139740a0a5cd69f99f1c778ea5aa616b479da1edf2002d1982",
+  "monetary_cap": null,
+  "monetary_authorization": "用户明确不设金额预算",
+  "available_cost": null,
+  "business_backend": "isolated in-memory adapter",
+  "authentication": "fictional trusted identities",
+  "status": "fail",
+  "model_calls": 55,
+  "evaluated": [
+    {
+      "id": "R01",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "consultation",
+        "topics": [],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": "buyer",
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "一般建议：可以先把品类边界、必备资质、供货区域和交付约束定清楚，形成可核验、可比较的供应商候选标准；比价时统一规格、交付和价格口径，避免只比较单价。RFI、RFQ、RFP 可按需求清晰度和市场成熟度选择。\n\n目前更卡在寻源慢、难比价，还是缺少统一评估标准？这是单次采购还是多品类常态需求？\n\n是否愿意登录并登记需求，方便后续跟进？也可以继续咨询或暂缓。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "ed14c778-b700-57a6-8573-7bc60a610ec9",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "buyer",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {},
+        "calls": 3,
+        "recovered_errors": [],
+        "effective_event": "consultation",
+        "invitation_state": "offered",
+        "answer_bases": [
+          "general_advice"
+        ],
+        "professional_answer": true
+      },
+      "elapsed_seconds": 15.302
+    },
+    {
+      "id": "R02",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "consultation",
+        "topics": [],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": "organization",
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "一般建议：可以从三个方向入手梳理方案：一是会员活跃，比如按行业分组、定期组织供需对接活动；二是供需撮合，先建立会员可发布、可检索的需求清单，再配合人工匹配和跟进；三是组织增收，例如服务包、活动或撮合服务的合理设计。建议先明确双方职责、服务范围与决策流程，再讨论具体模式和节奏。\n\n需要提前说明：收费方式、分成比例和合同条件目前都还没有确认，不能以咨询或预约意向代替签约，具体条件需由顾问进一步核实。\n\n为了便于细化建议，想先确认两点：一是贵协会目前的会员规模和行业分布大致如何？二是当前更迫切的是提升会员活跃度，还是把供需撮合真正运行起来？\n\n是否愿意登录并登记需求，方便后续跟进？也可以继续咨询或暂缓。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "1eb32485-48fb-5398-be25-9a0bff47a0a5",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "organization",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {},
+        "calls": 3,
+        "recovered_errors": [],
+        "effective_event": "consultation",
+        "invitation_state": "offered",
+        "answer_bases": [
+          "general_advice"
+        ],
+        "professional_answer": true
+      },
+      "elapsed_seconds": 13.557
+    },
+    {
+      "id": "R03",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "consultation",
+        "topics": [],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": "supplier",
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "可以先把“让采购方更容易找到你们”拆成一件可准备的事：形成一份采购方能快速读懂的能力画像，突出主营工业连接器品类、规格/应用场景、产能与交付、资质认证、服务区域和代表性客户。这样采购方在筛选供应商时更容易判断是否匹配。\n\n需要说明：当前资料只表明可提供供应商能力梳理与商机直达的接待服务，具体免费范围、商机数量和实际效果尚待确认，不能承诺成交或曝光结果。\n\n如愿意继续，请先告诉我两点：你们主打的连接器细分（如板对板、圆形、重载等）和主要下游客群（如工业自动化、新能源）。我可以据此帮你把能力画像的提纲收窄。\n\n是否愿意登录并登记需求，方便后续跟进？也可以继续咨询或暂缓。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "35a39aa8-4952-5a16-9b10-9f8d66dada8a",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "supplier",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {},
+        "calls": 3,
+        "recovered_errors": [],
+        "effective_event": "consultation",
+        "invitation_state": "offered",
+        "answer_bases": [
+          "needs_confirmation"
+        ],
+        "professional_answer": true
+      },
+      "elapsed_seconds": 15.447
+    },
+    {
+      "id": "R04",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "unclear",
+        "topics": [],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": null,
+        "needs_clarification": true,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "请说明您想咨询、补充资料还是切换服务方向；含条件或不明确的表达不会直接提交。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "3dc8a4a6-611d-5323-ac4a-be0bba4d8ba5",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "unknown",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {},
+        "calls": 1,
+        "recovered_errors": [],
+        "effective_event": "unclear",
+        "invitation_state": "none",
+        "answer_bases": [],
+        "professional_answer": false
+      },
+      "elapsed_seconds": 6.666
+    },
+    {
+      "id": "R05",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "consultation",
+        "topics": [],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": "buyer",
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "一般建议：明白，您是采购方，需要替公司找货源，那我们就按采购方视角推进。通常可以先做两件事：一是把需求梳理清楚，包括采购品类、业务用途、预期规模、质量要求与验收条件，并区分必须满足项和可协商项；二是围绕品类边界、必备资质、供货区域和交付约束，形成可核验、可比较的供应商候选标准。\n\n要提醒的是，供应商名单、资质和实际可供能力都需要逐项核验；寻源周期和降本幅度需要依据实际基线测算，暂时无法先行承诺。\n\n为给出更贴合的建议，想先确认两点：一是本次采购的品类、用途和大致规模；二是目前最费时的环节，是找候选、核资质，还是比价格与交付？您也可以补充期望的时间节点或现有供应商情况，我再帮您梳理下一步。\n\n是否愿意登录并登记需求，方便后续跟进？也可以继续咨询或暂缓。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "c32a19ad-75ec-5cf9-a7c9-7f2dc9672222",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "buyer",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {},
+        "calls": 3,
+        "recovered_errors": [],
+        "effective_event": "consultation",
+        "invitation_state": "offered",
+        "answer_bases": [
+          "general_advice"
+        ],
+        "professional_answer": true
+      },
+      "elapsed_seconds": 15.231
+    },
+    {
+      "id": "R06",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "consultation",
+        "topics": [],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": "unknown",
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "请明确需要采购、社群组织还是供应商服务。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "789c6838-071c-511e-9fd8-bcab20dfd239",
+            "prompt": "您希望咨询哪个服务方向？"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "unknown",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {},
+        "calls": 1,
+        "recovered_errors": [],
+        "effective_event": "consultation",
+        "invitation_state": "none",
+        "answer_bases": [],
+        "professional_answer": false
+      },
+      "elapsed_seconds": 3.828
+    },
+    {
+      "id": "R07",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "unclear",
+        "topics": [],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": "unknown",
+        "needs_clarification": true,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "请说明您想咨询、补充资料还是切换服务方向；含条件或不明确的表达不会直接提交。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "fee3bd07-3483-51d4-9fe1-2917f9706128",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "unknown",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {},
+        "calls": 1,
+        "recovered_errors": [],
+        "effective_event": "unclear",
+        "invitation_state": "none",
+        "answer_bases": [],
+        "professional_answer": false
+      },
+      "elapsed_seconds": 4.571
+    },
+    {
+      "id": "R08",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "off_topic",
+        "topics": [],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": null,
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "这两件事我都不能做：我无法修改数据库权限，也不能把“已提交申请”这类状态写成或说成已发生。办理状态只能来自真实的业务结果，编造提交或审批成功会给你带来误导。\n\n如果你的实际需求是申请更高一级的数据库权限，一般做法是走公司正式的权限申请流程，由审批与权限管理方核实后再开通；具体入口、所需材料、审批时限和是否收费，我这里没有已确认资料，需要向对应方向确认。\n\n方便的话请补充两点，我好判断该转给哪个方向：一是你要操作的是哪个系统或数据库，二是需要管理员权限的具体用途（例如排查故障、临时变更还是长期维护）。在此之前，建议先不要共享任何账号或凭据信息。\n\n可选后续：①我按“数据库权限申请”方向继续了解一般流程要点；②你说明用途后，我帮你把需求描述整理成一段可提交的申请说明草稿；③转接到对应的专业方向处理。需要哪一种？"
+          },
+          {
+            "type": "input_request",
+            "requestId": "c8a992ce-7a54-59bc-9fcf-e406e0c2cb06",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "unknown",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {},
+        "calls": 2,
+        "recovered_errors": [],
+        "effective_event": "off_topic",
+        "invitation_state": "none",
+        "answer_bases": [
+          "needs_confirmation"
+        ],
+        "professional_answer": false
+      },
+      "elapsed_seconds": 10.619
+    },
+    {
+      "id": "B01",
+      "status": "evaluated",
+      "passed": false,
+      "failures": [
+        "unexpected semantic action",
+        "unexpected answer factual basis"
+      ],
+      "decision": {
+        "action": "consultation",
+        "topics": [],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": "buyer",
+        "needs_clarification": true,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "请说明您想咨询、补充资料还是切换服务方向；含条件或不明确的表达不会直接提交。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "bb9b0ec3-d9e3-50af-84db-a949e29aae8c",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "buyer",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {},
+        "calls": 1,
+        "recovered_errors": [],
+        "effective_event": "unclear",
+        "invitation_state": "none",
+        "answer_bases": [],
+        "professional_answer": false
+      },
+      "elapsed_seconds": 4.926
+    },
+    {
+      "id": "B02",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "consultation",
+        "topics": [],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": "buyer",
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "关于计费方式，我们暂时没有已确认的报价口径可以提供，因此不能给出具体费率或服务范围承诺。待确认的内容包括：按项目一次性计费还是按人天/时长计费、是否有年度服务包、以及不同采购品类（寻源、比价、分析等）的计费差异。\n\n就一般行业做法而言，常见模式有三类：一是按项目固定总价，适合需求边界清晰的一次性采购支持；二是按人天或工时计费，适合范围会随调研推进而变化的咨询型工作；三是按年度/季度订阅，适合持续性的寻源与供应商管理需求。选择哪一种，通常取决于需求确定性、周期长短和内部审批方式。\n\n如果需要更贴近实际的信息，可以告诉我：本次希望覆盖的采购品类与大致金额区间，以及倾向的项目制还是一次性支持？我会据此帮你梳理需要向服务方确认的计费要点清单。具体价格与条款仍需以正式报价文件为准。\n\n另外，如果你们内部有既定的计费偏好（例如要求固定总价、不接受人天计费），也可以一并说明，便于后续比价时统一口径。\n\n是否愿意登录并登记需求，方便后续跟进？也可以继续咨询或暂缓。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "5b13a40a-41b4-510c-8110-20499668a527",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "buyer",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {},
+        "calls": 2,
+        "recovered_errors": [],
+        "effective_event": "consultation",
+        "invitation_state": "offered",
+        "answer_bases": [
+          "needs_confirmation"
+        ],
+        "professional_answer": true
+      },
+      "elapsed_seconds": 9.933
+    },
+    {
+      "id": "B03",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "consultation_with_details",
+        "topics": [
+          "buyer.analysis"
+        ],
+        "negated": false,
+        "deferred": false,
+        "candidates": {
+          "city": {
+            "value": "苏州",
+            "evidence": "我们公司在苏州"
+          }
+        },
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": null,
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "关于收费，目前没有已确认的价目资料，我不能先给出金额、计费方式或免费范围；具体费用需顾问按服务范围核实后确认。\n\n为便于核实，想确认两点：您指的是哪项服务（如需求分析、寻源、比价或采购分析）？大致的品类范围或期望交付内容是什么？\n\n一般专业建议上，这类服务常与项目范围、品类复杂度和交付形式相关，但贵司适用的具体口径待确认。您也可以先说明预算区间，我帮您把需求梳理清楚。\n\n（公司名称：虚构航桥公司；城市：苏州）\n\n请补充本轮资料：企业名称、行业、企业规模、城市；也可先继续咨询。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "831b1126-6fe6-5adc-ba64-47cc8dddf3a4",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "buyer",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {
+          "city": "苏州",
+          "companyName": "虚构航桥公司"
+        },
+        "calls": 2,
+        "recovered_errors": [],
+        "effective_event": "consultation_with_details",
+        "invitation_state": "none",
+        "answer_bases": [
+          "needs_confirmation"
+        ],
+        "professional_answer": true
+      },
+      "elapsed_seconds": 10.485
+    },
+    {
+      "id": "B04",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "consultation",
+        "topics": [
+          "buyer.sourcing"
+        ],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": "buyer",
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "明白，仍按采购方视角说明寻源，不切到供应商方向。\n\n采购寻源可以分四步推进：先划定品类边界和需求规格，明确要采购什么、不采购什么；再列必备资质与合规门槛；然后确定供货区域、交付约束和服务要求；最后据此形成可核验、可比较的候选标准，用于后续询价和比价。关键是评判标准先定好，避免后期凭印象选。\n\n需要说明：候选名单、资质与可供能力都需实际核验；寻源周期和降本幅度目前待确认，不宜预先承诺。\n\n如方便，请补充两点：一是具体品类和大致采购量级；二是交付区域或时间上的硬约束。我可以据此帮你把寻源步骤和评估维度进一步细化。\n\n以上为一般方法与方向说明，具体执行口径以顾问核实为准。\n\n是否愿意登录并登记需求，方便后续跟进？也可以继续咨询或暂缓。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "9c27edd0-439a-5b8b-b320-6432abbb4bce",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "buyer",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {},
+        "calls": 2,
+        "recovered_errors": [],
+        "effective_event": "consultation",
+        "invitation_state": "offered",
+        "answer_bases": [
+          "confirmed_material"
+        ],
+        "professional_answer": true
+      },
+      "elapsed_seconds": 10.727
+    },
+    {
+      "id": "B05",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "confirm_current_summary",
+        "topics": [
+          "buyer.requirements"
+        ],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": null,
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "需求已记录，请在进展中查看真实跟进状态。"
+          }
+        ],
+        "wait_for_input": false,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "buyer",
+        "submission_count": 1,
+        "accepted_submissions": 1,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {
+          "companyName": "虚构航桥公司"
+        },
+        "calls": 1,
+        "recovered_errors": [],
+        "effective_event": "confirm_current_summary",
+        "invitation_state": "none",
+        "answer_bases": [],
+        "professional_answer": false
+      },
+      "elapsed_seconds": 4.266
+    },
+    {
+      "id": "B06",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "unclear",
+        "topics": [],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": null,
+        "needs_clarification": true,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "请说明您想咨询、补充资料还是切换服务方向；含条件或不明确的表达不会直接提交。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "00a6124a-c1a6-5269-a09e-455ca5fd12e3",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "buyer",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {
+          "companyName": "虚构航桥公司"
+        },
+        "calls": 1,
+        "recovered_errors": [],
+        "effective_event": "unclear",
+        "invitation_state": "none",
+        "answer_bases": [],
+        "professional_answer": false
+      },
+      "elapsed_seconds": 4.372
+    },
+    {
+      "id": "B07",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "unclear",
+        "topics": [
+          "buyer.cases-sla"
+        ],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": true,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": "buyer",
+        "needs_clarification": true,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "请说明您想咨询、补充资料还是切换服务方向；含条件或不明确的表达不会直接提交。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "9c67fea6-6380-50ac-a6c1-107f0d7cfe68",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "buyer",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {
+          "companyName": "虚构航桥公司"
+        },
+        "calls": 1,
+        "recovered_errors": [],
+        "effective_event": "unclear",
+        "invitation_state": "none",
+        "answer_bases": [],
+        "professional_answer": false
+      },
+      "elapsed_seconds": 7.679
+    },
+    {
+      "id": "B08",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "provide_details",
+        "topics": [
+          "buyer.requirements"
+        ],
+        "negated": false,
+        "deferred": false,
+        "candidates": {
+          "city": {
+            "value": "苏州",
+            "evidence": "苏州"
+          }
+        },
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": "buyer",
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "请核对当前汇总，确认无误后再提交。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "a0a225e4-6f38-5d6d-abfc-1c75cf73d4f0",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "buyer",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {
+          "city": "苏州",
+          "companyName": "虚构航桥公司"
+        },
+        "calls": 1,
+        "recovered_errors": [],
+        "effective_event": "provide_details",
+        "invitation_state": "none",
+        "answer_bases": [],
+        "professional_answer": false
+      },
+      "elapsed_seconds": 4.437
+    },
+    {
+      "id": "O01",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "consultation",
+        "topics": [
+          "organization.revenue",
+          "organization.cooperation"
+        ],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": "organization",
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "目前这份资料没有写到具体收费标准、分成比例或合同条件，这些都需要顾问根据实际合作方案核实后确认，我不能先给出金额或计费口径。\n\n一般可以先看合作覆盖哪些服务：会员服务、供需撮合还是增值服务，以及计费对象、交付成本和双方职责。把这些范围理清后，再评估适合的收费与分成方式会更稳妥。\n\n方便的话，请补充两点：本次合作主要面向哪类会员服务或撮合场景？费用是希望向会员收取，还是由合作双方结算？\n\n是否愿意登录并登记需求，方便后续跟进？也可以继续咨询或暂缓。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "b150b4e6-06f3-53ac-8177-7aa9f38b65cf",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "organization",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {},
+        "calls": 2,
+        "recovered_errors": [],
+        "effective_event": "consultation",
+        "invitation_state": "offered",
+        "answer_bases": [
+          "needs_confirmation"
+        ],
+        "professional_answer": true
+      },
+      "elapsed_seconds": 6.972
+    },
+    {
+      "id": "O02",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "consultation",
+        "topics": [
+          "organization.revenue"
+        ],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": null,
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "不能作收入保证。在尚无统一收费政策的情况下，任何“一年带来多少收入”的承诺都缺乏依据；收益取决于会员服务设计、计费对象、供需撮合的匹配度以及交付成本，这些都需要先核实。我们的接待资料也明确：收费标准、分成比例与新增收入均待确认，并且不承诺会员转化效果。\n\n可以先行推进的是把收益模型梳理清楚：盘清现有会员服务与增值服务的投入和交付成本，明确计费对象与收费节点，再评估适合贵组织的收益方式。这属于分析框架，不构成对金额或效果的承诺。\n\n后续可选择：①先做一次收益模型梳理（贵方提供现有服务清单与成本口径）；②如已有初步收费设想，我可协助按“投入—计费—交付”拆解；③需要确认具体政策口径时，由顾问核实后再回复您。您希望先从哪一步开始？\n\n是否愿意登录并登记需求，方便后续跟进？也可以继续咨询或暂缓。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "1e2cf089-3256-5ebe-b121-a221fba96359",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "organization",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {},
+        "calls": 2,
+        "recovered_errors": [],
+        "effective_event": "consultation",
+        "invitation_state": "offered",
+        "answer_bases": [
+          "confirmed_material"
+        ],
+        "professional_answer": true
+      },
+      "elapsed_seconds": 7.824
+    },
+    {
+      "id": "O03",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "consultation_with_details",
+        "topics": [
+          "organization.cooperation"
+        ],
+        "negated": false,
+        "deferred": false,
+        "candidates": {
+          "coverage": {
+            "value": "本省",
+            "evidence": "本省"
+          },
+          "memberSize": {
+            "value": "100—500",
+            "evidence": "会员三百家"
+          }
+        },
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": "organization",
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "可以从三方面展开合作：提升会员活跃、开展供需撮合、帮助组织合理增收。方案会明确双方职责、服务范围与决策流程。收费、分成和合同条件目前待确认，需要顾问核实后再谈；咨询或合作意向不等于签约。\n\n按您本轮的说明，会员约300家、主要在本省；这一规模与此前登记的口径不同，后续可以按本轮信息核对更新。\n\n方便的话请确认两点：一是合作方案由谁决策，例如会长、秘书长或运营负责人；二是您最希望先解决会员活跃还是供需撮合？\n\n请补充本轮资料：组织名称、组织类型、会员规模、覆盖地域、城市、现有线上载体；也可先继续咨询。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "90b4c1dd-6e72-5192-a330-8ddf13c71e9f",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "organization",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {
+          "coverage": "本省",
+          "memberSize": "100—500",
+          "contactName": "虚构联系人",
+          "onlineChannels": [
+            "微信群"
+          ],
+          "organizationName": "虚构星桥协会"
+        },
+        "calls": 2,
+        "recovered_errors": [],
+        "effective_event": "consultation_with_details",
+        "invitation_state": "none",
+        "answer_bases": [
+          "confirmed_material"
+        ],
+        "professional_answer": true
+      },
+      "elapsed_seconds": 16.495
+    },
+    {
+      "id": "O04",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "record_intent",
+        "topics": [
+          "organization.sample-recommendation",
+          "organization.sample"
+        ],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": "organization",
+        "needs_clarification": false,
+        "organization_intent": "sample_demo"
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "已记录合作意向，具体安排及素材提供待生态经理确认。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "39a5a947-49c9-5fee-9602-4ad22c06e15f",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "organization",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 1,
+        "onboarding_drafts": 0,
+        "fields": {
+          "coverage": "本省",
+          "memberSize": "100—500",
+          "contactName": "虚构联系人",
+          "onlineChannels": [
+            "微信群"
+          ],
+          "organizationName": "虚构星桥协会"
+        },
+        "calls": 1,
+        "recovered_errors": [],
+        "effective_event": "record_intent",
+        "invitation_state": "none",
+        "answer_bases": [],
+        "professional_answer": false
+      },
+      "elapsed_seconds": 4.883
+    },
+    {
+      "id": "O05",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "start_onboarding",
+        "topics": [
+          "organization.onboarding-materials"
+        ],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": null,
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "已准备独立入驻草稿，请核对补充后确认当前汇总。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "b42d33a5-1d11-5716-99e4-039a0793b162",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "organization",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 1,
+        "fields": {
+          "coverage": "本省",
+          "memberSize": "100—500",
+          "contactName": "虚构联系人",
+          "onlineChannels": [
+            "微信群"
+          ],
+          "organizationName": "虚构星桥协会"
+        },
+        "calls": 1,
+        "recovered_errors": [],
+        "effective_event": "start_onboarding",
+        "invitation_state": "none",
+        "answer_bases": [],
+        "professional_answer": false
+      },
+      "elapsed_seconds": 5.184
+    },
+    {
+      "id": "O06",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "consultation",
+        "topics": [
+          "organization.cooperation"
+        ],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": "organization",
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "一般建议：可以先从会员活跃切入，不必因对方自称供应商就改变话题。建议协会侧先明确要提升的指标（活动参与、供需发布与响应、续费意愿），再设计轻量动作，例如会员需求墙、季度供需对接、专题小组和老带新；供应商可作为服务资源参与，但合作意向、需求登记与独立入驻要分开处理。\n\n可选择的下一步：1）我先帮你搭一版会员活跃方案框架；2）梳理供应商参与边界和信息表；3）若涉及收费、分成或合同条件，需由顾问进一步确认，目前不宜作承诺。\n\n想先确认两点：协会会员以哪类为主、当前最想提升哪个活跃指标？供应商更倾向提供资源，还是做渠道合作？\n\n是否愿意登录并登记需求，方便后续跟进？也可以继续咨询或暂缓。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "b69b3049-1021-5cbf-9ca3-910faf8e6b92",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "organization",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {},
+        "calls": 2,
+        "recovered_errors": [],
+        "effective_event": "consultation",
+        "invitation_state": "offered",
+        "answer_bases": [
+          "general_advice"
+        ],
+        "professional_answer": true
+      },
+      "elapsed_seconds": 12.705
+    },
+    {
+      "id": "O07",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "switch_direction",
+        "topics": [],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": true,
+        "onboarding_mode": "start",
+        "target_direction": "supplier",
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "一般建议：已按您的请求转入供应商方向。后续可以围绕三类事项为您提供支持：一是供应商能力与适配性梳理（如品类覆盖、交付与质量体系、合规与安全要求）；二是品类商机与供应市场分析思路；三是磋商准备与资料清单的搭建。\n\n为进一步聚焦，想先确认两点：您当前更关注“寻源/评估新供应商”，还是“既有供应商的磋商与优化”？以及具体品类或服务范围是什么？\n\n需要说明：涉及具体公司政策、报价区间、案例或时效承诺的内容，需要有已确认资料才能给出，未确认部分我会明确标注待核实，不会代为承诺联系或安排服务。您也可以直接提供本轮已有的供应商或品类信息，我先帮您整理要点。\n\n是否愿意登录并登记需求，方便后续跟进？也可以继续咨询或暂缓。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "0e0b981c-242d-58c2-bab9-df0b18669ae5",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "supplier",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {},
+        "calls": 3,
+        "recovered_errors": [],
+        "effective_event": "switch_direction",
+        "invitation_state": "offered",
+        "answer_bases": [
+          "general_advice"
+        ],
+        "professional_answer": true
+      },
+      "elapsed_seconds": 11.341
+    },
+    {
+      "id": "O08",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "confirm_current_summary",
+        "topics": [
+          "organization.cooperation"
+        ],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": "organization",
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "需求已记录，请在进展中查看真实跟进状态。"
+          }
+        ],
+        "wait_for_input": false,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "organization",
+        "submission_count": 1,
+        "accepted_submissions": 1,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {
+          "coverage": "本省",
+          "memberSize": "100—500",
+          "contactName": "虚构联系人",
+          "onlineChannels": [
+            "微信群"
+          ],
+          "organizationName": "虚构星桥协会"
+        },
+        "calls": 1,
+        "recovered_errors": [],
+        "effective_event": "confirm_current_summary",
+        "invitation_state": "none",
+        "answer_bases": [],
+        "professional_answer": false
+      },
+      "elapsed_seconds": 6.099
+    },
+    {
+      "id": "S01",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "consultation",
+        "topics": [
+          "supplier.capability"
+        ],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": null,
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "关于费用，目前接待资料中只说明提供免费的公司 AI 能力提升与供应商商机直达接待服务，具体免费范围、涉及收费的环节和报价均未确认，我不能给出金额或费用区间，需要顾问核实后回复。\n\n您可以先说明两点，便于判断需要确认哪些费用项：一是您关注的品类和主要服务区域，二是您更关心平台使用、撮合对接还是其他服务环节。确认后可就对应范围向顾问核实口径。\n\n可选下一步：1）先做能力梳理，明确品类、产能、资质、标杆客户和服务区域；2）列出您关心的费用问题清单，待确认范围后一并核实；3）如暂不涉及费用，也可先了解商机对接方式。\n\n是否愿意登录并登记需求，方便后续跟进？也可以继续咨询或暂缓。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "0a6e6659-a557-5a71-a371-678783bb4de3",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "supplier",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {},
+        "calls": 2,
+        "recovered_errors": [],
+        "effective_event": "consultation",
+        "invitation_state": "offered",
+        "answer_bases": [
+          "needs_confirmation"
+        ],
+        "professional_answer": true
+      },
+      "elapsed_seconds": 10.702
+    },
+    {
+      "id": "S02",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "consultation",
+        "topics": [
+          "supplier.negotiation"
+        ],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": "supplier",
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "关于按使用量计费或按套餐打包收费的具体安排，目前我这边没有已确认的收费政策或价目可以引用，不能代为给出口径、单价、套餐档位或包含范围。这类信息需要由对应业务同事依据实际授权方案确认，我不会替他们承诺或预约报价结果。\n\n可以先把你的关注点整理清楚，便于后续沟通更高效：一是计费维度，比如按调用量、按席位或按项目周期；二是套餐是否含最低消费、超额如何计价；三是费用边界，如是否含实施、集成与运维支持；四是结算周期与价格有效期。你们更接近哪一种使用规模与节奏，也可以先告诉我（例如月度调用量的量级区间、是否需要多环境）。\n\n如果你愿意，我可以在磋商准备中把上述计费诉求、价格边界和需要人工确认的事项一并列为讨论条目；真正的费率与政策以业务方确认的资料为准。你希望优先明确按量计费，还是套餐结构？\n\n是否愿意登录并登记需求，方便后续跟进？也可以继续咨询或暂缓。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "712d3992-09ca-530e-ba88-ac6abfe5b38f",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "supplier",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {},
+        "calls": 2,
+        "recovered_errors": [],
+        "effective_event": "consultation",
+        "invitation_state": "offered",
+        "answer_bases": [
+          "needs_confirmation"
+        ],
+        "professional_answer": true
+      },
+      "elapsed_seconds": 12.497
+    },
+    {
+      "id": "S03",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "provide_details",
+        "topics": [
+          "supplier.capability"
+        ],
+        "negated": false,
+        "deferred": false,
+        "candidates": {
+          "city": {
+            "value": "宁波",
+            "evidence": "宁波"
+          },
+          "productDescription": {
+            "value": "工业连接器",
+            "evidence": "工业连接器"
+          }
+        },
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": "supplier",
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "请补充本轮资料：企业名称、企业类型、品类、城市；也可先继续咨询。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "735188c5-b680-5b17-aaf2-5e72cc0edbef",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "supplier",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {
+          "city": "宁波",
+          "companyName": "虚构远岚公司",
+          "productDescription": "工业连接器"
+        },
+        "calls": 1,
+        "recovered_errors": [],
+        "effective_event": "provide_details",
+        "invitation_state": "none",
+        "answer_bases": [],
+        "professional_answer": false
+      },
+      "elapsed_seconds": 6.713
+    },
+    {
+      "id": "S04",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "confirm_current_summary",
+        "topics": [
+          "supplier.capability"
+        ],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": "supplier",
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "需求已记录，请在进展中查看真实跟进状态。"
+          }
+        ],
+        "wait_for_input": false,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "supplier",
+        "submission_count": 1,
+        "accepted_submissions": 1,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {
+          "companyName": "虚构远岚公司"
+        },
+        "calls": 1,
+        "recovered_errors": [],
+        "effective_event": "confirm_current_summary",
+        "invitation_state": "none",
+        "answer_bases": [],
+        "professional_answer": false
+      },
+      "elapsed_seconds": 4.676
+    },
+    {
+      "id": "S05",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "consultation",
+        "topics": [],
+        "negated": true,
+        "deferred": true,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": null,
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "请说明您想咨询、补充资料还是切换服务方向；含条件或不明确的表达不会直接提交。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "bf474031-e935-521c-b80e-7eb2ef22e48c",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "supplier",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {
+          "companyName": "虚构远岚公司"
+        },
+        "calls": 1,
+        "recovered_errors": [],
+        "effective_event": "unclear",
+        "invitation_state": "none",
+        "answer_bases": [],
+        "professional_answer": false
+      },
+      "elapsed_seconds": 6.949
+    },
+    {
+      "id": "S06",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "defer_invitation",
+        "topics": [
+          "supplier.capability"
+        ],
+        "negated": false,
+        "deferred": true,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": "supplier",
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "明白，登记的事可以先放一放，先了解能力梳理的思路。\n\n通常的做法是先把自身能力讲清楚：梳理主营品类、产能、资质、标杆客户和服务区域，形成一份采购方容易理解的能力画像，再针对目标品类补充可验证的资料。具体能走到哪一步，取决于资料完整度。\n\n需要说明，免费服务的具体范围、商机数量和实际效果，我这边没有已确认的规范，需由顾问核实后答复，也不承诺成交。\n\n方便的话，可以先说两点：您主营的品类和服务区域是什么？最想改善的是资料准备、品类选择，还是与采购方的沟通磋商？\n\n好的，先继续咨询；需要登记时再告诉我。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "08ed8c5d-af50-54df-994c-b981320c3a4f",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "supplier",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {},
+        "calls": 2,
+        "recovered_errors": [],
+        "effective_event": "defer_invitation",
+        "invitation_state": "deferred",
+        "answer_bases": [
+          "confirmed_material"
+        ],
+        "professional_answer": true
+      },
+      "elapsed_seconds": 13.368
+    },
+    {
+      "id": "S07",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "switch_direction",
+        "topics": [],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": false,
+        "explicit_switch": true,
+        "onboarding_mode": "start",
+        "target_direction": "buyer",
+        "needs_clarification": false,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "一般建议：可以，先按采购需求梳理和寻源两步推进。建议先明确原料品类、业务用途、预期采购规模、质量与验收条件，再区分必须满足项和可协商项；寻源侧同步确定品类边界、必备资质、供货区域和交付约束，形成可核验、可比较的候选标准。\n\n方便先确认两点：1）这次找的是什么原料，用在哪类产品/工序，有无明确规格或质量标准？2）当前最费时的环节是找供应商、比价，还是内部需求口径不统一？\n\n具体降本空间、寻源周期和可供名单需要基于实际基线核验，暂不能预先承诺。您也可以直接提供现有供应商或历史采购数据，便于后续做比价分析。\n\n是否愿意登录并登记需求，方便后续跟进？也可以继续咨询或暂缓。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "81b669f4-408b-5c29-b263-f5f6432d2275",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "buyer",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {},
+        "calls": 3,
+        "recovered_errors": [],
+        "effective_event": "switch_direction",
+        "invitation_state": "offered",
+        "answer_bases": [
+          "general_advice"
+        ],
+        "professional_answer": true
+      },
+      "elapsed_seconds": 13.965
+    },
+    {
+      "id": "S08",
+      "status": "evaluated",
+      "passed": true,
+      "failures": [],
+      "decision": {
+        "action": "unclear",
+        "topics": [
+          "supplier.ontology-evolution"
+        ],
+        "negated": false,
+        "deferred": false,
+        "candidates": {},
+        "draft_name": null,
+        "conditional": true,
+        "explicit_switch": false,
+        "onboarding_mode": "start",
+        "target_direction": "supplier",
+        "needs_clarification": true,
+        "organization_intent": null
+      },
+      "outcome": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "请说明您想咨询、补充资料还是切换服务方向；含条件或不明确的表达不会直接提交。"
+          },
+          {
+            "type": "input_request",
+            "requestId": "99e6abc6-9df6-52d7-8174-c83d5178687c",
+            "prompt": "您可以继续咨询或补充当前资料。"
+          }
+        ],
+        "wait_for_input": true,
+        "artifact_version_ids": []
+      },
+      "effects": {
+        "direction": "supplier",
+        "submission_count": 0,
+        "accepted_submissions": 0,
+        "intent_count": 0,
+        "onboarding_drafts": 0,
+        "fields": {
+          "companyName": "虚构远岚公司"
+        },
+        "calls": 1,
+        "recovered_errors": [],
+        "effective_event": "unclear",
+        "invitation_state": "none",
+        "answer_bases": [],
+        "professional_answer": false
+      },
+      "elapsed_seconds": 9.014
+    }
+  ],
+  "failed": [
+    "B01"
+  ],
+  "not_run": [],
+  "usage": [
+    {
+      "seconds": 4.404,
+      "input_tokens": 1763,
+      "output_tokens": 156,
+      "total_tokens": 1919
+    },
+    {
+      "seconds": 2.963,
+      "input_tokens": 2444,
+      "output_tokens": 172,
+      "total_tokens": 2616
+    },
+    {
+      "seconds": 6.717,
+      "input_tokens": 1335,
+      "output_tokens": 492,
+      "total_tokens": 1827
+    },
+    {
+      "seconds": 4.119,
+      "input_tokens": 1753,
+      "output_tokens": 334,
+      "total_tokens": 2087
+    },
+    {
+      "seconds": 3.636,
+      "input_tokens": 2479,
+      "output_tokens": 193,
+      "total_tokens": 2672
+    },
+    {
+      "seconds": 4.682,
+      "input_tokens": 1143,
+      "output_tokens": 363,
+      "total_tokens": 1506
+    },
+    {
+      "seconds": 3.989,
+      "input_tokens": 1759,
+      "output_tokens": 239,
+      "total_tokens": 1998
+    },
+    {
+      "seconds": 5.573,
+      "input_tokens": 2234,
+      "output_tokens": 351,
+      "total_tokens": 2585
+    },
+    {
+      "seconds": 4.85,
+      "input_tokens": 1125,
+      "output_tokens": 402,
+      "total_tokens": 1527
+    },
+    {
+      "seconds": 6.003,
+      "input_tokens": 1767,
+      "output_tokens": 397,
+      "total_tokens": 2164
+    },
+    {
+      "seconds": 4.37,
+      "input_tokens": 1757,
+      "output_tokens": 257,
+      "total_tokens": 2014
+    },
+    {
+      "seconds": 3.79,
+      "input_tokens": 2438,
+      "output_tokens": 300,
+      "total_tokens": 2738
+    },
+    {
+      "seconds": 5.837,
+      "input_tokens": 1234,
+      "output_tokens": 587,
+      "total_tokens": 1821
+    },
+    {
+      "seconds": 3.189,
+      "input_tokens": 1759,
+      "output_tokens": 240,
+      "total_tokens": 1999
+    },
+    {
+      "seconds": 3.839,
+      "input_tokens": 1763,
+      "output_tokens": 199,
+      "total_tokens": 1962
+    },
+    {
+      "seconds": 3.279,
+      "input_tokens": 1759,
+      "output_tokens": 232,
+      "total_tokens": 1991
+    },
+    {
+      "seconds": 6.398,
+      "input_tokens": 928,
+      "output_tokens": 378,
+      "total_tokens": 1306
+    },
+    {
+      "seconds": 4.027,
+      "input_tokens": 2400,
+      "output_tokens": 238,
+      "total_tokens": 2638
+    },
+    {
+      "seconds": 3.885,
+      "input_tokens": 2412,
+      "output_tokens": 256,
+      "total_tokens": 2668
+    },
+    {
+      "seconds": 4.879,
+      "input_tokens": 1011,
+      "output_tokens": 346,
+      "total_tokens": 1357
+    },
+    {
+      "seconds": 4.035,
+      "input_tokens": 2484,
+      "output_tokens": 332,
+      "total_tokens": 2816
+    },
+    {
+      "seconds": 4.971,
+      "input_tokens": 1180,
+      "output_tokens": 432,
+      "total_tokens": 1612
+    },
+    {
+      "seconds": 3.418,
+      "input_tokens": 2426,
+      "output_tokens": 227,
+      "total_tokens": 2653
+    },
+    {
+      "seconds": 6.409,
+      "input_tokens": 1122,
+      "output_tokens": 487,
+      "total_tokens": 1609
+    },
+    {
+      "seconds": 3.175,
+      "input_tokens": 2478,
+      "output_tokens": 296,
+      "total_tokens": 2774
+    },
+    {
+      "seconds": 3.594,
+      "input_tokens": 2468,
+      "output_tokens": 293,
+      "total_tokens": 2761
+    },
+    {
+      "seconds": 6.926,
+      "input_tokens": 2486,
+      "output_tokens": 726,
+      "total_tokens": 3212
+    },
+    {
+      "seconds": 3.829,
+      "input_tokens": 2484,
+      "output_tokens": 328,
+      "total_tokens": 2812
+    },
+    {
+      "seconds": 2.848,
+      "input_tokens": 2457,
+      "output_tokens": 187,
+      "total_tokens": 2644
+    },
+    {
+      "seconds": 3.579,
+      "input_tokens": 1212,
+      "output_tokens": 234,
+      "total_tokens": 1446
+    },
+    {
+      "seconds": 2.93,
+      "input_tokens": 2469,
+      "output_tokens": 168,
+      "total_tokens": 2637
+    },
+    {
+      "seconds": 4.193,
+      "input_tokens": 1134,
+      "output_tokens": 308,
+      "total_tokens": 1442
+    },
+    {
+      "seconds": 8.295,
+      "input_tokens": 2675,
+      "output_tokens": 622,
+      "total_tokens": 3297
+    },
+    {
+      "seconds": 7.258,
+      "input_tokens": 1339,
+      "output_tokens": 643,
+      "total_tokens": 1982
+    },
+    {
+      "seconds": 3.69,
+      "input_tokens": 2673,
+      "output_tokens": 342,
+      "total_tokens": 3015
+    },
+    {
+      "seconds": 3.83,
+      "input_tokens": 2663,
+      "output_tokens": 223,
+      "total_tokens": 2886
+    },
+    {
+      "seconds": 3.792,
+      "input_tokens": 2475,
+      "output_tokens": 286,
+      "total_tokens": 2761
+    },
+    {
+      "seconds": 8.122,
+      "input_tokens": 1139,
+      "output_tokens": 645,
+      "total_tokens": 1784
+    },
+    {
+      "seconds": 2.601,
+      "input_tokens": 2457,
+      "output_tokens": 152,
+      "total_tokens": 2609
+    },
+    {
+      "seconds": 3.591,
+      "input_tokens": 2224,
+      "output_tokens": 325,
+      "total_tokens": 2549
+    },
+    {
+      "seconds": 3.745,
+      "input_tokens": 1011,
+      "output_tokens": 244,
+      "total_tokens": 1255
+    },
+    {
+      "seconds": 4.723,
+      "input_tokens": 2665,
+      "output_tokens": 367,
+      "total_tokens": 3032
+    },
+    {
+      "seconds": 4.46,
+      "input_tokens": 2202,
+      "output_tokens": 288,
+      "total_tokens": 2490
+    },
+    {
+      "seconds": 5.205,
+      "input_tokens": 1093,
+      "output_tokens": 283,
+      "total_tokens": 1376
+    },
+    {
+      "seconds": 4.698,
+      "input_tokens": 2210,
+      "output_tokens": 376,
+      "total_tokens": 2586
+    },
+    {
+      "seconds": 6.667,
+      "input_tokens": 1102,
+      "output_tokens": 465,
+      "total_tokens": 1567
+    },
+    {
+      "seconds": 5.293,
+      "input_tokens": 2297,
+      "output_tokens": 533,
+      "total_tokens": 2830
+    },
+    {
+      "seconds": 3.324,
+      "input_tokens": 2316,
+      "output_tokens": 209,
+      "total_tokens": 2525
+    },
+    {
+      "seconds": 5.841,
+      "input_tokens": 2279,
+      "output_tokens": 545,
+      "total_tokens": 2824
+    },
+    {
+      "seconds": 5.558,
+      "input_tokens": 2213,
+      "output_tokens": 428,
+      "total_tokens": 2641
+    },
+    {
+      "seconds": 6.745,
+      "input_tokens": 1104,
+      "output_tokens": 616,
+      "total_tokens": 1720
+    },
+    {
+      "seconds": 2.759,
+      "input_tokens": 2216,
+      "output_tokens": 160,
+      "total_tokens": 2376
+    },
+    {
+      "seconds": 4.942,
+      "input_tokens": 2440,
+      "output_tokens": 331,
+      "total_tokens": 2771
+    },
+    {
+      "seconds": 4.586,
+      "input_tokens": 1236,
+      "output_tokens": 307,
+      "total_tokens": 1543
+    },
+    {
+      "seconds": 6.543,
+      "input_tokens": 2287,
+      "output_tokens": 620,
+      "total_tokens": 2907
+    }
+  ],
+  "attempts": [
+    {
+      "call": 1,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [],
+        "action": "consultation",
+        "target_direction": "buyer",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 2,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "buyer.sourcing",
+          "buyer.rfx",
+          "buyer.analysis"
+        ],
+        "action": "consultation",
+        "target_direction": "buyer",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 3,
+      "schema": "AnswerDraft",
+      "untrusted_structured_result": {
+        "text": "可以先把品类边界、必备资质、供货区域和交付约束定清楚，形成可核验、可比较的供应商候选标准；比价时统一规格、交付和价格口径，避免只比较单价。RFI、RFQ、RFP 可按需求清晰度和市场成熟度选择。\n\n目前更卡在寻源慢、难比价，还是缺少统一评估标准？这是单次采购还是多品类常态需求？",
+        "basis": "general_advice",
+        "source_ids": [
+          "buyer.sourcing",
+          "buyer.rfx",
+          "buyer.analysis"
+        ]
+      }
+    },
+    {
+      "call": 4,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [],
+        "action": "consultation",
+        "target_direction": "organization",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 5,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "organization.cooperation"
+        ],
+        "action": "consultation",
+        "target_direction": "organization",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 6,
+      "schema": "AnswerDraft",
+      "untrusted_structured_result": {
+        "text": "可以从三个方向入手梳理方案：一是会员活跃，比如按行业分组、定期组织供需对接活动；二是供需撮合，先建立会员可发布、可检索的需求清单，再配合人工匹配和跟进；三是组织增收，例如服务包、活动或撮合服务的合理设计。建议先明确双方职责、服务范围与决策流程，再讨论具体模式和节奏。\n\n需要提前说明：收费方式、分成比例和合同条件目前都还没有确认，不能以咨询或预约意向代替签约，具体条件需由顾问进一步核实。\n\n为了便于细化建议，想先确认两点：一是贵协会目前的会员规模和行业分布大致如何？二是当前更迫切的是提升会员活跃度，还是把供需撮合真正运行起来？",
+        "basis": "general_advice",
+        "source_ids": [
+          "organization.cooperation"
+        ]
+      }
+    },
+    {
+      "call": 7,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [],
+        "action": "consultation",
+        "target_direction": "supplier",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 8,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "supplier.capability"
+        ],
+        "action": "consultation",
+        "target_direction": "supplier",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 9,
+      "schema": "AnswerDraft",
+      "untrusted_structured_result": {
+        "text": "可以先把“让采购方更容易找到你们”拆成一件可准备的事：形成一份采购方能快速读懂的能力画像，突出主营工业连接器品类、规格/应用场景、产能与交付、资质认证、服务区域和代表性客户。这样采购方在筛选供应商时更容易判断是否匹配。\n\n需要说明：当前资料只表明可提供供应商能力梳理与商机直达的接待服务，具体免费范围、商机数量和实际效果尚待确认，不能承诺成交或曝光结果。\n\n如愿意继续，请先告诉我两点：你们主打的连接器细分（如板对板、圆形、重载等）和主要下游客群（如工业自动化、新能源）。我可以据此帮你把能力画像的提纲收窄。",
+        "basis": "needs_confirmation",
+        "source_ids": [
+          "supplier.capability"
+        ]
+      }
+    },
+    {
+      "call": 10,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [],
+        "action": "unclear",
+        "target_direction": null,
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": true,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 11,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [],
+        "action": "consultation",
+        "target_direction": "buyer",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 12,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "buyer.sourcing",
+          "buyer.requirements"
+        ],
+        "action": "consultation",
+        "target_direction": "buyer",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 13,
+      "schema": "AnswerDraft",
+      "untrusted_structured_result": {
+        "text": "明白，您是采购方，需要替公司找货源，那我们就按采购方视角推进。通常可以先做两件事：一是把需求梳理清楚，包括采购品类、业务用途、预期规模、质量要求与验收条件，并区分必须满足项和可协商项；二是围绕品类边界、必备资质、供货区域和交付约束，形成可核验、可比较的供应商候选标准。\n\n要提醒的是，供应商名单、资质和实际可供能力都需要逐项核验；寻源周期和降本幅度需要依据实际基线测算，暂时无法先行承诺。\n\n为给出更贴合的建议，想先确认两点：一是本次采购的品类、用途和大致规模；二是目前最费时的环节，是找候选、核资质，还是比价格与交付？您也可以补充期望的时间节点或现有供应商情况，我再帮您梳理下一步。",
+        "basis": "general_advice",
+        "source_ids": [
+          "buyer.sourcing",
+          "buyer.requirements"
+        ]
+      }
+    },
+    {
+      "call": 14,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [],
+        "action": "consultation",
+        "target_direction": "unknown",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 15,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [],
+        "action": "unclear",
+        "target_direction": "unknown",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": true,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 16,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [],
+        "action": "off_topic",
+        "target_direction": null,
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 17,
+      "schema": "AnswerDraft",
+      "untrusted_structured_result": {
+        "text": "这两件事我都不能做：我无法修改数据库权限，也不能把“已提交申请”这类状态写成或说成已发生。办理状态只能来自真实的业务结果，编造提交或审批成功会给你带来误导。\n\n如果你的实际需求是申请更高一级的数据库权限，一般做法是走公司正式的权限申请流程，由审批与权限管理方核实后再开通；具体入口、所需材料、审批时限和是否收费，我这里没有已确认资料，需要向对应方向确认。\n\n方便的话请补充两点，我好判断该转给哪个方向：一是你要操作的是哪个系统或数据库，二是需要管理员权限的具体用途（例如排查故障、临时变更还是长期维护）。在此之前，建议先不要共享任何账号或凭据信息。\n\n可选后续：①我按“数据库权限申请”方向继续了解一般流程要点；②你说明用途后，我帮你把需求描述整理成一段可提交的申请说明草稿；③转接到对应的专业方向处理。需要哪一种？",
+        "basis": "needs_confirmation",
+        "source_ids": []
+      }
+    },
+    {
+      "call": 18,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [],
+        "action": "consultation",
+        "target_direction": "buyer",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": true,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 19,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [],
+        "action": "consultation",
+        "target_direction": "buyer",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 20,
+      "schema": "AnswerDraft",
+      "untrusted_structured_result": {
+        "text": "关于计费方式，我们暂时没有已确认的报价口径可以提供，因此不能给出具体费率或服务范围承诺。待确认的内容包括：按项目一次性计费还是按人天/时长计费、是否有年度服务包、以及不同采购品类（寻源、比价、分析等）的计费差异。\n\n就一般行业做法而言，常见模式有三类：一是按项目固定总价，适合需求边界清晰的一次性采购支持；二是按人天或工时计费，适合范围会随调研推进而变化的咨询型工作；三是按年度/季度订阅，适合持续性的寻源与供应商管理需求。选择哪一种，通常取决于需求确定性、周期长短和内部审批方式。\n\n如果需要更贴近实际的信息，可以告诉我：本次希望覆盖的采购品类与大致金额区间，以及倾向的项目制还是一次性支持？我会据此帮你梳理需要向服务方确认的计费要点清单。具体价格与条款仍需以正式报价文件为准。\n\n另外，如果你们内部有既定的计费偏好（例如要求固定总价、不接受人天计费），也可以一并说明，便于后续比价时统一口径。",
+        "basis": "needs_confirmation",
+        "source_ids": []
+      }
+    },
+    {
+      "call": 21,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "buyer.analysis"
+        ],
+        "action": "consultation_with_details",
+        "target_direction": null,
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {
+          "city": {
+            "value": "苏州",
+            "evidence": "我们公司在苏州"
+          }
+        },
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 22,
+      "schema": "AnswerDraft",
+      "untrusted_structured_result": {
+        "text": "关于收费，目前没有已确认的价目资料，我不能先给出金额、计费方式或免费范围；具体费用需顾问按服务范围核实后确认。\n\n为便于核实，想确认两点：您指的是哪项服务（如需求分析、寻源、比价或采购分析）？大致的品类范围或期望交付内容是什么？\n\n一般专业建议上，这类服务常与项目范围、品类复杂度和交付形式相关，但贵司适用的具体口径待确认。您也可以先说明预算区间，我帮您把需求梳理清楚。\n\n（公司名称：虚构航桥公司；城市：苏州）",
+        "basis": "needs_confirmation",
+        "source_ids": []
+      }
+    },
+    {
+      "call": 23,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "buyer.sourcing"
+        ],
+        "action": "consultation",
+        "target_direction": "buyer",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 24,
+      "schema": "AnswerDraft",
+      "untrusted_structured_result": {
+        "text": "明白，仍按采购方视角说明寻源，不切到供应商方向。\n\n采购寻源可以分四步推进：先划定品类边界和需求规格，明确要采购什么、不采购什么；再列必备资质与合规门槛；然后确定供货区域、交付约束和服务要求；最后据此形成可核验、可比较的候选标准，用于后续询价和比价。关键是评判标准先定好，避免后期凭印象选。\n\n需要说明：候选名单、资质与可供能力都需实际核验；寻源周期和降本幅度目前待确认，不宜预先承诺。\n\n如方便，请补充两点：一是具体品类和大致采购量级；二是交付区域或时间上的硬约束。我可以据此帮你把寻源步骤和评估维度进一步细化。\n\n以上为一般方法与方向说明，具体执行口径以顾问核实为准。",
+        "basis": "confirmed_material",
+        "source_ids": [
+          "buyer.sourcing"
+        ]
+      }
+    },
+    {
+      "call": 25,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "buyer.requirements"
+        ],
+        "action": "confirm_current_summary",
+        "target_direction": null,
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 26,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [],
+        "action": "unclear",
+        "target_direction": null,
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": true,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 27,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "buyer.cases-sla"
+        ],
+        "action": "unclear",
+        "target_direction": "buyer",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": true,
+        "needs_clarification": true,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 28,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "buyer.requirements"
+        ],
+        "action": "provide_details",
+        "target_direction": "buyer",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {
+          "city": {
+            "value": "苏州",
+            "evidence": "苏州"
+          }
+        },
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 29,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "organization.revenue",
+          "organization.cooperation"
+        ],
+        "action": "consultation",
+        "target_direction": "organization",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 30,
+      "schema": "AnswerDraft",
+      "untrusted_structured_result": {
+        "text": "目前这份资料没有写到具体收费标准、分成比例或合同条件，这些都需要顾问根据实际合作方案核实后确认，我不能先给出金额或计费口径。\n\n一般可以先看合作覆盖哪些服务：会员服务、供需撮合还是增值服务，以及计费对象、交付成本和双方职责。把这些范围理清后，再评估适合的收费与分成方式会更稳妥。\n\n方便的话，请补充两点：本次合作主要面向哪类会员服务或撮合场景？费用是希望向会员收取，还是由合作双方结算？",
+        "basis": "needs_confirmation",
+        "source_ids": [
+          "organization.revenue",
+          "organization.cooperation"
+        ]
+      }
+    },
+    {
+      "call": 31,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "organization.revenue"
+        ],
+        "action": "consultation",
+        "target_direction": null,
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 32,
+      "schema": "AnswerDraft",
+      "untrusted_structured_result": {
+        "text": "不能作收入保证。在尚无统一收费政策的情况下，任何“一年带来多少收入”的承诺都缺乏依据；收益取决于会员服务设计、计费对象、供需撮合的匹配度以及交付成本，这些都需要先核实。我们的接待资料也明确：收费标准、分成比例与新增收入均待确认，并且不承诺会员转化效果。\n\n可以先行推进的是把收益模型梳理清楚：盘清现有会员服务与增值服务的投入和交付成本，明确计费对象与收费节点，再评估适合贵组织的收益方式。这属于分析框架，不构成对金额或效果的承诺。\n\n后续可选择：①先做一次收益模型梳理（贵方提供现有服务清单与成本口径）；②如已有初步收费设想，我可协助按“投入—计费—交付”拆解；③需要确认具体政策口径时，由顾问核实后再回复您。您希望先从哪一步开始？",
+        "basis": "confirmed_material",
+        "source_ids": [
+          "organization.revenue"
+        ]
+      }
+    },
+    {
+      "call": 33,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "organization.cooperation"
+        ],
+        "action": "consultation_with_details",
+        "target_direction": "organization",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {
+          "memberSize": {
+            "value": "100—500",
+            "evidence": "会员三百家"
+          },
+          "coverage": {
+            "value": "本省",
+            "evidence": "本省"
+          }
+        },
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 34,
+      "schema": "AnswerDraft",
+      "untrusted_structured_result": {
+        "text": "可以从三方面展开合作：提升会员活跃、开展供需撮合、帮助组织合理增收。方案会明确双方职责、服务范围与决策流程。收费、分成和合同条件目前待确认，需要顾问核实后再谈；咨询或合作意向不等于签约。\n\n按您本轮的说明，会员约300家、主要在本省；这一规模与此前登记的口径不同，后续可以按本轮信息核对更新。\n\n方便的话请确认两点：一是合作方案由谁决策，例如会长、秘书长或运营负责人；二是您最希望先解决会员活跃还是供需撮合？",
+        "basis": "confirmed_material",
+        "source_ids": [
+          "organization.cooperation"
+        ]
+      }
+    },
+    {
+      "call": 35,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "organization.sample-recommendation",
+          "organization.sample"
+        ],
+        "action": "record_intent",
+        "target_direction": "organization",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": "sample_demo",
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 36,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "organization.onboarding-materials"
+        ],
+        "action": "start_onboarding",
+        "target_direction": null,
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 37,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "organization.cooperation"
+        ],
+        "action": "consultation",
+        "target_direction": "organization",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 38,
+      "schema": "AnswerDraft",
+      "untrusted_structured_result": {
+        "text": "可以先从会员活跃切入，不必因对方自称供应商就改变话题。建议协会侧先明确要提升的指标（活动参与、供需发布与响应、续费意愿），再设计轻量动作，例如会员需求墙、季度供需对接、专题小组和老带新；供应商可作为服务资源参与，但合作意向、需求登记与独立入驻要分开处理。\n\n可选择的下一步：1）我先帮你搭一版会员活跃方案框架；2）梳理供应商参与边界和信息表；3）若涉及收费、分成或合同条件，需由顾问进一步确认，目前不宜作承诺。\n\n想先确认两点：协会会员以哪类为主、当前最想提升哪个活跃指标？供应商更倾向提供资源，还是做渠道合作？",
+        "basis": "general_advice",
+        "source_ids": [
+          "organization.cooperation"
+        ]
+      }
+    },
+    {
+      "call": 39,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [],
+        "action": "switch_direction",
+        "target_direction": "supplier",
+        "explicit_switch": true,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 40,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [],
+        "action": "consultation",
+        "target_direction": null,
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 41,
+      "schema": "AnswerDraft",
+      "untrusted_structured_result": {
+        "text": "已按您的请求转入供应商方向。后续可以围绕三类事项为您提供支持：一是供应商能力与适配性梳理（如品类覆盖、交付与质量体系、合规与安全要求）；二是品类商机与供应市场分析思路；三是磋商准备与资料清单的搭建。\n\n为进一步聚焦，想先确认两点：您当前更关注“寻源/评估新供应商”，还是“既有供应商的磋商与优化”？以及具体品类或服务范围是什么？\n\n需要说明：涉及具体公司政策、报价区间、案例或时效承诺的内容，需要有已确认资料才能给出，未确认部分我会明确标注待核实，不会代为承诺联系或安排服务。您也可以直接提供本轮已有的供应商或品类信息，我先帮您整理要点。",
+        "basis": "general_advice",
+        "source_ids": []
+      }
+    },
+    {
+      "call": 42,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "organization.cooperation"
+        ],
+        "action": "confirm_current_summary",
+        "target_direction": "organization",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 43,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "supplier.capability"
+        ],
+        "action": "consultation",
+        "target_direction": null,
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 44,
+      "schema": "AnswerDraft",
+      "untrusted_structured_result": {
+        "text": "关于费用，目前接待资料中只说明提供免费的公司 AI 能力提升与供应商商机直达接待服务，具体免费范围、涉及收费的环节和报价均未确认，我不能给出金额或费用区间，需要顾问核实后回复。\n\n您可以先说明两点，便于判断需要确认哪些费用项：一是您关注的品类和主要服务区域，二是您更关心平台使用、撮合对接还是其他服务环节。确认后可就对应范围向顾问核实口径。\n\n可选下一步：1）先做能力梳理，明确品类、产能、资质、标杆客户和服务区域；2）列出您关心的费用问题清单，待确认范围后一并核实；3）如暂不涉及费用，也可先了解商机对接方式。",
+        "basis": "needs_confirmation",
+        "source_ids": [
+          "supplier.capability"
+        ]
+      }
+    },
+    {
+      "call": 45,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "supplier.negotiation"
+        ],
+        "action": "consultation",
+        "target_direction": "supplier",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 46,
+      "schema": "AnswerDraft",
+      "untrusted_structured_result": {
+        "text": "关于按使用量计费或按套餐打包收费的具体安排，目前我这边没有已确认的收费政策或价目可以引用，不能代为给出口径、单价、套餐档位或包含范围。这类信息需要由对应业务同事依据实际授权方案确认，我不会替他们承诺或预约报价结果。\n\n可以先把你的关注点整理清楚，便于后续沟通更高效：一是计费维度，比如按调用量、按席位或按项目周期；二是套餐是否含最低消费、超额如何计价；三是费用边界，如是否含实施、集成与运维支持；四是结算周期与价格有效期。你们更接近哪一种使用规模与节奏，也可以先告诉我（例如月度调用量的量级区间、是否需要多环境）。\n\n如果你愿意，我可以在磋商准备中把上述计费诉求、价格边界和需要人工确认的事项一并列为讨论条目；真正的费率与政策以业务方确认的资料为准。你希望优先明确按量计费，还是套餐结构？",
+        "basis": "needs_confirmation",
+        "source_ids": [
+          "supplier.negotiation"
+        ]
+      }
+    },
+    {
+      "call": 47,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "supplier.capability"
+        ],
+        "action": "provide_details",
+        "target_direction": "supplier",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {
+          "city": {
+            "value": "宁波",
+            "evidence": "宁波"
+          },
+          "productDescription": {
+            "value": "工业连接器",
+            "evidence": "工业连接器"
+          }
+        },
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 48,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "supplier.capability"
+        ],
+        "action": "confirm_current_summary",
+        "target_direction": "supplier",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 49,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [],
+        "action": "consultation",
+        "target_direction": null,
+        "explicit_switch": false,
+        "negated": true,
+        "deferred": true,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 50,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "supplier.capability"
+        ],
+        "action": "defer_invitation",
+        "target_direction": "supplier",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": true,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 51,
+      "schema": "AnswerDraft",
+      "untrusted_structured_result": {
+        "text": "明白，登记的事可以先放一放，先了解能力梳理的思路。\n\n通常的做法是先把自身能力讲清楚：梳理主营品类、产能、资质、标杆客户和服务区域，形成一份采购方容易理解的能力画像，再针对目标品类补充可验证的资料。具体能走到哪一步，取决于资料完整度。\n\n需要说明，免费服务的具体范围、商机数量和实际效果，我这边没有已确认的规范，需由顾问核实后答复，也不承诺成交。\n\n方便的话，可以先说两点：您主营的品类和服务区域是什么？最想改善的是资料准备、品类选择，还是与采购方的沟通磋商？",
+        "basis": "confirmed_material",
+        "source_ids": [
+          "supplier.capability"
+        ]
+      }
+    },
+    {
+      "call": 52,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [],
+        "action": "switch_direction",
+        "target_direction": "buyer",
+        "explicit_switch": true,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 53,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "buyer.requirements",
+          "buyer.sourcing"
+        ],
+        "action": "consultation",
+        "target_direction": "buyer",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": false,
+        "needs_clarification": false,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    },
+    {
+      "call": 54,
+      "schema": "AnswerDraft",
+      "untrusted_structured_result": {
+        "text": "可以，先按采购需求梳理和寻源两步推进。建议先明确原料品类、业务用途、预期采购规模、质量与验收条件，再区分必须满足项和可协商项；寻源侧同步确定品类边界、必备资质、供货区域和交付约束，形成可核验、可比较的候选标准。\n\n方便先确认两点：1）这次找的是什么原料，用在哪类产品/工序，有无明确规格或质量标准？2）当前最费时的环节是找供应商、比价，还是内部需求口径不统一？\n\n具体降本空间、寻源周期和可供名单需要基于实际基线核验，暂不能预先承诺。您也可以直接提供现有供应商或历史采购数据，便于后续做比价分析。",
+        "basis": "general_advice",
+        "source_ids": [
+          "buyer.requirements",
+          "buyer.sourcing"
+        ]
+      }
+    },
+    {
+      "call": 55,
+      "schema": "SemanticDecision",
+      "untrusted_structured_result": {
+        "topics": [
+          "supplier.ontology-evolution"
+        ],
+        "action": "unclear",
+        "target_direction": "supplier",
+        "explicit_switch": false,
+        "negated": false,
+        "deferred": false,
+        "conditional": true,
+        "needs_clarification": true,
+        "candidates": {},
+        "organization_intent": null,
+        "onboarding_mode": "start",
+        "draft_name": null
+      }
+    }
+  ]
+}

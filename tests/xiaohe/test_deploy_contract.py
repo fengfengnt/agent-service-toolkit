@@ -134,7 +134,7 @@ def test_launcher_configuration_failure_does_not_echo_private_values():
 @pytest.mark.pg
 @pytest.mark.asyncio
 async def test_only_trusted_proxy_can_set_https_without_changing_socket_peer(
-    pg_factory, monkeypatch
+    pg_factory, pg_url, monkeypatch
 ):
     import httpx
 
@@ -147,7 +147,7 @@ async def test_only_trusted_proxy_can_set_https_without_changing_socket_peer(
     config = Settings(
         toolkit_base_url="http://runtime",
         auth_secret="fixture-auth",
-        database_url="postgresql+psycopg://postgres@127.0.0.1:35417/test_xiaohe_agent",
+        database_url=pg_url,
         trusted_proxy_cidrs=["127.0.0.1/32"],
     )
     app = create_app(config)

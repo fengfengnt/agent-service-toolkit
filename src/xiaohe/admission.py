@@ -183,6 +183,9 @@ async def _accept(
                 ownership_epoch=conversation.ownership_epoch,
             )
             db.add(run)
+            if bundle_id := db.info.get("workflow_bundle_id"):
+                run.runtime_version = "dsl-v1"
+                run.workflow_bundle_id = bundle_id
         else:
             run.status, run.holds_slot, run.pending_request = "queued", True, None
             run.updated_at = func.clock_timestamp()
@@ -297,3 +300,41 @@ async def accept_action(
         body.client_action_id,
         body.model_dump(mode="json", by_alias=True),
     )
+
+
+def _agent_entry(db, agent_id):
+    from xiaohe.workflows.models import AGENT_IDS
+    if agent_id not in AGENT_IDS:
+        raise ServiceError("AGENT_NOT_FOUND", 404)
+    if not db.info.get("workflow_bundle_id"):
+        raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
+
+
+async def accept_agent_message(db, actor, agent_id, conversation_id, body: MessageInput):
+    _agent_entry(db, agent_id)
+    body = _parse(MessageInput, body)
+    _safe_text(body.text)
+    return await _accept(db, actor, conversation_id, "message", body.client_message_id,
+        body.model_dump(mode="json", by_alias=True) | {"entryAgent": agent_id})
+
+
+async def accept_agent_action(db, actor, agent_id, conversation_id, body: ChatAction):
+    _agent_entry(db, agent_id)
+    body = _parse(ChatAction, body)
+    if body.text is not None:
+        _safe_text(body.text)
+    await require_conversation(db, actor, conversation_id)
+    payload = body.model_dump(mode="json", by_alias=True) | {"entryAgent": agent_id}
+    existing = await db.scalar(select(Command).where(Command.conversation_id == conversation_id,
+        Command.kind == "action", Command.client_key == body.client_action_id))
+    if existing is not None:
+        return await _accept(db, actor, conversation_id, "action", body.client_action_id, payload)
+    run = await db.scalar(select(Run).where(Run.conversation_id == conversation_id,
+        Run.status == "waiting_input", Run.pending_request["requestId"].astext == body.request_id))
+    previous = await db.scalar(select(Command).where(Command.run_id == run.id)
+        .order_by(Command.created_at.desc(), Command.id.desc()).limit(1)) if run else None
+    if run is None or run.runtime_version != "dsl-v1" or previous is None or (
+        previous.payload.get("agentExecution", {}).get("active") != agent_id
+    ):
+        raise ServiceError("ACTION_STALE", 409)
+    return await _accept(db, actor, conversation_id, "action", body.client_action_id, payload)

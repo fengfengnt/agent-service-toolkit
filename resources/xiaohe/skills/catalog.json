@@ -1,0 +1,110 @@
+[
+  {
+    "id": "buyer.requirements",
+    "direction": "buyer",
+    "title": "需求梳理",
+    "path": "buyer/requirements/SKILL.md"
+  },
+  {
+    "id": "buyer.analysis",
+    "direction": "buyer",
+    "title": "需求分析",
+    "path": "buyer/analysis/SKILL.md"
+  },
+  {
+    "id": "buyer.rfx",
+    "direction": "buyer",
+    "title": "RFX 策略",
+    "path": "buyer/rfx/SKILL.md"
+  },
+  {
+    "id": "buyer.sourcing",
+    "direction": "buyer",
+    "title": "智能寻源",
+    "path": "buyer/sourcing/SKILL.md"
+  },
+  {
+    "id": "buyer.security",
+    "direction": "buyer",
+    "title": "安全合规",
+    "path": "buyer/security/SKILL.md"
+  },
+  {
+    "id": "buyer.integration",
+    "direction": "buyer",
+    "title": "系统集成",
+    "path": "buyer/integration/SKILL.md"
+  },
+  {
+    "id": "buyer.cases-sla",
+    "direction": "buyer",
+    "title": "案例与 SLA",
+    "path": "buyer/cases-sla/SKILL.md"
+  },
+  {
+    "id": "organization.cooperation",
+    "direction": "organization",
+    "title": "合作模式",
+    "path": "organization/cooperation/SKILL.md"
+  },
+  {
+    "id": "organization.launch",
+    "direction": "organization",
+    "title": "五步上线",
+    "path": "organization/launch/SKILL.md"
+  },
+  {
+    "id": "organization.sample",
+    "direction": "organization",
+    "title": "样板站",
+    "path": "organization/sample/SKILL.md"
+  },
+  {
+    "id": "organization.revenue",
+    "direction": "organization",
+    "title": "收益模型",
+    "path": "organization/revenue/SKILL.md"
+  },
+  {
+    "id": "organization.effort",
+    "direction": "organization",
+    "title": "组织投入",
+    "path": "organization/effort/SKILL.md"
+  },
+  {
+    "id": "organization.sample-recommendation",
+    "direction": "organization",
+    "title": "同类型组织样板推荐",
+    "path": "organization/sample-recommendation/SKILL.md"
+  },
+  {
+    "id": "organization.onboarding-materials",
+    "direction": "organization",
+    "title": "入驻资料梳理",
+    "path": "organization/onboarding-materials/SKILL.md"
+  },
+  {
+    "id": "supplier.capability",
+    "direction": "supplier",
+    "title": "供应商能力梳理",
+    "path": "supplier/capability/SKILL.md"
+  },
+  {
+    "id": "supplier.ontology-evolution",
+    "direction": "supplier",
+    "title": "企业本体提取与自进化",
+    "path": "supplier/ontology-evolution/SKILL.md"
+  },
+  {
+    "id": "supplier.negotiation",
+    "direction": "supplier",
+    "title": "Agent 自动磋商",
+    "path": "supplier/negotiation/SKILL.md"
+  },
+  {
+    "id": "supplier.security",
+    "direction": "supplier",
+    "title": "供应商资料安全",
+    "path": "supplier/security/SKILL.md"
+  }
+]

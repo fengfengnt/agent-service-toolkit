@@ -1,0 +1,196 @@
+..FFFFFF.                                                                [100%]
+================================== FAILURES ===================================
+___________ test_business_layout_is_rejected_before_startup[empty] ____________
+
+invalid = 'empty'
+
+    @pytest.mark.parametrize("invalid", ["empty", "no_summary", "summary_first", "no_collection", "no_minimum"])
+    def test_business_layout_is_rejected_before_startup(invalid):
+        from xiaohe.workflows.compiler import validate_graph
+        from xiaohe.workflows.loader import parse_workflow
+        from xiaohe.workflows.models import WorkflowValidationError
+    
+        data = yaml.safe_load((RESOURCE_ROOT / "workflows/buyer.yaml").read_text("utf-8"))
+        if invalid == "empty":
+            data.update(rounds=[], required_fields=[])
+        elif invalid == "no_summary":
+            data["rounds"] = data["rounds"][:-1]
+        elif invalid == "summary_first":
+            data["rounds"] = data["rounds"][-1:] + data["rounds"][:-1]
+        elif invalid == "no_collection":
+            data.update(rounds=data["rounds"][-1:], required_fields=[])
+        else:
+            data["required_fields"] = []
+>       with pytest.raises(WorkflowValidationError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE WorkflowValidationError
+
+tests\xiaohe\test_agent_workflows.py:115: Failed
+_________ test_business_layout_is_rejected_before_startup[no_summary] _________
+
+invalid = 'no_summary'
+
+    @pytest.mark.parametrize("invalid", ["empty", "no_summary", "summary_first", "no_collection", "no_minimum"])
+    def test_business_layout_is_rejected_before_startup(invalid):
+        from xiaohe.workflows.compiler import validate_graph
+        from xiaohe.workflows.loader import parse_workflow
+        from xiaohe.workflows.models import WorkflowValidationError
+    
+        data = yaml.safe_load((RESOURCE_ROOT / "workflows/buyer.yaml").read_text("utf-8"))
+        if invalid == "empty":
+            data.update(rounds=[], required_fields=[])
+        elif invalid == "no_summary":
+            data["rounds"] = data["rounds"][:-1]
+        elif invalid == "summary_first":
+            data["rounds"] = data["rounds"][-1:] + data["rounds"][:-1]
+        elif invalid == "no_collection":
+            data.update(rounds=data["rounds"][-1:], required_fields=[])
+        else:
+            data["required_fields"] = []
+>       with pytest.raises(WorkflowValidationError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE WorkflowValidationError
+
+tests\xiaohe\test_agent_workflows.py:115: Failed
+_______ test_business_layout_is_rejected_before_startup[summary_first] ________
+
+invalid = 'summary_first'
+
+    @pytest.mark.parametrize("invalid", ["empty", "no_summary", "summary_first", "no_collection", "no_minimum"])
+    def test_business_layout_is_rejected_before_startup(invalid):
+        from xiaohe.workflows.compiler import validate_graph
+        from xiaohe.workflows.loader import parse_workflow
+        from xiaohe.workflows.models import WorkflowValidationError
+    
+        data = yaml.safe_load((RESOURCE_ROOT / "workflows/buyer.yaml").read_text("utf-8"))
+        if invalid == "empty":
+            data.update(rounds=[], required_fields=[])
+        elif invalid == "no_summary":
+            data["rounds"] = data["rounds"][:-1]
+        elif invalid == "summary_first":
+            data["rounds"] = data["rounds"][-1:] + data["rounds"][:-1]
+        elif invalid == "no_collection":
+            data.update(rounds=data["rounds"][-1:], required_fields=[])
+        else:
+            data["required_fields"] = []
+>       with pytest.raises(WorkflowValidationError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE WorkflowValidationError
+
+tests\xiaohe\test_agent_workflows.py:115: Failed
+_______ test_business_layout_is_rejected_before_startup[no_collection] ________
+
+invalid = 'no_collection'
+
+    @pytest.mark.parametrize("invalid", ["empty", "no_summary", "summary_first", "no_collection", "no_minimum"])
+    def test_business_layout_is_rejected_before_startup(invalid):
+        from xiaohe.workflows.compiler import validate_graph
+        from xiaohe.workflows.loader import parse_workflow
+        from xiaohe.workflows.models import WorkflowValidationError
+    
+        data = yaml.safe_load((RESOURCE_ROOT / "workflows/buyer.yaml").read_text("utf-8"))
+        if invalid == "empty":
+            data.update(rounds=[], required_fields=[])
+        elif invalid == "no_summary":
+            data["rounds"] = data["rounds"][:-1]
+        elif invalid == "summary_first":
+            data["rounds"] = data["rounds"][-1:] + data["rounds"][:-1]
+        elif invalid == "no_collection":
+            data.update(rounds=data["rounds"][-1:], required_fields=[])
+        else:
+            data["required_fields"] = []
+>       with pytest.raises(WorkflowValidationError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE WorkflowValidationError
+
+tests\xiaohe\test_agent_workflows.py:115: Failed
+_________ test_business_layout_is_rejected_before_startup[no_minimum] _________
+
+invalid = 'no_minimum'
+
+    @pytest.mark.parametrize("invalid", ["empty", "no_summary", "summary_first", "no_collection", "no_minimum"])
+    def test_business_layout_is_rejected_before_startup(invalid):
+        from xiaohe.workflows.compiler import validate_graph
+        from xiaohe.workflows.loader import parse_workflow
+        from xiaohe.workflows.models import WorkflowValidationError
+    
+        data = yaml.safe_load((RESOURCE_ROOT / "workflows/buyer.yaml").read_text("utf-8"))
+        if invalid == "empty":
+            data.update(rounds=[], required_fields=[])
+        elif invalid == "no_summary":
+            data["rounds"] = data["rounds"][:-1]
+        elif invalid == "summary_first":
+            data["rounds"] = data["rounds"][-1:] + data["rounds"][:-1]
+        elif invalid == "no_collection":
+            data.update(rounds=data["rounds"][-1:], required_fields=[])
+        else:
+            data["required_fields"] = []
+>       with pytest.raises(WorkflowValidationError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE WorkflowValidationError
+
+tests\xiaohe\test_agent_workflows.py:115: Failed
+____ test_fresh_install_can_start_changed_workflow_without_legacy_snapshot ____
+
+pg_factory = async_sessionmaker(class_='AsyncSession', bind=<sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x0000020B37859450>, autoflush=True, expire_on_commit=False)
+tmp_path = WindowsPath('C:/Users/70367/AppData/Local/Temp/pytest-of-70367/pytest-124/test_fresh_install_can_start_c0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000020B3776A470>
+
+    @pytest.mark.pg
+    @pytest.mark.asyncio
+    async def test_fresh_install_can_start_changed_workflow_without_legacy_snapshot(pg_factory, tmp_path, monkeypatch):
+        from shutil import copytree
+        from sqlalchemy import func, select
+        from test_agent_handoff import AgentSequenceModel
+        from xiaohe.agents.runtime import load_agent_registry
+        from xiaohe.models import WorkflowDefinitionRecord
+        from xiaohe.workflows import definitions
+    
+        root = tmp_path / "resources"
+        copytree(RESOURCE_ROOT, root)
+        path = root / "workflows/buyer.yaml"
+        data = yaml.safe_load(path.read_text("utf-8"))
+        data["rounds"][0], data["rounds"][1] = data["rounds"][1], data["rounds"][0]
+        path.write_text(yaml.safe_dump(data), "utf-8")
+        monkeypatch.setattr(definitions, "RESOURCE_ROOT", root)
+>       registry = await load_agent_registry(pg_factory, root, AgentSequenceModel(result={}), None)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\xiaohe\test_agent_workflows.py:136: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\xiaohe\agents\runtime.py:45: in load_agent_registry
+    await baseline_bundle(db)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+db = <sqlalchemy.ext.asyncio.session.AsyncSession object at 0x0000020B36BBDD90>
+
+    async def baseline_bundle(db):
+        rows = (
+            await db.scalars(
+                select(WorkflowDefinitionRecord).order_by(
+                    WorkflowDefinitionRecord.created_at, WorkflowDefinitionRecord.bundle_id
+                )
+            )
+        ).all()
+        for row in rows:
+            from xiaohe.workflows.models import WorkflowBundle
+    
+            bundle = WorkflowBundle.model_validate(row.payload)
+            if rules_digest(bundle) == LEGACY_RULES_DIGEST:
+                return bundle
+        bundle = load_bundle(RESOURCE_ROOT)
+        if rules_digest(bundle) != LEGACY_RULES_DIGEST:
+>           raise WorkflowValidationError(
+                "original draft definition unavailable; explicit migration required"
+            )
+E           xiaohe.workflows.models.WorkflowValidationError: original draft definition unavailable; explicit migration required
+
+src\xiaohe\workflows\definitions.py:46: WorkflowValidationError
+=========================== short test summary info ===========================
+FAILED tests/xiaohe/test_agent_workflows.py::test_business_layout_is_rejected_before_startup[empty]
+FAILED tests/xiaohe/test_agent_workflows.py::test_business_layout_is_rejected_before_startup[no_summary]
+FAILED tests/xiaohe/test_agent_workflows.py::test_business_layout_is_rejected_before_startup[summary_first]
+FAILED tests/xiaohe/test_agent_workflows.py::test_business_layout_is_rejected_before_startup[no_collection]
+FAILED tests/xiaohe/test_agent_workflows.py::test_business_layout_is_rejected_before_startup[no_minimum]
+FAILED tests/xiaohe/test_agent_workflows.py::test_fresh_install_can_start_changed_workflow_without_legacy_snapshot
+6 failed, 3 passed in 1.95s

@@ -246,7 +246,8 @@ class RunWorker:
 
     async def execute_run(self, run_id: UUID) -> None:
         engine = self.factory.kw["bind"]
-        async with engine.connect() as guard, guard.begin():
+        # 只读守卫在退出时回滚释放事务锁，避免取消中的查询使提交失效。
+        async with engine.connect() as guard:
             while not await guard.scalar(
                 text("SELECT pg_try_advisory_xact_lock(hashtextextended(:key,0))"),
                 {"key": "xiaohe.run:" + str(run_id)},

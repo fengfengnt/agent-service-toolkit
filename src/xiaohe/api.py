@@ -7,7 +7,12 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from starlette.datastructures import MutableHeaders
 
-from xiaohe.admission import accept_action, accept_message
+from xiaohe.admission import (
+    accept_action,
+    accept_agent_action,
+    accept_agent_message,
+    accept_message,
+)
 from xiaohe.contracts import ApiError, ChatAction, EmptyBody, MessageInput, ServiceError
 from xiaohe.conversations import load_snapshot
 from xiaohe.events import stream_events
@@ -35,6 +40,12 @@ _MESSAGES = {
     "EVENT_CURSOR_EXPIRED": "事件游标已过期，请重新读取快照。",
     "CSRF_INVALID": "请求验证失败，请重新读取会话。",
     "UPSTREAM_UNAVAILABLE": "服务暂时不可用，请稍后重试。",
+    "DRAFT_CONFLICT": "资料已更新，请读取当前版本后重新确认。",
+    "SUBJECT_CONFLICT": "企业或组织资料存在冲突，请核对后重试。",
+    "FILE_INVALID": "文件类型或内容不符合要求。",
+    "FILE_TOO_LARGE": "文件超过大小限制。",
+    "SUBMISSION_UNKNOWN": "正式受理结果尚未确认，请稍后重试。",
+    "AGENT_NOT_FOUND": "未找到该服务。",
 }
 
 
@@ -79,10 +90,10 @@ def install_error_handlers(app: FastAPI):
         return await service_error(request, ServiceError("UPSTREAM_UNAVAILABLE", 503))
 
 
-async def _body(request, model):
+async def _body(request, model, *, max_bytes=65536):
     raw = bytearray()
     async for chunk in request.stream():
-        if len(raw) + len(chunk) > 65536:
+        if len(raw) + len(chunk) > max_bytes:
             raise ServiceError("INPUT_INVALID", 422)
         raw.extend(chunk)
     result = None
@@ -144,6 +155,22 @@ def create_public_router(factory):
                 body.request_id,
                 body.option_id,
                 body.text,
+            )
+
+    @router.post("/agents/{agent_id}/conversations/{conversation_id}/messages", status_code=202)
+    async def agent_message(agent_id: str, conversation_id: UUID, request: Request):
+        body = await _body(request, MessageInput)
+        async with factory.begin() as db:
+            return await accept_agent_message(
+                db, await _actor(request, db), agent_id, conversation_id, body
+            )
+
+    @router.post("/agents/{agent_id}/conversations/{conversation_id}/actions", status_code=202)
+    async def agent_action(agent_id: str, conversation_id: UUID, request: Request):
+        body = await _body(request, ChatAction)
+        async with factory.begin() as db:
+            return await accept_agent_action(
+                db, await _actor(request, db), agent_id, conversation_id, body
             )
 
     @router.get("/conversations/{conversation_id}/events")

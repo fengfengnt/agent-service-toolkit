@@ -1,0 +1,23 @@
+{
+  "http": "passed",
+  "browser": "passed",
+  "controlled": [
+    "model",
+    "center",
+    "admin directory"
+  ],
+  "real": [
+    "native runtime",
+    "product routers/worker",
+    "Java controllers/services/filter",
+    "PostgreSQL",
+    "MySQL",
+    "MinIO"
+  ],
+  "workflow_file_changed_before_restart": true,
+  "browser_channel": "chrome",
+  "browser_version": "156.0.8078.48",
+  "headed": true,
+  "deadlock_detected": false,
+  "direct_buyer_natural_confirmation_replayed": true
+}

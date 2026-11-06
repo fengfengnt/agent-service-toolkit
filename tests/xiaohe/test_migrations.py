@@ -1,9 +1,29 @@
+import os
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
+
+
+def test_orm_metadata_resolves_workflow_foreign_keys_without_alembic_imports():
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from xiaohe.models import Base; from xiaohe.reception import models; "
+            "assert 'xiaohe.workflow_definitions' in Base.metadata.tables; "
+            "list(Base.metadata.sorted_tables)",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=20,
+        env=os.environ | {"PYTHONPATH": str(Path.cwd() / "src")},
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def test_standard_alembic_revision_generation(tmp_path):

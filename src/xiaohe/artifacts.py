@@ -397,6 +397,44 @@ class ArtifactService:
         if self._s3 is not None:
             await asyncio.to_thread(self._s3.close)
 
+    async def write_reception_object(self, object_key, content, digest):
+        if not object_key.startswith("xiaohe/reception/"):
+            raise ServiceError("FORBIDDEN", 403)
+        await self._io(
+            lambda: self._s3.put_object(
+                Bucket=self.settings.minio_bucket,
+                Key=object_key,
+                Body=content,
+                ContentType="application/octet-stream",
+                Metadata={"sha256": digest},
+                IfNoneMatch="*",
+            )
+        )
+        metadata = await self._io(
+            lambda: self._s3.head_object(Bucket=self.settings.minio_bucket, Key=object_key)
+        )
+        if (
+            metadata.get("ContentLength") != len(content)
+            or metadata.get("Metadata", {}).get("sha256") != digest
+        ):
+            raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
+
+    async def read_reception_object(self, object_key, size, digest):
+        if not object_key.startswith("xiaohe/reception/"):
+            raise ServiceError("FORBIDDEN", 403)
+        response = await self._io(
+            lambda: self._s3.get_object(Bucket=self.settings.minio_bucket, Key=object_key)
+        )
+        body = response["Body"]
+        try:
+            content = await self._io(lambda: body.read(_MAX_BYTES + 1))
+        finally:
+            with anyio.CancelScope(shield=True):
+                await asyncio.to_thread(body.close)
+        if len(content) != size or hashlib.sha256(content).hexdigest() != digest:
+            raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
+        return content
+
     async def delete_expired_object(self, object_key):
         def remove():
             try:

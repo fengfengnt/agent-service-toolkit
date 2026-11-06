@@ -1,0 +1,28 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+________ test_initial_welcome_is_persisted_once_without_a_run_or_quota ________
+
+pg_factory = async_sessionmaker(class_='AsyncSession', bind=<sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x000002851EE567D0>, autoflush=True, expire_on_commit=False)
+job_app = <procrastinate.app.App object at 0x000002851EE40F50>
+
+    async def test_initial_welcome_is_persisted_once_without_a_run_or_quota(pg_factory, job_app):
+        async with client_for(pg_factory) as (client, app):
+            first = await session(client)
+            assert len(first["messages"]) == 1
+            welcome = first["messages"][0]
+            assert welcome["role"] == "assistant"
+            choices = next(p for p in welcome["parts"] if p["type"] == "suggestions")
+>           assert [(item["id"], item["text"]) for item in choices["items"]] == [
+                ("buyer", "采购方"),
+                ("organization", "社群组织"),
+                ("supplier", "供应商"),
+            ]
+E           AssertionError: assert [('buyer', '采...lier', '供应商')] == [('buyer', '采...lier', '供应商')]
+E             
+E             At index 0 diff: ('buyer', '采购商') != ('buyer', '采购方')
+E             Use -v to get more diff
+
+tests\xiaohe\test_welcome.py:20: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/xiaohe/test_welcome.py::test_initial_welcome_is_persisted_once_without_a_run_or_quota
+1 failed in 2.36s

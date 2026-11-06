@@ -112,6 +112,9 @@ async def _merge(db, claim, source, target):
         .values(conversation_id=target.id)
     )
     target.direction = claim.source_direction
+    from xiaohe.reception.store import merge_reception
+
+    await merge_reception(db, source, target)
     claim.status, claim.updated_at = "merged", await database_now(db)
     await db.flush()
     target.merge_pending = bool(
