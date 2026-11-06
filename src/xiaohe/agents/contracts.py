@@ -67,6 +67,39 @@ class SemanticDecision(StrictAgentModel):
     conditional: bool = False
     needs_clarification: bool = False
     candidates: dict[str, FieldCandidate] = Field(default_factory=dict, max_length=32)
+    organization_intent: (
+        Literal["solution_discussion", "sample_demo", "cooperation_handbook"] | None
+    ) = None
+    onboarding_mode: Literal["start", "supplement"] = "start"
+    draft_name: str | None = Field(default=None, max_length=200)
+
+
+class ConfirmationEvidence(InternalModel):
+    command_id: UUID
+    run_id: UUID
+    message_id: UUID
+    user_id: str | None
+    draft_id: UUID
+    revision: int
+    summary_version: int
+    bundle_id: str
+    agent_id: AgentId
+    source: Literal["semantic", "button"]
+
+    @classmethod
+    def from_frame(cls, frame: AgentFrame, *, source: Literal["semantic", "button"]):
+        return cls(
+            command_id=frame.command_id,
+            run_id=frame.fence.run_id,
+            message_id=frame.message_id,
+            user_id=frame.actor.user_id,
+            draft_id=frame.draft_id,
+            revision=frame.draft_revision,
+            summary_version=frame.summary_version,
+            bundle_id=frame.bundle_id,
+            agent_id=frame.agent_id,
+            source=source,
+        )
 
 
 class AnswerDraft(StrictAgentModel):

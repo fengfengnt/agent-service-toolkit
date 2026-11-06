@@ -42,12 +42,22 @@ async def _current(db, fence):
     return run, command, text
 
 
-async def record_intent(factory, fence, application_id, kind, client):
+async def record_intent(factory, fence, application_id, kind, client, *, semantic_command_id=None):
     async with factory.begin() as db:
         run, command, text = await _current(db, fence)
         if run.user_id is None:
             raise ServiceError("AUTH_REQUIRED", 401)
-        if intent_from_text(text) != kind:
+        if semantic_command_id is not None:
+            from xiaohe.agents.contracts import SemanticDecision
+
+            stage = command.payload.get("agentStages", {}).get("xiaohe-organization", {})
+            decision = SemanticDecision.model_validate(stage.get("decision", {}))
+            if command.id != semantic_command_id or decision.action != "record_intent" or (
+                decision.organization_intent != kind or decision.negated or decision.deferred
+                or decision.conditional or decision.needs_clarification
+            ):
+                raise ServiceError("INPUT_INVALID", 422)
+        elif run.runtime_version != "legacy" or intent_from_text(text) != kind:
             raise ServiceError("INPUT_INVALID", 422)
         cache = command.payload.get("receptionIntent")
         if cache is not None:

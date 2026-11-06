@@ -1,4 +1,5 @@
 import json
+from typing import Protocol
 
 import httpx
 
@@ -6,13 +7,31 @@ from xiaohe.contracts import ServiceError
 from xiaohe.reception.contracts import (
     ApplicationView,
     IntentReceipt,
+    IntentRequest,
     OnboardingApplicationView,
+    OnboardingSubmission,
+    ProgressPage,
     ReceptionActor,
     SubjectPage,
     Submission,
     SubmissionResult,
     SubmitReceipt,
 )
+
+
+class BusinessBackend(Protocol):
+    async def submit(self, actor: ReceptionActor, payload: Submission) -> SubmitReceipt: ...
+    async def result(self, actor: ReceptionActor, submission_key: str) -> SubmissionResult: ...
+    async def application(self, actor: ReceptionActor, application_id: str) -> ApplicationView: ...
+    async def subjects(self, actor: ReceptionActor, query: dict) -> SubjectPage: ...
+    async def progress(self, actor: ReceptionActor, query: dict) -> ProgressPage: ...
+    async def onboarding(
+        self, actor: ReceptionActor, request: OnboardingSubmission
+    ) -> SubmitReceipt: ...
+    async def onboarding_application(
+        self, actor: ReceptionActor, application_id: str, onboarding_id: str
+    ) -> OnboardingApplicationView: ...
+    async def intent(self, actor: ReceptionActor, request: IntentRequest) -> IntentReceipt: ...
 
 
 class ReceptionBusinessClient:

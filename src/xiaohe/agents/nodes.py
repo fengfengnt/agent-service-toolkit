@@ -1,0 +1,740 @@
+from typing import get_args
+from uuid import UUID, uuid5
+
+from sqlalchemy import select
+
+from xiaohe.agents.contracts import (
+    AgentFrame,
+    AnswerDraft,
+    ConfirmationEvidence,
+    ModelContext,
+    SemanticDecision,
+    VisibleTurn,
+)
+from xiaohe.agents.semantic import compose_answer, understand_turn
+from xiaohe.contracts import Actor, AgentOutcome, ServiceError, TrustedSystem
+from xiaohe.models import Command, Conversation, Message, System, User
+from xiaohe.reception.contracts import CreateDraft
+from xiaohe.reception.fields import FIELD_LABELS, missing_required
+from xiaohe.reception.models import ReceptionDraft, ReceptionSubmission
+from xiaohe.reception.skills import load_skill_materials
+from xiaohe.reception.store import create_draft, locked_flow, patch_locked_draft
+from xiaohe.reception.submission import actor_from_user, confirm_locked_draft, submit_confirmed
+from xiaohe.runs import require_write
+from xiaohe.workflows.compiler import ORGANIZATION_OPERATIONS
+from xiaohe.workflows.loader import workflow_for
+from xiaohe.workflows.models import OperationName
+
+ROLE_DIRECTIONS = {
+    "xiaohe-reception": "unknown",
+    "xiaohe-buyer": "buyer",
+    "xiaohe-organization": "organization",
+    "xiaohe-supplier": "supplier",
+}
+BUTTON_EVENTS = {
+    "save_round": "save_round",
+    "skip_optional": "skip_optional",
+    "show_summary": "show_summary",
+    "confirm": "confirm_current_summary",
+    "resume": "resume_draft",
+}
+OPERATION_EVENTS = {
+    "collect_details": {"provide_details", "consultation_with_details"},
+    "save_round": {"save_round"},
+    "show_summary": {"show_summary", "skip_optional"},
+    "confirm_submission": {"confirm_current_summary"},
+    "request_auth": {"accept_invitation"},
+    "new_draft": {"new_need"},
+    "resume_draft": {"resume_draft"},
+    "query_progress": {"query_progress"},
+    "record_organization_intent": {"record_intent"},
+    "start_onboarding": {"start_onboarding"},
+}
+
+
+async def _command(db, fence):
+    run = await require_write(db, fence)
+    command = await db.scalar(
+        select(Command).where(Command.run_id == run.id, Command.completed_at.is_(None))
+    )
+    if command is None:
+        raise ServiceError("ACTION_STALE", 409)
+    return run, command
+
+
+async def build_agent_frame(factory, fence, agent_id, bundle):
+    definition = workflow_for(bundle, agent_id)
+    async with factory.begin() as db:
+        run, command = await _command(db, fence)
+        if run.runtime_version != "dsl-v1" or run.workflow_bundle_id != bundle.bundle_id:
+            raise ServiceError("ACTION_STALE", 409)
+        system = await db.get(System, run.system_id)
+        actor = Actor(
+            system=TrustedSystem(
+                system_id=system.system_id,
+                tenant_id=system.tenant_id,
+                portal_client_id=system.portal_client_id,
+                allowed_origin=system.allowed_origin,
+            ),
+            session_id=run.session_id,
+            user_id=run.user_id,
+            guest_id=run.guest_id,
+        )
+        conversation = await db.get(Conversation, run.conversation_id)
+        flow = await locked_flow(db, conversation)
+        row = await db.get(ReceptionDraft, flow.active_draft_id) if flow.active_draft_id else None
+        if row is not None and row.direction != ROLE_DIRECTIONS[agent_id]:
+            row = None
+        message = await db.get(Message, command.message_id)
+        recent = (
+            await db.scalars(
+                select(Message)
+                .where(
+                    Message.conversation_id == run.conversation_id,
+                    Message.created_at <= message.created_at,
+                )
+                .order_by(Message.created_at.desc(), Message.id.desc())
+                .limit(20)
+            )
+        ).all()
+        from xiaohe.graph import _safe_model_text, visible_text
+
+        allowed = [key for group in definition.rounds for key in group.fields]
+        return AgentFrame(
+            fence=fence,
+            command_id=command.id,
+            message_id=message.id,
+            conversation_id=run.conversation_id,
+            actor=actor,
+            agent_id=agent_id,
+            bundle_id=bundle.bundle_id,
+            draft_id=row.id if row else None,
+            draft_revision=row.revision if row else None,
+            summary_version=row.summary_version if row else None,
+            pending_request_id=flow.pending_request_id,
+            invitation_state=flow.invitation_state,
+            model_context=ModelContext(
+                text=_safe_model_text(visible_text(message.parts)),
+                direction=conversation.direction,
+                recent_turns=[
+                    VisibleTurn(role=item.role, text=_safe_model_text(visible_text(item.parts)))
+                    for item in reversed(recent)
+                    if item.role in ("user", "assistant")
+                ],
+                draft_step=row.step if row else None,
+                allowed_fields=allowed,
+                saved_fields=row.fields if row else {},
+                summary_visible=bool(
+                    row and row.state == "review" and row.summary_version == row.revision
+                ),
+                eligible_topics=definition.skills,
+            ),
+        )
+
+
+async def _checked(db, frame):
+    run, command = await _command(db, frame.fence)
+    if (
+        command.id,
+        command.message_id,
+        run.conversation_id,
+        run.session_id,
+        run.user_id,
+        run.guest_id,
+        run.system_id,
+        run.tenant_id,
+        run.workflow_bundle_id,
+    ) != (
+        frame.command_id,
+        frame.message_id,
+        frame.conversation_id,
+        frame.actor.session_id,
+        frame.actor.user_id,
+        frame.actor.guest_id,
+        frame.actor.system.system_id,
+        frame.actor.system.tenant_id,
+        frame.bundle_id,
+    ):
+        raise ServiceError("FORBIDDEN", 403)
+    conversation = await db.get(Conversation, run.conversation_id)
+    if ROLE_DIRECTIONS[frame.agent_id] != conversation.direction:
+        raise ServiceError("ACTION_STALE", 409)
+    return run, command, conversation, await locked_flow(db, conversation)
+
+
+def _stage(command, agent_id):
+    return command.payload.get("agentStages", {}).get(agent_id, {})
+
+
+def _save_stage(command, agent_id, **values):
+    stages = command.payload.get("agentStages", {})
+    command.payload = command.payload | {
+        "agentStages": stages | {agent_id: stages.get(agent_id, {}) | values}
+    }
+
+
+def _safe_decision(decision):
+    return not (
+        decision.negated
+        or decision.deferred
+        or decision.conditional
+        or decision.needs_clarification
+    )
+
+
+def validate_confirmation_evidence(evidence, row, command, run, message_id, user_id):
+    if not isinstance(evidence, ConfirmationEvidence) or (
+        evidence.command_id,
+        evidence.run_id,
+        evidence.message_id,
+        evidence.user_id,
+        evidence.draft_id,
+        evidence.revision,
+        evidence.summary_version,
+        evidence.bundle_id,
+    ) != (
+        command.id,
+        run.id,
+        message_id,
+        user_id,
+        row.id,
+        row.revision,
+        row.summary_version,
+        run.workflow_bundle_id,
+    ):
+        raise ServiceError("DRAFT_CONFLICT", 409)
+    stage = _stage(command, evidence.agent_id)
+    try:
+        frame = AgentFrame.model_validate(stage["frame"])
+        decision = SemanticDecision.model_validate(stage["decision"])
+    except (KeyError, ValueError):
+        raise ServiceError("INPUT_INVALID", 422) from None
+    if (
+        frame.draft_id,
+        frame.draft_revision,
+        frame.summary_version,
+        frame.message_id,
+        frame.actor.user_id,
+        frame.command_id,
+        frame.fence.run_id,
+        frame.bundle_id,
+    ) != (
+        row.id,
+        row.revision,
+        row.summary_version,
+        message_id,
+        user_id,
+        command.id,
+        run.id,
+        run.workflow_bundle_id,
+    ) or not frame.model_context.summary_visible:
+        raise ServiceError("DRAFT_CONFLICT", 409)
+    if (
+        decision.action != "confirm_current_summary"
+        or not _safe_decision(decision)
+        or decision.candidates
+    ):
+        raise ServiceError("INPUT_INVALID", 422)
+    if evidence.source == "button":
+        action = command.payload.get("reception", {})
+        if (
+            action.get("action"),
+            action.get("draftId"),
+            action.get("expectedRevision"),
+            action.get("summaryVersion"),
+        ) != ("confirm", str(row.id), row.revision, row.summary_version):
+            raise ServiceError("ACTION_STALE", 409)
+
+
+def make_node_executors(factory, *, model, business_client, bundle):
+    async def understand(node, state, config):
+        frame = AgentFrame.model_validate(state["frame"])
+        async with factory.begin() as db:
+            _, command, _, _ = await _checked(db, frame)
+            cached = _stage(command, frame.agent_id)
+            if cached.get("decision"):
+                return {"decision": cached["decision"]}
+            action = command.payload.get("reception", {})
+            control = command.payload.get("receptionControl")
+        if action:
+            if action.get("action") not in BUTTON_EVENTS or (
+                action.get("action") != "resume"
+                and (action.get("draftId"), action.get("expectedRevision"))
+                != (str(frame.draft_id), frame.draft_revision)
+            ):
+                raise ServiceError("ACTION_STALE", 409)
+            decision = SemanticDecision(action=BUTTON_EVENTS[action["action"]])
+        elif control:
+            if control not in ("accept_invitation", "start_collection"):
+                raise ServiceError("ACTION_STALE", 409)
+            decision = SemanticDecision(action="accept_invitation")
+        else:
+            decision = await understand_turn(
+                model, frame, workflow_for(bundle, frame.agent_id), bundle
+            )
+        async with factory.begin() as db:
+            _, command, _, _ = await _checked(db, frame)
+            _save_stage(
+                command,
+                frame.agent_id,
+                frame=frame.model_dump(mode="json"),
+                decision=decision.model_dump(mode="json"),
+            )
+        return {"decision": decision.model_dump()}
+
+    async def decide(node, state, config):
+        decision = SemanticDecision.model_validate(state["decision"])
+        event = decision.action
+        if decision.needs_clarification or (
+            not _safe_decision(decision) and event != "defer_invitation"
+        ):
+            event = "unclear"
+        if event == "confirm_current_summary" and decision.candidates:
+            event = "consultation_with_details" if decision.topics else "provide_details"
+        if event == "switch_direction" and (
+            not decision.explicit_switch or decision.target_direction in (None, "unknown")
+        ):
+            event = "unclear"
+        return {"event": event}
+
+    async def answer(node, state, config):
+        frame = AgentFrame.model_validate(state["frame"])
+        decision = SemanticDecision.model_validate(state["decision"])
+        async with factory.begin() as db:
+            _, command, _, _ = await _checked(db, frame)
+            if cached := _stage(command, frame.agent_id).get("answer"):
+                return {"answer": cached}
+        materials = load_skill_materials(bundle, frame.agent_id, decision.topics)
+        definition = workflow_for(bundle, frame.agent_id)
+        result = await compose_answer(
+            model,
+            frame,
+            decision,
+            materials,
+            bundle.resources["prompts/" + definition.prompts[node.prompt]],
+        )
+        async with factory.begin() as db:
+            _, command, _, _ = await _checked(db, frame)
+            _save_stage(command, frame.agent_id, answer=result.model_dump(mode="json"))
+        return {"answer": result.model_dump()}
+
+    async def operation(node, state, config):
+        frame = AgentFrame.model_validate(state["frame"])
+        decision = SemanticDecision.model_validate(state["decision"])
+        if (
+            node.operation not in get_args(OperationName)
+            or frame.agent_id == "xiaohe-reception"
+            or (
+                node.operation in ORGANIZATION_OPERATIONS
+                and frame.agent_id != "xiaohe-organization"
+            )
+        ):
+            raise ServiceError("FORBIDDEN", 403)
+        if not _safe_decision(decision) or (
+            node.operation == "confirm_submission"
+            and (decision.action != "confirm_current_summary" or decision.candidates)
+        ):
+            raise ServiceError("INPUT_INVALID", 422)
+        editing_confirmation = node.operation == "collect_details" and (
+            decision.action == "confirm_current_summary" and decision.candidates
+        )
+        if decision.action not in OPERATION_EVENTS[node.operation] and not editing_confirmation:
+            raise ServiceError("INPUT_INVALID", 422)
+        submission_id = None
+        async with factory.begin() as db:
+            run, command, conversation, flow = await _checked(db, frame)
+            stage = _stage(command, frame.agent_id)
+            if stage.get("decision") != decision.model_dump(mode="json"):
+                raise ServiceError("INPUT_INVALID", 422)
+            if cached := stage.get("operation_result"):
+                return {"operation_result": cached}
+            row = (
+                await db.get(ReceptionDraft, flow.active_draft_id) if flow.active_draft_id else None
+            )
+            if (row.id if row else None, row.revision if row else None) != (
+                frame.draft_id,
+                frame.draft_revision,
+            ):
+                raise ServiceError("DRAFT_CONFLICT", 409)
+            text = ""
+            if node.operation == "request_auth":
+                flow.invitation_state = "accepted"
+                if run.user_id is None:
+                    return {
+                        "operation_result": {
+                            "text": "请通过认证卡片注册或登录。",
+                            "auth": True,
+                            "wait": False,
+                        }
+                    }
+                if row is None:
+                    view = await create_draft(
+                        db,
+                        frame.actor,
+                        frame.conversation_id,
+                        CreateDraft(
+                            client_draft_id="invitation:" + str(command.id),
+                            kind="service",
+                            direction=conversation.direction,
+                        ),
+                    )
+                    row = await db.get(ReceptionDraft, UUID(view.id))
+                    row.definition_bundle_id = frame.bundle_id
+                text = "已准备需求草稿，请填写当前资料；最后核对汇总后再确认提交。"
+            elif node.operation == "new_draft":
+                if run.user_id is None:
+                    raise ServiceError("AUTH_REQUIRED", 401)
+                view = await create_draft(
+                    db,
+                    frame.actor,
+                    frame.conversation_id,
+                    CreateDraft(
+                        client_draft_id="new:" + str(command.id),
+                        kind="service",
+                        direction=conversation.direction,
+                    ),
+                )
+                row = await db.get(ReceptionDraft, UUID(view.id))
+                row.definition_bundle_id = frame.bundle_id
+                flow.invitation_state = "accepted"
+                text = "已创建新的需求草稿。"
+            elif node.operation == "resume_draft":
+                action = command.payload.get("reception", {})
+                rows = (
+                    await db.scalars(
+                        select(ReceptionDraft).where(
+                            ReceptionDraft.conversation_id == conversation.id,
+                            ReceptionDraft.direction == conversation.direction,
+                            ReceptionDraft.state.in_(["collecting", "review", "submitting"]),
+                        )
+                    )
+                ).all()
+                matches = [
+                    item
+                    for item in rows
+                    if (
+                        action.get("draftId") == str(item.id)
+                        and action.get("expectedRevision") == item.revision
+                    )
+                    or (
+                        decision.draft_name is not None
+                        and decision.draft_name
+                        in (item.fields.get("companyName"), item.fields.get("organizationName"))
+                    )
+                ]
+                if len(matches) != 1:
+                    text = "请在草稿列表选择要继续的一份。"
+                else:
+                    flow.active_draft_id = matches[0].id
+                    text = "已恢复所选草稿。"
+            elif node.operation in (
+                "collect_details",
+                "save_round",
+                "show_summary",
+                "confirm_submission",
+            ):
+                if row is None:
+                    text = "请先接受登记邀请并登录，再填写或确认资料。"
+                elif row.state == "accepted":
+                    text = "该需求已有受理回执；新需求请新建草稿。"
+                elif node.operation == "confirm_submission":
+                    evidence = ConfirmationEvidence.from_frame(
+                        frame, source="button" if command.payload.get("reception") else "semantic"
+                    )
+                    submission = await confirm_locked_draft(
+                        db,
+                        row,
+                        frame.draft_revision,
+                        frame.summary_version,
+                        frame.message_id,
+                        run.user_id,
+                        evidence=evidence,
+                    )
+                    submission_id = submission.id
+                else:
+                    if row.state == "submitting":
+                        raise ServiceError("DRAFT_CONFLICT", 409)
+                    if decision.candidates:
+                        if decision.action == "consultation_with_details" and not stage.get(
+                            "answer"
+                        ):
+                            raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
+                        await patch_locked_draft(
+                            db,
+                            row,
+                            frame.draft_revision,
+                            {key: item.value for key, item in decision.candidates.items()},
+                        )
+                    steps = [group.id for group in workflow_for(bundle, frame.agent_id).rounds]
+                    if node.operation == "save_round":
+                        target = steps[min(steps.index(row.step) + 1, len(steps) - 1)]
+                    elif node.operation == "show_summary":
+                        target = "summary"
+                    else:
+                        target = row.step
+                    if row.step != target:
+                        row.step, row.revision = target, row.revision + 1
+                        row.summary_version = None
+                    if row.step == "summary":
+                        row.state, row.summary_version = "review", row.revision
+                        missing = missing_required(row.direction, row.fields)
+                        text = (
+                            "还缺少最低资料："
+                            + "、".join(FIELD_LABELS[key] for key in missing)
+                            + "。"
+                            if missing
+                            else ""
+                        ) + "请核对当前汇总，确认无误后再提交。"
+                    else:
+                        fields = next(
+                            (
+                                group.fields
+                                for group in workflow_for(bundle, frame.agent_id).rounds
+                                if group.id == row.step
+                            ),
+                            [],
+                        )
+                        text = (
+                            "请补充本轮资料："
+                            + "、".join(FIELD_LABELS[key] for key in fields)
+                            + "；也可先继续咨询。"
+                        )
+            elif node.operation in (
+                "record_organization_intent",
+                "start_onboarding",
+                "query_progress",
+            ):
+                # Network operations run after releasing the DB transaction and recheck the fence on return.
+                return await _external_prepared(
+                    db, node.operation, frame, decision, row, command, run
+                )
+            result = {"text": text, "wait": submission_id is None}
+            if submission_id is not None:
+                _save_stage(command, frame.agent_id, submission_id=str(submission_id))
+            else:
+                _save_stage(command, frame.agent_id, operation_result=result)
+        if submission_id is not None:
+            receipt = await submit_confirmed(factory, frame.fence, submission_id, business_client)
+            result = {
+                "text": "入驻申请已记录，待后台审核。"
+                if receipt.kind == "onboarding"
+                else "需求已记录，请在进展中查看真实跟进状态。",
+                "wait": False,
+            }
+            async with factory.begin() as db:
+                _, command, _, _ = await _checked(db, frame)
+                _save_stage(command, frame.agent_id, operation_result=result)
+        return {"operation_result": result}
+
+    async def _external_prepared(db, operation_name, frame, decision, row, command, run):
+        if run.user_id is None:
+            raise ServiceError("AUTH_REQUIRED", 401)
+        formal = (
+            await db.scalar(
+                select(ReceptionSubmission)
+                .where(
+                    ReceptionSubmission.draft_id == row.id, ReceptionSubmission.status == "accepted"
+                )
+                .order_by(ReceptionSubmission.draft_revision.desc())
+                .limit(1)
+            )
+            if row
+            else None
+        )
+        application_id = (
+            formal.receipt["applicationId"]
+            if formal
+            else row.source_application_id
+            if row
+            else None
+        )
+        prepared = {"external": operation_name, "application_id": application_id}
+        if operation_name == "start_onboarding" and application_id:
+            pending = (
+                await db.scalars(
+                    select(ReceptionDraft).where(
+                        ReceptionDraft.conversation_id == frame.conversation_id,
+                        ReceptionDraft.kind == "onboarding",
+                        ReceptionDraft.source_application_id == application_id,
+                        ReceptionDraft.state.in_(["collecting", "review"]),
+                    )
+                )
+            ).all()
+            if row and row.kind == "onboarding" and row.state in ("collecting", "review"):
+                prepared["resume_id"] = str(row.id)
+            elif len(pending) == 1:
+                prepared["resume_id"] = str(pending[0].id)
+            elif len(pending) > 1:
+                prepared["choose"] = True
+            if decision.onboarding_mode == "supplement":
+                latest = await db.scalar(
+                    select(ReceptionSubmission)
+                    .where(
+                        ReceptionSubmission.conversation_id == frame.conversation_id,
+                        ReceptionSubmission.status == "accepted",
+                        ReceptionSubmission.receipt["applicationId"].astext == application_id,
+                        ReceptionSubmission.receipt["kind"].astext == "onboarding",
+                    )
+                    .order_by(ReceptionSubmission.draft_revision.desc())
+                    .limit(1)
+                )
+                prepared["onboarding_id"] = latest.receipt.get("onboardingId") if latest else None
+                if not prepared["onboarding_id"]:
+                    prepared["missing_onboarding"] = True
+        _save_stage(command, frame.agent_id, operation_result=prepared)
+        return {"operation_result": prepared}
+
+    async def handoff(node, state, config):
+        decision = SemanticDecision.model_validate(state["decision"])
+        target = "xiaohe-" + str(decision.target_direction)
+        if target not in node.targets or not _safe_decision(decision):
+            return {"handoff": None, "operation_result": {"text": "请明确需要哪个服务方向。"}}
+        return {"handoff": target}
+
+    async def result(node, state, config):
+        frame = AgentFrame.model_validate(state["frame"])
+        answer_value = AnswerDraft.model_validate(state["answer"]) if state.get("answer") else None
+        operation_value = state.get("operation_result", {})
+        if operation_value.get("external"):
+            operation_value = await _external_operation(
+                factory,
+                frame,
+                SemanticDecision.model_validate(state["decision"]),
+                operation_value,
+                business_client,
+            )
+        text = (
+            (
+                ("一般建议：" if answer_value and answer_value.basis == "general_advice" else "")
+                + answer_value.text
+            )
+            if answer_value
+            else ""
+        )
+        if operation_value.get("text"):
+            text += ("\n\n" if text else "") + operation_value["text"]
+        if not text:
+            text = "请说明您想咨询、补充资料还是切换服务方向；含条件或不明确的表达不会直接提交。"
+        wait = operation_value.get("wait", node.wait_for_input)
+        async with factory.begin() as db:
+            _, command, _, flow = await _checked(db, frame)
+            if cached := _stage(command, frame.agent_id).get("outcome"):
+                return {"outcome": cached}
+            decision = SemanticDecision.model_validate(state["decision"])
+            if decision.action == "defer_invitation":
+                flow.invitation_state = "deferred"
+                text = "好的，先继续咨询；需要登记时再告诉我。"
+            if (
+                frame.agent_id != "xiaohe-reception"
+                and flow.active_draft_id is None
+                and flow.invitation_state == "none"
+                and answer_value
+            ):
+                flow.invitation_state = "offered"
+                text += "\n\n是否愿意登录并登记需求，方便后续跟进？也可以继续咨询或暂缓。"
+            parts = [{"type": "text", "text": text}]
+            if operation_value.get("auth"):
+                parts.append({"type": "auth_request", "intent": "lead"})
+            if wait:
+                flow.pending_request_id = uuid5(command.id, "agent.input")
+                parts.append(
+                    {
+                        "type": "input_request",
+                        "requestId": str(flow.pending_request_id),
+                        "prompt": "您可以继续咨询或补充当前资料。",
+                    }
+                )
+            else:
+                flow.pending_request_id = None
+            outcome = AgentOutcome(parts=parts, wait_for_input=wait, artifact_version_ids=[])
+            _save_stage(
+                command, frame.agent_id, outcome=outcome.model_dump(mode="json", by_alias=True)
+            )
+        return {"outcome": outcome.model_dump(mode="json", by_alias=True)}
+
+    return {
+        "understand": understand,
+        "decide": decide,
+        "answer": answer,
+        "operation": operation,
+        "handoff": handoff,
+        "result": result,
+    }
+
+
+async def _external_operation(factory, frame, decision, prepared, client):
+    name, application_id = prepared["external"], prepared.get("application_id")
+    async with factory.begin() as db:
+        run, command, _, _ = await _checked(db, frame)
+        if cached := _stage(command, frame.agent_id).get("external_result"):
+            return cached
+        actor = actor_from_user(await db.get(User, run.user_id))
+    if name == "query_progress":
+        if client is None:
+            raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
+        page = await client.progress(actor, {"cursor": None})
+        value = {
+            "text": "已核实当前进展，请在进展列表查看记录。"
+            if page.groups
+            else "当前没有查到该方向的进展记录。"
+        }
+    elif not application_id:
+        value = {"text": "请先完成组织需求登记，受理后再办理意向或入驻。"}
+    elif name == "record_organization_intent":
+        from xiaohe.reception.organization import record_intent
+
+        if decision.organization_intent is None:
+            raise ServiceError("INPUT_INVALID", 422)
+        if client is None:
+            raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
+        await record_intent(
+            factory,
+            frame.fence,
+            application_id,
+            decision.organization_intent,
+            client,
+            semantic_command_id=frame.command_id,
+        )
+        value = {"text": "已记录合作意向，具体安排及素材提供待生态经理确认。"}
+    elif prepared.get("choose"):
+        async with factory.begin() as db:
+            _, _, _, flow = await _checked(db, frame)
+            flow.active_draft_id = None
+        value = {"text": "该组织有多份入驻草稿，请先在草稿列表选择要继续的一份。"}
+    elif prepared.get("resume_id"):
+        async with factory.begin() as db:
+            _, _, _, flow = await _checked(db, frame)
+            row = await db.get(ReceptionDraft, UUID(prepared["resume_id"]))
+            if row.conversation_id != frame.conversation_id or row.state not in (
+                "collecting",
+                "review",
+            ):
+                raise ServiceError("DRAFT_CONFLICT", 409)
+            flow.active_draft_id = row.id
+        value = {"text": "已恢复保存的入驻草稿，请核对当前资料。"}
+    elif prepared.get("missing_onboarding"):
+        value = {"text": "请在进展中选择已有入驻申请，再继续补充资料。"}
+    else:
+        from xiaohe.reception.organization import start_onboarding
+
+        if client is None:
+            raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
+        view = await start_onboarding(
+            factory,
+            frame.actor,
+            frame.conversation_id,
+            application_id,
+            client=client,
+            client_draft_id=str(uuid5(frame.command_id, "organization.onboarding")),
+            fence=frame.fence,
+            onboarding_id=prepared.get("onboarding_id"),
+        )
+        async with factory.begin() as db:
+            await _checked(db, frame)
+            row = await db.get(ReceptionDraft, UUID(view.id))
+            row.definition_bundle_id = frame.bundle_id
+        value = {"text": "已准备独立入驻草稿，请核对补充后确认当前汇总。"}
+    async with factory.begin() as db:
+        _, command, _, _ = await _checked(db, frame)
+        _save_stage(command, frame.agent_id, external_result=value)
+    return value

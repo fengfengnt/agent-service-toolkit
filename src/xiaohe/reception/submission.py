@@ -35,11 +35,27 @@ async def confirm_draft(
     )
 
 
-async def confirm_locked_draft(db, row, expected_revision, summary_version, message_id, user_id):
+async def confirm_locked_draft(
+    db, row, expected_revision, summary_version, message_id, user_id, *, evidence=None
+):
     from xiaohe.reception.flow import _explicit_confirmation
 
     if user_id is None:
         raise ServiceError("AUTH_REQUIRED", 401)
+    command = await db.scalar(
+        select(Command).where(
+            Command.message_id == message_id,
+            Command.conversation_id == row.conversation_id,
+            Command.completed_at.is_(None),
+        )
+    )
+    run = await db.get(Run, command.run_id) if command else None
+    if run is not None and run.runtime_version == "dsl-v1":
+        from xiaohe.agents.nodes import validate_confirmation_evidence
+
+        validate_confirmation_evidence(evidence, row, command, run, message_id, user_id)
+    elif evidence is not None:
+        raise ServiceError("INPUT_INVALID", 422)
     existing = await db.scalar(
         select(ReceptionSubmission).where(
             ReceptionSubmission.draft_id == row.id,
@@ -82,7 +98,7 @@ async def confirm_locked_draft(db, row, expected_revision, summary_version, mess
         and action.get("expectedRevision") == row.revision
         and action.get("summaryVersion") == summary_version
     )
-    if not (explicit_action or _explicit_confirmation(text)):
+    if run.runtime_version != "dsl-v1" and not (explicit_action or _explicit_confirmation(text)):
         raise ServiceError("INPUT_INVALID", 422)
     if missing_required(row.direction, row.fields):
         raise ServiceError("INPUT_INVALID", 422)
