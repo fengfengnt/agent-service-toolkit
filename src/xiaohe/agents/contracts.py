@@ -31,9 +31,12 @@ class ModelContext(StrictAgentModel):
     draft_state: Literal["collecting", "review", "submitting", "accepted"] | None = None
     handoff_summary: str | None = Field(default=None, max_length=1000)
     allowed_fields: list[str] = Field(default_factory=list)
+    field_options: dict[str, list[str]] = Field(default_factory=dict)
     saved_fields: dict[str, FieldValue] = Field(default_factory=dict)
     summary_visible: bool = False
+    invitation_state: Literal["none", "offered", "deferred", "accepted"] = "none"
     eligible_topics: list[str] = Field(default_factory=list)
+    allowed_actions: list[RouteEvent] = Field(default_factory=list)
 
 
 class AgentFrame(InternalModel):

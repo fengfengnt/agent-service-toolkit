@@ -252,6 +252,13 @@ async def test_late_model_result_cannot_write_pending_details(pg_factory, job_ap
     from xiaohe.workflows.models import UnderstandNode
 
     bundle, frame = await prepare(pg_factory, tmp_path, text="我司在苏州")
+    frame = frame.model_copy(
+        update={
+            "model_context": frame.model_context.model_copy(
+                update={"allowed_actions": ["provide_details"]}
+            )
+        }
+    )
 
     class CancelDuringCall(AgentSequenceModel):
         def with_structured_output(self, schema, **kwargs):

@@ -15,7 +15,7 @@ from xiaohe.agents.semantic import compose_answer, understand_turn
 from xiaohe.contracts import Actor, AgentOutcome, ServiceError, TrustedSystem
 from xiaohe.models import Command, Conversation, Message, System, User
 from xiaohe.reception.contracts import CreateDraft
-from xiaohe.reception.fields import FIELD_LABELS, missing_required
+from xiaohe.reception.fields import CHANNELS, FIELD_LABELS, ORG_ENUMS, missing_required
 from xiaohe.reception.models import ReceptionDraft, ReceptionSubmission
 from xiaohe.reception.skills import load_skill_materials
 from xiaohe.reception.store import create_draft, locked_flow, patch_locked_draft
@@ -24,7 +24,7 @@ from xiaohe.runs import require_write
 from xiaohe.workflows.compiler import ORGANIZATION_OPERATIONS
 from xiaohe.workflows.definitions import draft_definition
 from xiaohe.workflows.loader import workflow_for
-from xiaohe.workflows.models import OperationName
+from xiaohe.workflows.models import DecideNode, OperationName
 
 ROLE_DIRECTIONS = {
     "xiaohe-reception": "unknown",
@@ -113,7 +113,7 @@ async def build_agent_frame(factory, fence, agent_id, bundle):
         from xiaohe.graph import _safe_model_text, visible_text
 
         draft_rules = await draft_definition(db, row) if row else definition
-        allowed = [key for group in draft_rules.rounds for key in group.fields]
+        allowed = [key for group in draft_rules.rounds for key in group.fields] if row else []
         return AgentFrame(
             fence=fence,
             command_id=command.id,
@@ -145,11 +145,31 @@ async def build_agent_frame(factory, fence, agent_id, bundle):
                 if binding.get("handoffs")
                 else None,
                 allowed_fields=allowed,
+                field_options={
+                    key: list(values)
+                    for key, values in (ORG_ENUMS | {"onlineChannels": CHANNELS}).items()
+                    if key in allowed
+                }
+                if agent_id == "xiaohe-organization"
+                else {},
                 saved_fields=row.fields if row else {},
                 summary_visible=bool(
                     row and row.state == "review" and row.summary_version == row.revision
                 ),
                 eligible_topics=definition.skills,
+                invitation_state=flow.invitation_state,
+                allowed_actions=list(
+                    dict.fromkeys(
+                        ["unclear"]
+                        + [
+                            event
+                            for node in definition.nodes
+                            if isinstance(node, DecideNode)
+                            for event, target in node.routes.items()
+                            if target != node.fallback
+                        ]
+                    )
+                ),
             ),
         )
 
@@ -340,9 +360,13 @@ def make_node_executors(factory, *, model, business_client, bundle):
         frame = AgentFrame.model_validate(state["frame"])
         decision = SemanticDecision.model_validate(state["decision"])
         event = decision.action
-        if decision.needs_clarification or (
-            not _safe_decision(decision) and event != "defer_invitation"
+        if (
+            decision.needs_clarification
+            or decision.conditional
+            or (not _safe_decision(decision) and event != "defer_invitation")
         ):
+            event = "unclear"
+        if event == "defer_invitation" and frame.invitation_state not in ("offered", "deferred"):
             event = "unclear"
         if event == "confirm_current_summary" and decision.candidates:
             event = "consultation_with_details" if decision.topics else "provide_details"
@@ -352,6 +376,16 @@ def make_node_executors(factory, *, model, business_client, bundle):
             not decision.explicit_switch or decision.target_direction in (None, "unknown")
         ):
             event = "unclear"
+        if (
+            event == "switch_direction"
+            and decision.target_direction == frame.model_context.direction
+        ):
+            event = "consultation"
+        async with factory.begin() as db:
+            _, command, _, _ = await _checked(db, frame)
+            if _stage(command, frame.agent_id).get("decision") != decision.model_dump(mode="json"):
+                raise ServiceError("INPUT_INVALID", 422)
+            _save_stage(command, frame.agent_id, effective_event=event)
         return {"event": event}
 
     async def answer(node, state, config):
@@ -699,8 +733,7 @@ def make_node_executors(factory, *, model, business_client, bundle):
             if cached := _stage(command, frame.agent_id).get("outcome"):
                 return {"outcome": cached}
             await _activate_pending(db, frame, command, conversation, flow)
-            decision = SemanticDecision.model_validate(state["decision"])
-            if decision.action == "defer_invitation":
+            if state.get("event") == "defer_invitation":
                 flow.invitation_state = "deferred"
                 text += "\n\n好的，先继续咨询；需要登记时再告诉我。"
             offered = (
@@ -708,6 +741,7 @@ def make_node_executors(factory, *, model, business_client, bundle):
                 and flow.active_draft_id is None
                 and flow.invitation_state == "none"
                 and answer_value
+                and state.get("event") in ("consultation", "consultation_with_details")
             )
             if offered:
                 flow.invitation_state = "offered"
@@ -754,8 +788,6 @@ async def _external_operation(factory, frame, decision, prepared, client):
             raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
         if prepared.get("submission_id"):
             try:
-                from uuid import UUID
-
                 await submit_confirmed(
                     factory, frame.fence, UUID(prepared["submission_id"]), client
                 )

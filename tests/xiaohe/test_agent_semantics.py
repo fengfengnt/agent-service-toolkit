@@ -103,6 +103,27 @@ async def test_question_and_field_update_are_both_retained(tmp_path):
     assert len(model.requests) == 1
     assert str(frame.fence.run_id) not in str(model.requests)
     assert str(frame.actor.session_id) not in str(model.requests)
+    assert model.requests[0][0].content == bundle.resources["prompts/intent.md"]
+
+
+@pytest.mark.asyncio
+async def test_unsupported_workflow_action_is_rejected_before_business_execution(tmp_path):
+    _, bundle, frame = prepared(tmp_path)
+    frame = frame.model_copy(
+        update={
+            "model_context": frame.model_context.model_copy(
+                update={"allowed_actions": ["consultation"]}
+            )
+        }
+    )
+    model = ScriptedModel(
+        result={},
+        responses={
+            "SemanticDecision": semantic_result(action="confirm_current_summary", candidates={})
+        },
+    )
+    with pytest.raises(ServiceError, match="UPSTREAM_UNAVAILABLE"):
+        await understand_turn(model, frame, workflow_for(bundle, frame.agent_id), bundle)
 
 
 @pytest.mark.asyncio
@@ -163,6 +184,7 @@ async def test_role_answer_uses_question_and_frozen_materials(tmp_path):
     assert len(model.requests) == 1
     assert "怎么计费" in str(model.requests) and "固定金额" in str(model.requests)
     assert str(frame.command_id) not in str(model.requests)
+    assert model.requests[0][0].content == bundle.resources["prompts/answer.md"]
 
 
 @pytest.mark.asyncio

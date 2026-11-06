@@ -15,6 +15,22 @@ from xiaohe.workflows.definitions import RESOURCE_ROOT
 pytestmark = [pytest.mark.pg, pytest.mark.asyncio]
 
 
+async def test_ambiguous_expression_gets_contextual_clarification_without_invitation(
+    pg_factory, runtime_env, monkeypatch
+):
+    from xiaohe.models import Conversation
+
+    model, _ = await install_agents(
+        pg_factory, runtime_env, monkeypatch, [{"action": "unclear", "needs_clarification": True}]
+    )
+    who, conversation = await visitor(pg_factory)
+    async with pg_factory.begin() as db:
+        (await db.get(Conversation, conversation)).direction = "buyer"
+    _, view = await talk(pg_factory, runtime_env, who, conversation, "这个具体怎么弄？")
+    assert len(model.requests) == 2
+    assert view.direction == "buyer" and view.invitation_state == "none" and not view.draft_refs
+
+
 class AgentSequenceModel(DecisionModel):
     decisions: list = []
     agent_calls: list = []

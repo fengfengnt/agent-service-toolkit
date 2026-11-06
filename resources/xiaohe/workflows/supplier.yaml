@@ -71,7 +71,7 @@ nodes:
     start_onboarding: clarify
     query_progress: progress
     switch_direction: handoff
-    unclear: clarify
+    unclear: answer
     off_topic: answer
   fallback: clarify
 - id: answer
