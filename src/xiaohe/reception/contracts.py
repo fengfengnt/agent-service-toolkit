@@ -20,6 +20,11 @@ MediaType = Literal[
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 ]
+FORMAL_REQUIRED_FIELDS = {
+    "buyer": ("companyName",),
+    "supplier": ("companyName",),
+    "organization": ("organizationName", "memberSize", "coverage", "onlineChannels", "contactName"),
+}
 
 
 class CreateDraft(WireModel):
@@ -225,7 +230,7 @@ def _check_formal_fields(direction, public, request, files):
     except ServiceError:
         raise ValueError("invalid formal fields") from None
     # 后台正式 payload 的最低契约独立于可调整的采集流程，不能由 YAML 降低。
-    minimum = ("organizationName", "memberSize", "coverage", "onlineChannels", "contactName") if direction == "organization" else ("companyName",)
+    minimum = FORMAL_REQUIRED_FIELDS[direction]
     if any(not fields.get(key) for key in minimum) or any(file.status != "ready" for file in files):
         raise ValueError("incomplete formal submission")
 

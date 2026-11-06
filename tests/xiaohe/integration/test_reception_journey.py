@@ -96,7 +96,12 @@ async def test_actual_reception_application_progress_onboarding_and_private_file
         async def turn(message, *, entry_agent=None, replay=False):
             current = await wait(idle)
             pending = (await view())["pendingRequestId"]
-            entry = "/ai-api/v1/" + ("agents/" + entry_agent + "/" if entry_agent else "") + "conversations/" + conversation
+            entry = (
+                "/ai-api/v1/"
+                + ("agents/" + entry_agent + "/" if entry_agent else "")
+                + "conversations/"
+                + conversation
+            )
             if current["activeRun"]:
                 endpoint = entry + "/actions"
                 body = {"clientActionId": str(uuid4()), "requestId": pending, "text": message}
@@ -108,7 +113,10 @@ async def test_actual_reception_application_progress_onboarding_and_private_file
             await wait(idle)
             if replay:
                 duplicate = await client.post(endpoint, json=body)
-                assert duplicate.status_code == 202 and duplicate.json()["run"]["id"] == response.json()["run"]["id"]
+                assert (
+                    duplicate.status_code == 202
+                    and duplicate.json()["run"]["id"] == response.json()["run"]["id"]
+                )
             return await view()
 
         async def create(direction, fields, **source):
@@ -179,7 +187,9 @@ async def test_actual_reception_application_progress_onboarding_and_private_file
 
         welcomed = await turn("我们想优化采购寻源")
         assert welcomed["direction"] == "buyer" and welcomed["activeDraft"] is None
-        buyer_draft = await create("buyer", {"companyName": "联合甲公司"})
+        buyer_draft = await create(
+            "buyer", {"companyName": "联合甲公司", "budget": "历史预算100万元"}
+        )
         with engine.connect() as db:
             assert (
                 db.scalar(
@@ -487,6 +497,8 @@ async def test_process_kill_after_java_accept_recovers_original_submission():
         workflow = Path(config["resource_root"]) / "workflows/buyer.yaml"
         changed = yaml.safe_load(workflow.read_text("utf-8"))
         changed["workflow_version"] += "-restart-test"
+        for group in changed["rounds"]:
+            group["fields"] = [key for key in group["fields"] if key != "budget"]
         workflow.write_text(yaml.safe_dump(changed, allow_unicode=True), "utf-8")
         (directory / "restart-runtime").write_text("kill-owned-runtime", "utf-8")
 

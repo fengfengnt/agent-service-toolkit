@@ -95,6 +95,91 @@ def test_four_yaml_are_independent_executable_graphs():
                 assert set(node.routes) == set(get_args(RouteEvent))
 
 
+@pytest.mark.parametrize(
+    "invalid", ["empty", "no_summary", "summary_first", "no_collection", "no_minimum"]
+)
+def test_business_layout_is_rejected_before_startup(invalid):
+    from xiaohe.workflows.compiler import validate_graph
+    from xiaohe.workflows.loader import parse_workflow
+    from xiaohe.workflows.models import WorkflowValidationError
+
+    data = yaml.safe_load((RESOURCE_ROOT / "workflows/buyer.yaml").read_text("utf-8"))
+    if invalid == "empty":
+        data.update(rounds=[], required_fields=[])
+    elif invalid == "no_summary":
+        data["rounds"] = data["rounds"][:-1]
+    elif invalid == "summary_first":
+        data["rounds"] = data["rounds"][-1:] + data["rounds"][:-1]
+    elif invalid == "no_collection":
+        data.update(rounds=data["rounds"][-1:], required_fields=[])
+    else:
+        data["required_fields"] = []
+    with pytest.raises(WorkflowValidationError):
+        validate_graph(parse_workflow(yaml.safe_dump(data)))
+
+
+@pytest.mark.pg
+@pytest.mark.asyncio
+async def test_fresh_install_can_start_changed_workflow_without_legacy_snapshot(
+    pg_factory, tmp_path, monkeypatch
+):
+    from shutil import copytree
+
+    from sqlalchemy import func, select
+    from test_agent_handoff import AgentSequenceModel
+
+    from xiaohe.agents.runtime import load_agent_registry
+    from xiaohe.models import WorkflowDefinitionRecord
+    from xiaohe.workflows import definitions
+
+    root = tmp_path / "resources"
+    copytree(RESOURCE_ROOT, root)
+    path = root / "workflows/buyer.yaml"
+    data = yaml.safe_load(path.read_text("utf-8"))
+    data["rounds"][0], data["rounds"][1] = data["rounds"][1], data["rounds"][0]
+    path.write_text(yaml.safe_dump(data), "utf-8")
+    monkeypatch.setattr(definitions, "RESOURCE_ROOT", root)
+    registry = await load_agent_registry(pg_factory, root, AgentSequenceModel(result={}), None)
+    assert registry.bundle.definitions["xiaohe-buyer"].rounds[0].id == "round2"
+    async with pg_factory() as db:
+        assert await db.scalar(select(func.count()).select_from(WorkflowDefinitionRecord)) == 1
+
+
+@pytest.mark.pg
+@pytest.mark.asyncio
+async def test_legacy_draft_still_requires_original_snapshot(pg_factory, tmp_path, monkeypatch):
+    from shutil import copytree
+
+    from test_agent_handoff import AgentSequenceModel
+
+    from xiaohe.agents.runtime import load_agent_registry
+    from xiaohe.reception.models import ReceptionDraft
+    from xiaohe.workflows import definitions
+    from xiaohe.workflows.models import WorkflowValidationError
+
+    root = tmp_path / "resources"
+    copytree(RESOURCE_ROOT, root)
+    path = root / "workflows/buyer.yaml"
+    data = yaml.safe_load(path.read_text("utf-8"))
+    data["rounds"][0], data["rounds"][1] = data["rounds"][1], data["rounds"][0]
+    path.write_text(yaml.safe_dump(data), "utf-8")
+    monkeypatch.setattr(definitions, "RESOURCE_ROOT", root)
+    _, conversation = await visitor(pg_factory)
+    async with pg_factory.begin() as db:
+        db.add(
+            ReceptionDraft(
+                conversation_id=conversation,
+                system_id="portal",
+                tenant_id=1,
+                client_draft_id="legacy",
+                kind="service",
+                direction="buyer",
+            )
+        )
+    with pytest.raises(WorkflowValidationError, match="original draft definition unavailable"):
+        await load_agent_registry(pg_factory, root, AgentSequenceModel(result={}), None)
+
+
 def test_yaml_preserves_existing_rounds_and_minimums():
     bundle = load_bundle(RESOURCE_ROOT)
     expected = {

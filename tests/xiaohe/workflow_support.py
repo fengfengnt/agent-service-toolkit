@@ -25,7 +25,10 @@ def workflow_data(agent_id: str = "xiaohe-buyer") -> dict:
             "required_fields": [] if agent_id == "xiaohe-reception" else [name_field],
             "rounds": []
             if agent_id == "xiaohe-reception"
-            else [{"id": "round1", "name": "企业信息", "fields": [name_field, "city"]}],
+            else [
+                {"id": "round1", "name": "企业信息", "fields": [name_field, "city"]},
+                {"id": "summary", "name": "汇总", "fields": []},
+            ],
             "nodes": [
                 {
                     "id": "understand",

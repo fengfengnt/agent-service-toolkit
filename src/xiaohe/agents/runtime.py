@@ -42,7 +42,11 @@ async def load_agent_registry(factory, resource_root, model, business_client):
     bundle = load_bundle(resource_root)
     registry = AgentRegistry(bundle, factory, model, business_client)
     async with factory.begin() as db:
-        await baseline_bundle(db)
+        legacy_draft = await db.scalar(
+            select(ReceptionDraft.id).where(ReceptionDraft.definition_bundle_id.is_(None)).limit(1)
+        )
+        if legacy_draft is not None:
+            await baseline_bundle(db)
         await persist_bundle(db, bundle)
         # 验证仍活动的旧定义，失败时保留任务并阻止启动，不换用最新流程。
         ids = (

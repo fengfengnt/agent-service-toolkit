@@ -6,6 +6,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from pydantic import ValidationError
 
+from xiaohe.reception.contracts import FORMAL_REQUIRED_FIELDS
 from xiaohe.workflows.models import (
     AnswerNode,
     DecideNode,
@@ -50,6 +51,20 @@ def validate_graph(definition: WorkflowDefinition) -> None:
         raise WorkflowValidationError("duplicate node or missing entry")
     if not isinstance(nodes[definition.entry], (UnderstandNode, DecideNode)):
         raise WorkflowValidationError("entry must understand or validate an action")
+    operations = {node.operation for node in nodes.values() if isinstance(node, OperationNode)}
+    if operations - READ_ONLY_OPERATIONS - {"record_organization_intent"}:
+        if (
+            not definition.rounds
+            or not definition.rounds[0].id.startswith("round")
+            or definition.rounds[-1].id != "summary"
+        ):
+            raise WorkflowValidationError(
+                "collection requires a first collection round and final summary"
+            )
+    if "confirm_submission" in operations:
+        minimum = FORMAL_REQUIRED_FIELDS.get(definition.agent_id.removeprefix("xiaohe-"), ())
+        if set(minimum) - set(definition.required_fields):
+            raise WorkflowValidationError("workflow cannot lower formal submission requirements")
     for node in nodes.values():
         if any(target not in nodes for target in _successors(node)):
             raise WorkflowValidationError("missing route target")
