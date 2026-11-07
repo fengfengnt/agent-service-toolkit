@@ -212,13 +212,16 @@ async def load_snapshot(db: AsyncSession, actor: Actor, conversation_id: UUID) -
 async def load_viewer(db: AsyncSession, actor: Actor) -> Viewer:
     session = await require_session(db, actor)
     if actor.user_id is None:
+        from xiaohe.guest_budget import load_guest_budget
+
+        budget = await load_guest_budget(db, session, lock=False)
         viewer = GuestViewer(
             kind="guest",
             guest_id=str(actor.guest_id),
             system_id=actor.system.system_id,
             tenant_id=actor.system.tenant_id,
-            message_count=session.message_count,
-            message_limit=session.message_limit,
+            message_count=budget.message_count,
+            message_limit=budget.message_limit,
             retention_seconds=session.retention_seconds,
             expires_at=session.expires_at,
         )

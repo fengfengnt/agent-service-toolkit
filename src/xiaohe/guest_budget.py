@@ -6,13 +6,20 @@ from uuid import UUID, uuid4
 
 from fastapi import Request, Response
 from pydantic import SecretStr
-from sqlalchemy import select
+from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from xiaohe.contracts import Actor, ServiceError, TrustedSystem
 from xiaohe.database import database_now
 from xiaohe.identity import _actor, _cookie, _new_session, set_session_cookie
-from xiaohe.models import Conversation, GuestBudget, GuestBudgetCredential, GuestClaim, Session
+from xiaohe.models import (
+    Conversation,
+    GuestBudget,
+    GuestBudgetCredential,
+    GuestBudgetReceipt,
+    GuestClaim,
+    Session,
+)
 
 BUDGET_COOKIE = "__Host-XIAOHEBUDGET"
 COOKIE_SECONDS = 31536000
@@ -64,6 +71,64 @@ async def adopt_legacy_guest(db: AsyncSession, session: Session) -> GuestBudget:
     return budget
 
 
+async def charge_guest_message(
+    db: AsyncSession, session: Session, *, kind: str, client_key: str, payload_digest: str
+) -> GuestBudget:
+    budget = await load_guest_budget(db, session, lock=True)
+    key_digest = hashlib.sha256(client_key.encode()).hexdigest()
+    receipt = await db.get(GuestBudgetReceipt, (budget.id, kind, key_digest))
+    if receipt is not None:
+        # Commands remain the response source; this minimal ledger must never recreate old input.
+        raise ServiceError("IDEMPOTENCY_CONFLICT", 409)
+    count = await db.scalar(
+        update(GuestBudget)
+        .where(
+            GuestBudget.id == budget.id,
+            GuestBudget.message_count < GuestBudget.message_limit,
+        )
+        .values(message_count=GuestBudget.message_count + 1)
+        .returning(GuestBudget.message_count)
+        .execution_options(synchronize_session=False)
+    )
+    if count is None:
+        raise ServiceError("VISITOR_LIMIT_REACHED", 429)
+    changed = await db.scalar(
+        update(Session)
+        .where(
+            Session.id == session.id,
+            Session.revoked_at.is_(None),
+            Session.expires_at > func.clock_timestamp(),
+        )
+        .values(
+            message_count=count,
+            expires_at=func.clock_timestamp()
+            + Session.retention_seconds * text("interval '1 second'"),
+        )
+        .returning(Session.id)
+        .execution_options(synchronize_session=False)
+    )
+    if changed is None:
+        from xiaohe.identity import _live
+
+        await db.refresh(session)
+        await _live(db, session)
+        raise ServiceError("AUTH_REQUIRED", 401)
+    db.add(
+        GuestBudgetReceipt(
+            budget_id=budget.id,
+            kind=kind,
+            client_key_digest=key_digest,
+            payload_digest=payload_digest,
+            session_id=session.id,
+            system_id=session.system_id,
+            tenant_id=session.tenant_id,
+        )
+    )
+    await db.flush()
+    await db.refresh(budget)
+    return budget
+
+
 def _episode_token(request: Request, session_id: UUID) -> SecretStr:
     # Concurrent reopeners must recover the same new cookie without storing its plaintext.
     secret = request.app.state.xiaohe_settings.auth_secret.get_secret_value().encode()
@@ -73,6 +138,43 @@ def _episode_token(request: Request, session_id: UUID) -> SecretStr:
 
 class _PointerChanged(Exception):
     pass
+
+
+async def ensure_budget_credential(db, request, response, budget):
+    token = _cookie(request, BUDGET_COOKIE)
+    if token is not None:
+        credential = await db.get(
+            GuestBudgetCredential,
+            hashlib.sha256(token.encode()).hexdigest(),
+            populate_existing=True,
+        )
+        if (
+            credential is None
+            or credential.revoked_at is not None
+            or (credential.budget_id, credential.system_id, credential.tenant_id)
+            != (budget.id, budget.system_id, budget.tenant_id)
+        ):
+            raise ServiceError("AUTH_REQUIRED", 401)
+    else:
+        token = secrets.token_urlsafe(32)
+        db.add(
+            GuestBudgetCredential(
+                token_digest=hashlib.sha256(token.encode()).hexdigest(),
+                budget_id=budget.id,
+                system_id=budget.system_id,
+                tenant_id=budget.tenant_id,
+            )
+        )
+        await db.flush()
+    response.set_cookie(
+        BUDGET_COOKIE,
+        token,
+        max_age=COOKIE_SECONDS,
+        secure=True,
+        httponly=True,
+        samesite="lax",
+        path="/",
+    )
 
 
 async def bootstrap_guest_episode(
@@ -220,25 +322,6 @@ async def _bootstrap(db, request, response, system, content_token, budget_token)
         current.message_count = budget.message_count
         budget.current_session_id = current.id
         await db.flush()
-    if budget_token is None:
-        budget_token = secrets.token_urlsafe(32)
-        db.add(
-            GuestBudgetCredential(
-                token_digest=hashlib.sha256(budget_token.encode()).hexdigest(),
-                budget_id=budget.id,
-                system_id=system.system_id,
-                tenant_id=system.tenant_id,
-            )
-        )
-        await db.flush()
     set_session_cookie(response, token, guest=True)
-    response.set_cookie(
-        BUDGET_COOKIE,
-        budget_token,
-        max_age=COOKIE_SECONDS,
-        secure=True,
-        httponly=True,
-        samesite="lax",
-        path="/",
-    )
+    await ensure_budget_credential(db, request, response, budget)
     return _actor(current, system)

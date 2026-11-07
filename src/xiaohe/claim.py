@@ -352,6 +352,12 @@ async def complete_auth_operation(factory, request, response, operation_id):
         operation, _, _ = await bound_operation(db, request, operation_id)
         operation.authenticated_session_created_at = anchor
         operation.stage = "COMPLETED"
+        budget = None
+        if source_session is not None and source_session.guest_id is not None:
+            from xiaohe.guest_budget import load_guest_budget
+
+            # Adopt proven legacy counters while the source is still unrevoked and all conversations are locked.
+            budget = await load_guest_budget(db, source_session, lock=True)
         claim = None
         if source is not None:
             claim = await _claim_guest(db, operation, user_session, source_session, source, target)
@@ -371,6 +377,10 @@ async def complete_auth_operation(factory, request, response, operation_id):
             response.headers["Retry-After"] = "1"
         if token is not None:
             set_session_cookie(response, token)
+        if budget is not None:
+            from xiaohe.guest_budget import ensure_budget_credential
+
+            await ensure_budget_credential(db, request, response, budget)
         return snapshot
 
 

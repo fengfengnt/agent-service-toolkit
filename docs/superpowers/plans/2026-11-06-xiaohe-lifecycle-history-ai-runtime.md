@@ -100,13 +100,13 @@ Task 1（统一契约/基线）→ Task 2（数据/身份）→ Task 3（公共a
 
 **Interfaces:** `charge_guest_message(db: AsyncSession, session: Session, *, kind: str, client_key: str, payload_digest: str) -> GuestBudget`；`load_viewer(db, actor)` 从关联预算读当前总计，V1 Viewer字段不变；原 `_accept`/complete签名仅增加可选视图参数，原调用缺省不改。
 
-- [ ] **Step 1:** 写 `test_all_paths_share_one_budget_at_99_100_101`：REST和AGUI交叉成功计同一预算，100受理、101无Message/Run、重试/拒绝不扣不续。`test_system_controls_and_welcome_are_free` 明确受控系统动作不是用户发言。
-- [ ] **Step 2:** 写 `test_hundredth_reply_finishes_until_real_expiry`、`test_claim_logout_and_expiry_do_not_reset_budget`、`test_old_episode_retry_after_command_purge_is_not_redirected`、`test_concurrent_bootstrap_admission_claim_cleanup`；验证旧CSRF/文件/流失效、已认证目标内容不清理，最小账本保留但正文清理。
-- [ ] **Step 3:** 隔离库运行 `uv run --no-sync pytest tests/xiaohe/test_guest_budget_admission.py tests/xiaohe/test_guest_budget_races.py -v`，预期FAIL。
-- [ ] **Step 4:** 原幂等判定优先于扣减；新有效用户消息才同事务条件更新预算+兼容Session镜像+4h截止。预算并发原子拒绝第101；所有消息/动作/接待写入口核对分类，controls不走收费路径。旧周期已无授权的重试直接拒绝，不用Receipt恢复已过期正文。
-- [ ] **Step 5:** 清理继续先撤销访问、fence运行，再安全删除正文/对象；排除预算/凭据/最小Receipt，不破坏claim保护、上传advisory锁。claim只移动有权内容，源session撤销不清预算；logout不删预算cookie/元数据。禁止给旧guest权限重新赋成会员读取权。
-- [ ] **Step 6:** 同命令加 `uv run --no-sync pytest tests/xiaohe/test_admission.py tests/xiaohe/test_cleanup_races.py tests/xiaohe/test_guest_claim.py -v` 预期PASS；新时钟测试替代真实等待4h，不调用模型/中心。
-- [ ] **Step 7:** 仅提交任务文件，`git commit -m "feat(xiaohe): enforce shared guest budget admission"`。
+- [x] **Step 1:** 写 `test_all_paths_share_one_budget_at_99_100_101`：REST和AGUI交叉成功计同一预算，100受理、101无Message/Run、重试/拒绝不扣不续。`test_system_controls_and_welcome_are_free` 明确受控系统动作不是用户发言。
+- [x] **Step 2:** 写 `test_hundredth_reply_finishes_until_real_expiry`、`test_claim_logout_and_expiry_do_not_reset_budget`、`test_old_episode_retry_after_command_purge_is_not_redirected`、`test_concurrent_bootstrap_admission_claim_cleanup`；验证旧CSRF/文件/流失效、已认证目标内容不清理，最小账本保留但正文清理。
+- [x] **Step 3:** 隔离库运行 `uv run --no-sync pytest tests/xiaohe/test_guest_budget_admission.py tests/xiaohe/test_guest_budget_races.py -v`，预期FAIL。
+- [x] **Step 4:** 原幂等判定优先于扣减；新有效用户消息才同事务条件更新预算+兼容Session镜像+4h截止。预算并发原子拒绝第101；所有消息/动作/接待写入口核对分类，controls不走收费路径。旧周期已无授权的重试直接拒绝，不用Receipt恢复已过期正文。
+- [x] **Step 5:** 清理继续先撤销访问、fence运行，再安全删除正文/对象；排除预算/凭据/最小Receipt，不破坏claim保护、上传advisory锁。claim只移动有权内容，源session撤销不清预算；logout不删预算cookie/元数据。禁止给旧guest权限重新赋成会员读取权。
+- [x] **Step 6:** 同命令加 `uv run --no-sync pytest tests/xiaohe/test_admission.py tests/xiaohe/test_cleanup_races.py tests/xiaohe/test_guest_claim.py -v` 预期PASS；新时钟测试替代真实等待4h，不调用模型/中心。
+- [x] **Step 7:** 仅提交任务文件，`git commit -m "feat(xiaohe): enforce shared guest budget admission"`。
 
 ### Task 4: 真分页、冻结成员与授权定位
 

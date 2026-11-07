@@ -77,7 +77,7 @@ async def test_invitation_control_records_system_notice_not_user_speech(
     from test_identity_sessions import actor
     from test_reception_flow import install, talk
 
-    from xiaohe.models import Message, Session
+    from xiaohe.models import GuestBudget, Message, Session
     from xiaohe.reception.store import load_reception
 
     await install(pg_factory, runtime_env, monkeypatch)
@@ -91,6 +91,16 @@ async def test_invitation_control_records_system_notice_not_user_speech(
         async with pg_factory.begin() as db:
             await db.execute(
                 update(Session).where(Session.id == who.session_id).values(message_count=100)
+            )
+            await db.execute(
+                update(GuestBudget)
+                .where(
+                    GuestBudget.id
+                    == select(Session.budget_id)
+                    .where(Session.id == who.session_id)
+                    .scalar_subquery()
+                )
+                .values(message_count=100)
             )
         path = f"/ai-api/v1/reception/conversations/{conversation}/controls"
         body = {"clientActionId": "accept-control", "action": "accept_invitation"}

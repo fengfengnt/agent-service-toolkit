@@ -5,7 +5,7 @@ import unicodedata
 from uuid import UUID, uuid4
 
 from pydantic import ValidationError
-from sqlalchemy import func, select, text, update
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from xiaohe.contracts import (
@@ -19,9 +19,10 @@ from xiaohe.contracts import (
 )
 from xiaohe.conversations import load_viewer, require_conversation
 from xiaohe.events import record_event
+from xiaohe.guest_budget import charge_guest_message, load_guest_budget
 from xiaohe.identity import require_session
 from xiaohe.jobs import defer_run
-from xiaohe.models import Command, Message, Run, Session
+from xiaohe.models import Command, Message, Run
 
 _SENSITIVE = re.compile(
     r"(?<!\d)1[3-9]\d{9}(?!\d)|(?:验证码|短信码|otp)\s*[:：]?\s*\d{4,8}|^\s*\d{6}\s*$",
@@ -114,12 +115,10 @@ async def _accept(
             return await _result(db, actor, existing)
         if conversation.merge_pending:
             raise ServiceError("MERGE_PENDING", 409)
-        if (
-            system_notice is None
-            and actor.guest_id is not None
-            and session.message_count >= session.message_limit
-        ):
-            raise ServiceError("VISITOR_LIMIT_REACHED", 429)
+        if system_notice is None and actor.guest_id is not None:
+            budget = await load_guest_budget(db, session, lock=True)
+            if budget.message_count >= budget.message_limit:
+                raise ServiceError("VISITOR_LIMIT_REACHED", 429)
         active = await db.scalar(
             select(Run)
             .where(Run.conversation_id == conversation.id, Run.holds_slot.is_(True))
@@ -228,25 +227,9 @@ async def _accept(
         await db.flush()
         run.job_id = await defer_run(db, run.id, f"{actor.system.tenant_id}:{conversation.id}")
         if actor.guest_id is not None and system_notice is None:
-            changed = await db.scalar(
-                update(Session)
-                .where(
-                    Session.id == actor.session_id,
-                    Session.revoked_at.is_(None),
-                    Session.expires_at > func.clock_timestamp(),
-                    Session.message_count < Session.message_limit,
-                )
-                .values(
-                    message_count=Session.message_count + 1,
-                    expires_at=func.clock_timestamp()
-                    + Session.retention_seconds * text("interval '1 second'"),
-                )
-                .returning(Session.id)
-                .execution_options(synchronize_session=False)
+            await charge_guest_message(
+                db, session, kind=kind, client_key=key, payload_digest=digest
             )
-            if changed is None:
-                await require_session(db, actor)
-                raise ServiceError("VISITOR_LIMIT_REACHED", 429)
         result = await _result(db, actor, command)
         run.execution_expires_at = session.expires_at
         record_event(
