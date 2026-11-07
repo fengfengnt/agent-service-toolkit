@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import func, select, update
 from test_http_api import client_for, session
 
-from xiaohe.models import Session
+from xiaohe.models import GuestBudget, Session
 
 pytestmark = [pytest.mark.pg, pytest.mark.asyncio]
 
@@ -81,7 +81,8 @@ async def test_expired_guest_auth_context_is_independent_and_stable(pg_factory):
             await db.execute(
                 update(Session).values(expires_at=func.clock_timestamp(), message_count=100)
             )
-        assert (await client.post("/ai-api/v1/session", json={})).status_code == 410
+            await db.execute(update(GuestBudget).values(message_count=100))
+        assert (await client.post("/ai-api/v1/session", json={})).status_code == 429
         context, seen = await auth_setup(client, app)
         assert set(context.json()) == {"csrf", "expiresAt"}
         assert context.json()["csrf"]["headerName"] == "X-Xiaohe-Auth-CSRF"

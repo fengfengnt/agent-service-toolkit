@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from sqlalchemy import func
 
 from xiaohe.api import create_public_router, install_error_handlers
-from xiaohe.models import Session
+from xiaohe.models import GuestBudget, Session
 from xiaohe.settings import Settings
 
 pytestmark = [pytest.mark.pg, pytest.mark.asyncio]
@@ -85,7 +85,8 @@ async def test_public_cookie_csrf_and_internal_bearer_are_separate(pg_factory, j
         assert unauthenticated.status_code == 401
 
 
-async def test_unexpected_server_failure_is_safe_json(pg_factory, monkeypatch):
+@pytest.mark.parametrize("version", ["1", "2"])
+async def test_unexpected_server_failure_is_safe_json(pg_factory, monkeypatch, version):
     import xiaohe.api as api
 
     async def broken(*args):
@@ -98,15 +99,17 @@ async def test_unexpected_server_failure_is_safe_json(pg_factory, monkeypatch):
             base_url="https://portal.lvh.me:9444",
         ) as client:
             response = await client.get(
-                "/ai-api/v1/conversations/00000000-0000-0000-0000-000000000001"
+                "/ai-api/v1/conversations/00000000-0000-4000-8000-000000000001",
+                headers={"X-Xiaohe-View-Version": version},
             )
     assert (
         response.status_code == 503 and response.json()["error"]["code"] == "UPSTREAM_UNAVAILABLE"
     )
     assert "private-database" not in response.text
+    assert response.headers["X-Xiaohe-View-Version"] == version
 
 
-async def test_sse_errors_happen_before_stream_and_no_guest_reset(pg_factory, job_app):
+async def test_sse_expiry_precedes_stream_and_new_episode_preserves_budget(pg_factory, job_app):
     async with client_for(pg_factory) as (client, app):
         snapshot = await session(client)
         path = f"/ai-api/v1/conversations/{snapshot['conversationId']}/events"
@@ -117,10 +120,16 @@ async def test_sse_errors_happen_before_stream_and_no_guest_reset(pg_factory, jo
         async with pg_factory.begin() as db:
             from sqlalchemy import update
 
-            await db.execute(update(Session).values(expires_at=func.clock_timestamp()))
-        expired = await client.post("/ai-api/v1/session", json={})
+            await db.execute(
+                update(Session).values(expires_at=func.clock_timestamp(), message_count=20)
+            )
+            await db.execute(update(GuestBudget).values(message_count=20))
+        expired = await client.get(path)
         assert expired.status_code == 410 and expired.json()["error"]["code"] == "VISITOR_EXPIRED"
         assert "set-cookie" not in expired.headers
+        reopened = await client.post("/ai-api/v1/session", json={})
+        assert reopened.status_code == 200 and reopened.json()["viewer"]["messageCount"] == 20
+        assert reopened.json()["conversationId"] != snapshot["conversationId"]
 
 
 async def test_disconnect_does_not_cancel_run(pg_factory, runtime_env, monkeypatch):

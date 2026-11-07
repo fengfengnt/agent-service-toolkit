@@ -1,12 +1,14 @@
 import hashlib
 import json
 from datetime import timedelta
+from typing import Literal
 from uuid import uuid4
 
 from sqlalchemy import delete, func, select, text, update
 
 from xiaohe.authentication import bound_operation
 from xiaohe.contracts import Actor, ChatMessage, ServiceError, VerifiedCompletion
+from xiaohe.contracts_v2 import ExpectedIdentity
 from xiaohe.conversations import default_conversation, ensure_welcome, load_snapshot
 from xiaohe.database import database_now
 from xiaohe.events import next_position, record_event
@@ -275,7 +277,30 @@ async def _claim_guest(db, operation, user_session, source_session, source, targ
     return claim
 
 
-async def complete_auth_operation(factory, request, response, operation_id):
+def require_restore_identity(
+    operation, identity: VerifiedCompletion, trusted_source: User | None
+) -> None:
+    if operation.expected_identity is None:
+        return
+    expected = ExpectedIdentity.model_validate(operation.expected_identity)
+    actual = ExpectedIdentity(
+        issuer=identity.issuer, sub=identity.sub, source_tenant_id=identity.source_tenant_id
+    )
+    if expected != actual or (
+        trusted_source is not None
+        and expected
+        != ExpectedIdentity(
+            issuer=trusted_source.issuer,
+            sub=trusted_source.sub,
+            source_tenant_id=trusted_source.source_tenant_id,
+        )
+    ):
+        raise ServiceError("IDENTITY_MISMATCH", 409)
+
+
+async def complete_auth_operation(
+    factory, request, response, operation_id, *, view_version: Literal[1, 2] = 1
+):
     async with factory.begin() as db:
         operation, _, system = await bound_operation(db, request, operation_id, lock=False)
         if operation.verified_completion is None:
@@ -312,6 +337,12 @@ async def complete_auth_operation(factory, request, response, operation_id):
         if operation.source_session_id:
             source_session = await db.get(Session, operation.source_session_id)
         identity = VerifiedCompletion.model_validate(operation.verified_completion)
+        trusted_source = (
+            await db.get(User, source_session.user_id)
+            if source_session is not None and source_session.user_id is not None
+            else None
+        )
+        require_restore_identity(operation, identity, trusted_source)
         user = await bind_user(db, system, identity)
         operation = await db.get(type(operation), operation.id, populate_existing=True)
         if candidate and candidate.user_id is not None:
@@ -371,7 +402,14 @@ async def complete_auth_operation(factory, request, response, operation_id):
         await bound_operation(db, request, operation_id, lock=False)
         operation.bound_user_id = user_session.user_id
         await ensure_welcome(db, target)
-        snapshot = await load_snapshot(db, actor, target.id)
+        if view_version == 2:
+            from xiaohe.history import load_snapshot_v2
+
+            snapshot = await load_snapshot_v2(
+                db, actor, target.id, cursor_secret=request.app.state.xiaohe_settings.auth_secret
+            )
+        else:
+            snapshot = await load_snapshot(db, actor, target.id)
         if claim is not None and claim.status == "pending":
             from xiaohe.jobs import defer_claim
 

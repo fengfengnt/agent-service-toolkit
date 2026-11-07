@@ -3,6 +3,7 @@ import re
 import secrets
 from datetime import datetime, timedelta
 from ipaddress import ip_address, ip_network
+from typing import Literal
 from uuid import UUID, uuid4
 
 from fastapi import Request, Response
@@ -12,6 +13,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from xiaohe.contracts import Actor, ChatSnapshot, ServiceError, TrustedSystem, VerifiedCompletion
+from xiaohe.contracts_v2 import ChatSnapshotV2, ExpectedIdentity
 from xiaohe.database import database_now
 from xiaohe.models import Session, System, User
 
@@ -151,14 +153,18 @@ async def _request_session(
         raise ServiceError("FORBIDDEN", 403)
     await _live(db, record)
     if csrf_required and request.method not in ("GET", "HEAD", "OPTIONS"):
-        values = request.headers.getlist(CSRF_HEADER)
-        if (
-            len(values) != 1
-            or not values[0].isascii()
-            or not secrets.compare_digest(values[0], record.csrf_token)
-        ):
-            raise ServiceError("CSRF_INVALID", 403)
+        require_session_csrf(request, record)
     return record
+
+
+def require_session_csrf(request: Request, session: Session) -> None:
+    values = request.headers.getlist(CSRF_HEADER)
+    if (
+        len(values) != 1
+        or not values[0].isascii()
+        or not secrets.compare_digest(values[0], session.csrf_token)
+    ):
+        raise ServiceError("CSRF_INVALID", 403)
 
 
 async def resolve_actor(request: Request, system: TrustedSystem, db: AsyncSession) -> Actor:
@@ -277,12 +283,33 @@ async def create_user_session(
     )
 
 
-async def bootstrap_session(request: Request, response: Response, db: AsyncSession) -> ChatSnapshot:
+async def bootstrap_session(
+    request: Request,
+    response: Response,
+    db: AsyncSession,
+    *,
+    view_version: Literal[1, 2] = 1,
+    expected_identity: ExpectedIdentity | None = None,
+) -> ChatSnapshot | ChatSnapshotV2:
     from xiaohe.conversations import default_conversation, ensure_welcome, load_snapshot
 
     if request.method != "POST":
         raise ServiceError("FORBIDDEN", 403)
     system = await resolve_system(request, db)
+    if expected_identity is not None:
+        try:
+            record = await _request_session(request, system, db, csrf_required=False)
+        except ServiceError as error:
+            if error.code == "VISITOR_EXPIRED":
+                raise ServiceError("AUTH_REQUIRED", 401) from None
+            raise
+        if record.user_id is None:
+            raise ServiceError("AUTH_REQUIRED", 401)
+        user = await db.get(User, record.user_id)
+        if expected_identity != ExpectedIdentity(
+            issuer=user.issuer, sub=user.sub, source_tenant_id=user.source_tenant_id
+        ):
+            raise ServiceError("IDENTITY_MISMATCH", 409)
     token = _cookie(request)
     record = (
         None
@@ -303,6 +330,12 @@ async def bootstrap_session(request: Request, response: Response, db: AsyncSessi
         actor = await bootstrap_guest_episode(db, request, response, system)
     conversation = await default_conversation(db, actor)
     await ensure_welcome(db, conversation)
+    if view_version == 2:
+        from xiaohe.history import load_snapshot_v2
+
+        return await load_snapshot_v2(
+            db, actor, conversation.id, cursor_secret=request.app.state.xiaohe_settings.auth_secret
+        )
     return await load_snapshot(db, actor, conversation.id)
 
 

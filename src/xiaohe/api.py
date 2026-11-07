@@ -14,13 +14,27 @@ from xiaohe.admission import (
     accept_message,
 )
 from xiaohe.contracts import ApiError, ChatAction, EmptyBody, MessageInput, ServiceError
+from xiaohe.contracts_v2 import BootstrapInputV2
 from xiaohe.conversations import load_snapshot
 from xiaohe.events import stream_events
-from xiaohe.identity import bootstrap_session, logout_session, resolve_actor, resolve_system
+from xiaohe.identity import (
+    bootstrap_session,
+    logout_session,
+    require_session,
+    require_session_csrf,
+    resolve_actor,
+    resolve_system,
+)
 from xiaohe.runs import cancel_run
 from xiaohe.streaming import ClosingStreamingResponse as StreamingResponse
+from xiaohe.view_version import HEADER as VIEW_HEADER
+from xiaohe.view_version import parse_view_version
 
 _MESSAGES = {
+    "VIEW_VERSION_UNSUPPORTED": "不支持此对话视图版本。",
+    "HISTORY_CURSOR_INVALID": "历史游标无效。",
+    "HISTORY_RESET_REQUIRED": "历史已更新，请重新读取对话。",
+    "MESSAGE_NOT_FOUND": "未找到此消息。",
     "VISITOR_LIMIT_REACHED": "访客消息额度已用完，可继续注册或登录。",
     "VISITOR_EXPIRED": "访客会话已到期。",
     "AUTH_REQUIRED": "请重新验证登录身份。",
@@ -54,11 +68,35 @@ class _PrivateResponses:
         self.app = app
 
     async def __call__(self, scope, receive, send):
+        version = None
+        if scope["type"] == "http" and scope.get("path", "").startswith("/ai-api/v1/"):
+            try:
+                version = parse_view_version(Request(scope))
+            except ServiceError:
+                body = ApiError(
+                    error={
+                        "code": "VIEW_VERSION_UNSUPPORTED",
+                        "message": _MESSAGES["VIEW_VERSION_UNSUPPORTED"],
+                        "retryable": False,
+                    },
+                    request_id=str(uuid4()),
+                )
+                response = JSONResponse(
+                    body.model_dump(mode="json", by_alias=True),
+                    status_code=406,
+                    headers={"Cache-Control": "private, no-store"},
+                )
+                await response(scope, receive, send)
+                return
+            scope.setdefault("state", {})["xiaohe_view_version"] = version
+
         async def private_send(message):
             if message["type"] == "http.response.start" and scope.get("path", "").startswith(
                 "/ai-api/v1/"
             ):
                 MutableHeaders(scope=message)["Cache-Control"] = "private, no-store"
+                if version is not None:
+                    MutableHeaders(scope=message)[VIEW_HEADER] = str(version)
             await send(message)
 
         await self.app(scope, receive, private_send)
@@ -78,6 +116,11 @@ def install_error_handlers(app: FastAPI):
             body.model_dump(mode="json", by_alias=True),
             status_code=error.http_status if code == error.code else 503,
             headers={"Cache-Control": "private, no-store"}
+            | (
+                {VIEW_HEADER: str(request.state.xiaohe_view_version)}
+                if hasattr(request.state, "xiaohe_view_version")
+                else {}
+            )
             | ({"Retry-After": str(error.retry_after)} if error.retry_after else {}),
         )
 
@@ -125,15 +168,66 @@ def create_public_router(factory):
 
     @router.post("/session")
     async def session(request: Request, response: Response):
-        await _body(request, EmptyBody)
+        version = parse_view_version(request)
+        body = await _body(request, BootstrapInputV2 if version == 2 else EmptyBody)
         async with factory.begin() as db:
-            snapshot = await bootstrap_session(request, response, db)
+            snapshot = await bootstrap_session(
+                request,
+                response,
+                db,
+                view_version=version,
+                expected_identity=body.expected_identity if version == 2 else None,
+            )
         return snapshot
 
     @router.get("/conversations/{conversation_id}")
     async def snapshot(conversation_id: UUID, request: Request):
         async with factory.begin() as db:
-            return await load_snapshot(db, await _actor(request, db), conversation_id)
+            actor = await _actor(request, db)
+            if parse_view_version(request) == 2:
+                from xiaohe.history import load_snapshot_v2
+
+                require_session_csrf(request, await require_session(db, actor))
+                return await load_snapshot_v2(
+                    db,
+                    actor,
+                    conversation_id,
+                    cursor_secret=request.app.state.xiaohe_settings.auth_secret,
+                )
+            return await load_snapshot(db, actor, conversation_id)
+
+    @router.get("/conversations/{conversation_id}/messages")
+    async def history_page(conversation_id: UUID, request: Request, before: str):
+        from xiaohe.history import load_history_page
+
+        parse_view_version(request, v2_only=True)
+        if (
+            set(request.query_params) != {"before"}
+            or len(request.query_params.getlist("before")) != 1
+        ):
+            raise ServiceError("INPUT_INVALID", 422)
+        async with factory.begin() as db:
+            actor = await _actor(request, db)
+            require_session_csrf(request, await require_session(db, actor))
+            return await load_history_page(
+                db,
+                actor,
+                conversation_id,
+                before,
+                cursor_secret=request.app.state.xiaohe_settings.auth_secret,
+            )
+
+    @router.get("/conversations/{conversation_id}/messages/{message_id}")
+    async def message_baseline(conversation_id: UUID, message_id: UUID, request: Request):
+        from xiaohe.history import load_message_baseline
+
+        parse_view_version(request, v2_only=True)
+        if request.query_params:
+            raise ServiceError("INPUT_INVALID", 422)
+        async with factory.begin() as db:
+            actor = await _actor(request, db)
+            require_session_csrf(request, await require_session(db, actor))
+            return await load_message_baseline(db, actor, conversation_id, message_id)
 
     @router.post("/conversations/{conversation_id}/messages", status_code=202)
     async def message(conversation_id: UUID, request: Request):

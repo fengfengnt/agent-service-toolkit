@@ -18,7 +18,7 @@ from xiaohe.runs import acquire_run, require_write
 pytestmark = [pytest.mark.pg, pytest.mark.asyncio]
 
 
-def ready_center(app, sub="member:1:fixture"):
+def ready_center(app, sub="member:1:fixture", *, source_tenant_id=1):
     calls = []
 
     def center(request):
@@ -32,7 +32,7 @@ def ready_center(app, sub="member:1:fixture"):
                 "data": {
                     "issuer": "https://sso.lvh.me:8443",
                     "sub": sub,
-                    "sourceTenantId": 1,
+                    "sourceTenantId": source_tenant_id,
                     "authenticatedAt": datetime.now(UTC).isoformat(),
                     "portalClientId": "app_localportal",
                     "transactionId": "00000000-0000-4000-8000-000000000010",

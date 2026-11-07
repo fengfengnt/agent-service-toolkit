@@ -29,9 +29,11 @@ from xiaohe.contracts import (
     UtcTime,
     VerifiedCompletion,
 )
+from xiaohe.contracts_v2 import CreateAuthOperationV2, ExpectedIdentity
 from xiaohe.database import database_now
 from xiaohe.identity import _cookie, _request_session, registered_system, resolve_system
-from xiaohe.models import AuthContextRecord, AuthOperationRecord, Session
+from xiaohe.models import AuthContextRecord, AuthOperationRecord, Session, User
+from xiaohe.view_version import parse_view_version
 
 AUTH_COOKIE = "__Host-XIAOHEAUTH"
 AUTH_CSRF = "X-Xiaohe-Auth-CSRF"
@@ -263,18 +265,23 @@ class AuthService:
             payload = body.model_dump(mode="json", by_alias=True)
             digest = _digest(json.dumps(payload, sort_keys=True, separators=(",", ":")))
             token = _cookie(request)
-            source = (
-                None
-                if token is None
-                else await db.scalar(
-                    select(Session).where(
-                        Session.token_digest == _digest(token),
-                        Session.system_id == system.system_id,
-                        Session.tenant_id == system.tenant_id,
-                        Session.revoked_at.is_(None),
-                    )
-                )
+            expected = getattr(body, "expected_identity", None)
+            if expected is not None and expected.issuer != registered.issuer:
+                raise ServiceError("IDENTITY_MISMATCH", 409)
+            source_query = select(Session).where(
+                Session.token_digest == _digest(token or ""),
+                Session.system_id == system.system_id,
+                Session.tenant_id == system.tenant_id,
             )
+            if expected is None:
+                source_query = source_query.where(Session.revoked_at.is_(None))
+            source = None if token is None else await db.scalar(source_query)
+            if expected is not None and source is not None and source.user_id is not None:
+                user = await db.get(User, source.user_id)
+                if expected != ExpectedIdentity(
+                    issuer=user.issuer, sub=user.sub, source_tenant_id=user.source_tenant_id
+                ):
+                    raise ServiceError("IDENTITY_MISMATCH", 409)
             stamp = await database_now(db)
             await db.execute(
                 insert(AuthOperationRecord)
@@ -289,6 +296,9 @@ class AuthService:
                     | {"issuer": registered.issuer},
                     browser_challenge=body.browser_completion_challenge,
                     request_digest=digest,
+                    expected_identity=expected.model_dump(mode="json", by_alias=True)
+                    if expected is not None
+                    else None,
                     client_ip=ip,
                     user_agent=ua,
                     created_at=stamp,
@@ -499,7 +509,8 @@ def create_auth_router(factory):
 
     @router.post("/auth/operations", status_code=201)
     async def create(request: Request):
-        return await service(request).create(request, await _body(request, CreateAuthOperation))
+        model = CreateAuthOperationV2 if parse_view_version(request) == 2 else CreateAuthOperation
+        return await service(request).create(request, await _body(request, model))
 
     @router.post("/auth/operations/{operation_id}/complete")
     async def complete(operation_id: UUID, request: Request, response: Response):
@@ -507,7 +518,9 @@ def create_auth_router(factory):
         await service(request).verify_completion(request, operation_id)
         from xiaohe.claim import complete_auth_operation
 
-        return await complete_auth_operation(factory, request, response, operation_id)
+        return await complete_auth_operation(
+            factory, request, response, operation_id, view_version=parse_view_version(request)
+        )
 
     @router.post("/auth/operations/{operation_id}/{action:path}")
     async def advance(operation_id: UUID, action: str, request: Request):

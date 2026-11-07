@@ -10,10 +10,11 @@
 
 **Spec:** [用户已批准的共同设计](C:/Users/70367/.codex/worktrees/xiaohe-auth-card/yunhezhiyuan-portal/docs/superpowers/specs/2026-11-06-xiaohe-lifecycle-history-design.md)；唯一 wire 来源为 [共享主契约 §12](D:/Code/yunhezhiyuan-agents/docs/contracts/2026-11-03-xiaohe-integration-v1.md)。此计划不复制另一份 DTO 规范。
 
-状态：2026-11-07，北京时间，**用户已回复“审阅通过”，三工程计划已批准，按各工程原生方式执行**。稳定基线已交接，AI 继续 Task 1；未完成的勾选和下列命令仍不代表已经执行或通过。用户追加允许按需 WSL 隔离部署；现有真人体验库、正式入口与开关保持不变，不自动短信、不建真实账号、不调用模型。
+状态：2026-11-07，北京时间，**用户已回复“审阅通过”，三工程计划已批准，按各工程原生方式执行**。稳定基线已交接，AI 已完成 Task 1–5，继续 Task 6；未完成的勾选和下列命令仍不代表已经执行或通过。用户追加允许按需 WSL 隔离部署；现有真人体验库、正式入口与开关保持不变，不自动短信、不建真实账号、不调用模型。
 
 ## Global Constraints
 
+- 2026-11-07 用户追加授权：本工程各完成阶段验证后提交并普通推送 `origin/dev-fengfeng`，用 `git ls-remote` 核对；该授权替代旧“不 push”，不包含强推、合并、发布或切换现有服务。
 - 在 `dev-fengfeng` 开发，保护现有修改/未跟踪文件；不自动合并其他工程或工作树，不改 `src/service`、通用 Agent registry/模型工厂和上游 SDK。
 - 正式开关关闭；不启动/替换现有正式或真人体验服务，不自动短信、不建真实账号、不调用模型。允许按需建立新的专用 WSL 隔离服务、可丢弃数据库和桶；不借此迁移或清空现有体验库。人工步骤另行告知用户。
 - `VISITOR_MESSAGE_LIMIT=100`、`VISITOR_RETENTION_SECONDS=14400`；成功受理的新 guest 用户消息/有效动作计 1 并滑动 4h。免费欢迎、系统 controls、AI 回复、读取、拒绝、幂等重试不计数、不续期。第100条回复可完成，第101条拒绝。
@@ -129,14 +130,14 @@ Task 1（统一契约/基线）→ Task 2（数据/身份）→ Task 3（公共a
 
 **Interfaces:** `bootstrap_session(request: Request, response: Response, db: AsyncSession, *, view_version: Literal[1,2]=1, expected_identity: ExpectedIdentity | None=None) -> ChatSnapshot | ChatSnapshotV2`；`complete_auth_operation(factory: async_sessionmaker[AsyncSession], request: Request, response: Response, operation_id: UUID, *, view_version: Literal[1,2]=1) -> ChatSnapshot | ChatSnapshotV2`；`require_restore_identity(operation: AuthOperationRecord, identity: VerifiedCompletion, trusted_source: User | None) -> None` 在bind_user前执行；`require_session_csrf(request: Request, session: Session) -> None` 在identity.py复用既有常时校验供V2 GET使用。拒绝约束不授予身份，鉴权和已提交认证结果只执行一次。
 
-- [ ] **Step 1:** 写 `test_bootstrap_complete_snapshot_share_v2_shape`、`test_complete_v1_v2_reread_keeps_same_identity_and_deadline`；202保留MERGE_PENDING/Retry-After；原绑定上下文恢复响应丢失后仍同8h，不重复claim/换码。写 `test_v2_get_rejects_stale_csrf_after_cookie_account_change`。
-- [ ] **Step 1a:** 写 `test_restore_expected_identity_is_frozen_before_redirect`、`test_restore_other_account_rejected_before_bind_or_merge`：可信旧AI绑定A与客户端约束冲突时create拒绝；AI Cookie全失时预期A只作拒绝约束，claim B的complete即409且User/Session/Conversation/GuestClaim行数不变。直接调用complete不绕过、同operation异约束不覆盖、相符claim才可绑定；预期A不能自行造出用户A或跳过中心claim。新增 `test_logged_in_bootstrap_guard_precedes_private_snapshot`：POST/session预期A+Cookie B直接409，缺/过期/guest Cookie401且不新建匿名；匹配A才返回有界快照。匿名仍空body。
-- [ ] **Step 2:** 写 `test_live_full_guest_is_readable_but_expired_full_guest_has_no_new_episode`、`test_unknown_view_cannot_mutate_session_or_auth_operation`、`test_v1_contract_is_unchanged`；不向V1严格schema塞新字段。
-- [ ] **Step 3:** 隔离库运行 `uv run --no-sync pytest tests/xiaohe/test_view_v2_api.py -v`，预期FAIL。
-- [ ] **Step 4:** 在任何变更前解析版本；V2 bootstrap新增严格body `{}` 或 `{expectedIdentity}`，有预期时先比当前受权User绑定，不向已登录门户闪现guest/另一账号私有快照。V2 create使用CreateAuthOperationV2，将expected_identity冻结在原Operation/请求摘要内，可信旧User绑定优先作拒绝约束。中心六字段claim验证后调用require_restore_identity，再允许bind_user/新Session/目标对话/claim；不靠complete后的前端隐藏。全Cookie丢失时客户端约束不升级为可信身份。相同operation重读同约束/身份/截止，不新增中心参数或协议。
-- [ ] **Step 4a:** 以同一已验证actor/canonical/完成事务调用Task4 loader，传显式cursor_secret，新增两个只读路由；将原聊天CSRF比较提取为require_session_csrf，V2 GET显式调用（当前_request_session对GET跳过，不能仅传csrf_required=True冒充已校验）；V1 GET策略保留。回显版本和no-store，统一新错误安全提示。auth/context/create/advance响应仍原非snapshot DTO，错误及流前错误回显已解析版本，非法头406不反射。complete重试不能先拿V1全量body再另开事务裁剪为V2。原同事务快照/水位边界保留。
-- [ ] **Step 5:** 同命令加 `uv run --no-sync pytest tests/xiaohe/test_auth_operations.py tests/xiaohe/test_http_api.py tests/xiaohe/test_auth_privacy.py -v` 预期PASS，中心仅MockTransport。顶层SSO协议复用以SSO Owner计划为依赖，不新增iframe/popup/BFF或扩大frame权限。
-- [ ] **Step 6:** 仅提交任务文件，`git commit -m "feat(xiaohe): negotiate bounded v2 session views"`。
+- [x] **Step 1:** 写 `test_bootstrap_complete_snapshot_share_v2_shape`、`test_complete_v1_v2_reread_keeps_same_identity_and_deadline`；202保留MERGE_PENDING/Retry-After；原绑定上下文恢复响应丢失后仍同8h，不重复claim/换码。写 `test_v2_get_rejects_stale_csrf_after_cookie_account_change`。
+- [x] **Step 1a:** 写 `test_restore_expected_identity_is_frozen_before_redirect`、`test_restore_other_account_rejected_before_bind_or_merge`：可信旧AI绑定A与客户端约束冲突时create拒绝；AI Cookie全失时预期A只作拒绝约束，claim B的complete即409且User/Session/Conversation/GuestClaim行数不变。直接调用complete不绕过、同operation异约束不覆盖、相符claim才可绑定；预期A不能自行造出用户A或跳过中心claim。新增 `test_logged_in_bootstrap_guard_precedes_private_snapshot`：POST/session预期A+Cookie B直接409，缺/过期/guest Cookie401且不新建匿名；匹配A才返回有界快照。匿名仍空body。
+- [x] **Step 2:** 写 `test_live_full_guest_is_readable_but_expired_full_guest_has_no_new_episode`、`test_unknown_view_cannot_mutate_session_or_auth_operation`、`test_v1_contract_is_unchanged`；不向V1严格schema塞新字段。
+- [x] **Step 3:** 隔离库运行 `uv run --no-sync pytest tests/xiaohe/test_view_v2_api.py -v`，预期FAIL。
+- [x] **Step 4:** 在任何变更前解析版本；V2 bootstrap新增严格body `{}` 或 `{expectedIdentity}`，有预期时先比当前受权User绑定，不向已登录门户闪现guest/另一账号私有快照。V2 create使用CreateAuthOperationV2，将expected_identity冻结在原Operation/请求摘要内，可信旧User绑定优先作拒绝约束。中心六字段claim验证后调用require_restore_identity，再允许bind_user/新Session/目标对话/claim；不靠complete后的前端隐藏。全Cookie丢失时客户端约束不升级为可信身份。相同operation重读同约束/身份/截止，不新增中心参数或协议。
+- [x] **Step 4a:** 以同一已验证actor/canonical/完成事务调用Task4 loader，传显式cursor_secret，新增两个只读路由；将原聊天CSRF比较提取为require_session_csrf，V2 GET显式调用（当前_request_session对GET跳过，不能仅传csrf_required=True冒充已校验）；V1 GET策略保留。回显版本和no-store，统一新错误安全提示。auth/context/create/advance响应仍原非snapshot DTO，错误及流前错误回显已解析版本，非法头406不反射。complete重试不能先拿V1全量body再另开事务裁剪为V2。原同事务快照/水位边界保留。
+- [x] **Step 5:** 同命令加 `uv run --no-sync pytest tests/xiaohe/test_auth_operations.py tests/xiaohe/test_http_api.py tests/xiaohe/test_auth_privacy.py -v` 预期PASS，中心仅MockTransport。顶层SSO协议复用以SSO Owner计划为依赖，不新增iframe/popup/BFF或扩大frame权限。
+- [x] **Step 6:** 仅提交任务文件，`git commit -m "feat(xiaohe): negotiate bounded v2 session views"`。
 
 ### Task 6: 有界投影、流基线和 Runtime 版本门
 
@@ -164,10 +165,10 @@ Task 1（统一契约/基线）→ Task 2（数据/身份）→ Task 3（公共a
 - [ ] **Step 3:** 运行本计划所列新测试与已有受影响身份/admission/expiry/claim/event/AGUI/文件授权回归及Runtime类型/测试一次；只在新失败或新改动时重跑相关项。物理对象清理如需MinIO，另用批准的可丢弃实例，未有则列为待验收，不偷用当前服务。
 - [ ] **Step 4:** 与门户Owner交换生成fixture/契约版本、历史/事件水位序列和activeInput定位例子，待其在批准隔离环境完成滚动锚点/账号错配/顶层SSO/重开浏览器验证。SSO只复用现有框架；AI不代部署三工程，不把旧G2算作新分页通过。
 - [ ] **Step 5:** 写证据及runbook：Cookie有限期限、预算与正文的分离、识别边界、旧计数承接筛选、混合版本风险、回滚限制。**真实库承接/部署为独立后续动作，不在本计划自动执行**；新运行时回退也必须保留公共预算控制，不能退回发新100的老admission。
-- [ ] **Step 6:** 仅提交本任务文件，`git commit -m "test(xiaohe): verify isolated lifecycle and history flows"`；不push/merge/release。报告准确通过项/待验证项并交用户审阅，部署开关仍关闭。
+- [ ] **Step 6:** 仅提交本任务文件，`git commit -m "test(xiaohe): verify isolated lifecycle and history flows"`；依据用户追加授权普通推送 `origin/dev-fengfeng` 并核对远端 SHA，不 merge/release 或切换现有服务。报告准确通过项/待验证项并交用户审阅，部署开关仍关闭。
 
 ## 计划自查与执行门
 
 已按共同设计§4/§5/§6/§7逐项映射：通道ready/EOF→Task6；SSO恢复/原8h→Task5及SSO依赖；长期预算/存量/过期→Task2/3；真分页/卡片/水位→Task4/6；V1兼容→Task1/5/6；组合证据→Task7。五项Review Focus各有具名测试；未把门户滚动、打开意图、前端发送守卫或中心认证实现算成AI代码任务。
 
-用户已批准三工程计划，原生执行方式不再重新询问，使用 `superpowers:executing-plans`。开工检查尚未满足接待基线前置，目前未执行产品测试/迁移/服务命令、未修改上述产品文件；等对应 Owner 确认可整合稳定基线并处理归属后，重新核对迁移编号，再按任务执行。每项结果写入本计划专属 ledger，不把审批记录视为 Task 1 或新增功能已完成。
+用户已批准三工程计划，原生执行方式不再重新询问，使用 `superpowers:executing-plans`。2026-11-07 接待稳定基线41598965已交回且开工门满足，Task 1–5已逐项按RED/GREEN执行；迁移0010及全部PG验证只在新专用可丢弃库进行，未升级现有真人库或切换服务。后续继续Task 6/7。每项结果写入本计划专属 ledger，不把审批记录视为 Task 1 或新增功能已完成。
