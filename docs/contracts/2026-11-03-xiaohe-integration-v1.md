@@ -4009,14 +4009,14 @@ type MessageBaselineV2 = {
 
 ### 12.7 实施前置与验收状态
 
-依赖：共享契约核对 → 用户审阅各工程计划 → AI/Runtime 同一基线实现 → 门户消费适配 → 隔离组合验收。当前仅规划文档，没有新增行为的测试/迁移/运行证据。原 G2 或文件证据仅可复用其已验证范围，不代表分页、持久预算、V2 已通过。
+依赖：共享契约核对 → 用户审阅各工程计划 → AI/Runtime 同一基线实现 → 门户消费适配 → 隔离组合验收。本节最初为规划基线，后续各工程实际实现、固定提交及逐层验证以对应实施计划和验收记录为准；机器块存在不代表真实迁移、部署或三方验收。原 G2 或文件证据仅可复用其已验证范围，不代表分页、持久预算、V2 已通过。
 
 至少覆盖：20→4h→剩80；99/100/101/幂等；关闭/隔天及凭据轮换不清零；已知坏旧凭据不补0；并发重开与旧流/清理/claim 竞争；35条10/10/10/5及同时间戳新消息；归并后旧cursor；迟到页与delta水位；旧waiting_input定位及精确文件版本；跨身份/系统游标；V1/V2兼容与拒绝混用；原8h及complete丢失；空闲ready/活跃EOF。测试只能在批准后使用隔离库、离线/受控模型和伪造身份 fixture，不触碰现有体验窗口/服务。
 
 
 ### 12.8 V2 机器契约（2026-11-07，Task 1 离线消费基线）
 
-下块是 §12 DTO 与 AG-UI 的唯一机器来源，Runtime 副本仅提取。导出名称为 `$defs` 中的 `ChatSnapshotV2`、`HistoryPageV2`、`MessageBaselineV2`、`PublicSnapshotV2`、`BootstrapInputV2`、`CreateAuthOperationV2`、`ExpectedIdentity`、`WireEventV2` 和 `StreamEventV2`。固定虚构样例位于 `tests/xiaohe/contracts/view_v2.json`。此交付只解锁离线消费；预算、分页 API、恢复约束的实际持久化和 Runtime V2 尚待后续任务，不代表已经部署或通过三方验收。V1 机器块保持原字节。
+下块是 §12 DTO 与 AG-UI 的唯一机器来源，Runtime 副本仅提取。导出名称为 `$defs` 中的 `ChatSnapshotV2`、`HistoryPageV2`、`MessageBaselineV2`、`PublicSnapshotV2`、`BootstrapInputV2`、`CreateAuthOperationV2`、`ExpectedIdentity`、`WireEventV2` 和 `StreamEventV2`。固定虚构样例位于 `tests/xiaohe/contracts/view_v2.json`。 Task 6 补齐机器约束：V2 标准 `MESSAGES_SNAPSHOT.messages` 同样最多 10 条，与原 §12.4 有界窗口要求一致；V1 机器块和所有 DTO 字段不变。此交付只解锁离线消费；预算、分页 API、恢复约束的实际持久化和 Runtime V2 尚待后续任务，不代表已经部署或通过三方验收。V1 机器块保持原字节。
 
 <!-- xiaohe-agui-v2-schema:start -->
 ```json
@@ -6287,7 +6287,8 @@ type MessageBaselineV2 = {
             ]
           },
           "title": "Messages",
-          "type": "array"
+          "type": "array",
+          "maxItems": 10
         }
       },
       "required": [

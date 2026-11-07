@@ -25,6 +25,7 @@ test("V2 offline fixtures share the strict machine contract", () => {
     { ...fixtures.event, sequence: "1" },
     { ...fixtures.event, historyEpoch: -1 },
     { ...fixtures.public, csrf: fixtures.snapshot.csrf },
+    { type: "MESSAGES_SNAPSHOT", messages: Array.from({ length: 11 }, (_, id) => ({ id: `M${id}`, role: "assistant", content: "fixture" })) },
     { ...fixtures.ready, value: { ...fixtures.ready.value, watermarkSequence: Number.MAX_SAFE_INTEGER + 1 } },
   ]) assert.equal(validator.validate(value).valid, false, JSON.stringify(value));
 });

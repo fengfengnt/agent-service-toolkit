@@ -2,6 +2,7 @@ export interface RuntimeConfig {
   readonly gatewayUrl: string;
   readonly publicOrigin: string;
   readonly port: number;
+  readonly viewVersion: 1 | 2;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): RuntimeConfig {
@@ -15,5 +16,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): RuntimeConfig 
   }
   const port = Number(env.PORT ?? 3000);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("invalid Runtime port");
-  return Object.freeze({ gatewayUrl: gateway.href.replace(/\/$/, ""), publicOrigin: origin.origin, port });
+  const version = env.XIAOHE_VIEW_VERSION ?? "1";
+  if (version !== "1" && version !== "2") throw new Error("unsupported Xiaohe view version");
+  return Object.freeze({ gatewayUrl: gateway.href.replace(/\/$/, ""), publicOrigin: origin.origin, port, viewVersion: version === "2" ? 2 : 1 });
 }

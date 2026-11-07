@@ -395,7 +395,7 @@ async def test_session_revocation_mid_stream_blocks_private_frames_and_closes_su
         subscriptions.append(source)
         return source
 
-    async def revoke_on_second(factory, actor, conversation_id, epoch):
+    async def revoke_on_second(factory, actor, conversation_id, epoch, history_epoch=None):
         nonlocal checks
         checks += 1
         if checks == 2:
@@ -405,7 +405,7 @@ async def test_session_revocation_mid_stream_blocks_private_frames_and_closes_su
                     .where(Session.id == actor.session_id)
                     .values(revoked_at=func.clock_timestamp())
                 )
-        await original_check(factory, actor, conversation_id, epoch)
+        await original_check(factory, actor, conversation_id, epoch, history_epoch)
 
     async with client_for(pg_factory) as client:
         snapshot = await session(client)

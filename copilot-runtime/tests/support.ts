@@ -6,7 +6,7 @@ import { loadConfig } from "../src/config.js";
 export const THREAD_A = "00000000-0000-4000-8000-000000000001";
 export const THREAD_B = "00000000-0000-4000-8000-000000000002";
 export const RUN = "00000000-0000-4000-8000-000000000003";
-export const config = () => loadConfig({ XIAOHE_BUSINESS_GATEWAY_URL: "https://portal.lvh.me/candidate/ai-api/v1", XIAOHE_PUBLIC_ORIGIN: "https://portal.lvh.me" });
+export const config = (viewVersion: "1" | "2" = "1") => loadConfig({ XIAOHE_BUSINESS_GATEWAY_URL: "https://portal.lvh.me/candidate/ai-api/v1", XIAOHE_PUBLIC_ORIGIN: "https://portal.lvh.me", XIAOHE_VIEW_VERSION: viewVersion });
 export const cookie = (who = "A") => `__Host-XIAOHESESSION=${who.repeat(43)}`;
 export const headers = (who = "A") => ({ Cookie: cookie(who), Origin: "https://portal.lvh.me", "X-Xiaohe-CSRF": `fake-csrf-${who}`, "Content-Type": "application/json" });
 export const input = (threadId = THREAD_A, runId = "attempt-1") => ({ threadId, runId, messages: [{ id: "browser-only", role: "user", content: "了解服务" }], state: {}, tools: [], context: [], forwardedProps: {} });
@@ -57,8 +57,8 @@ export function gateway(options: { hold?: boolean; rejectRun?: boolean; malforme
   return { transport, calls, stats };
 }
 
-export async function withServer(fake: ReturnType<typeof gateway>, use: (url: string) => Promise<void>) {
-  const app = createRuntimeApp(config(), { fetch: fake.transport });
+export async function withServer(fake: ReturnType<typeof gateway>, use: (url: string) => Promise<void>, version: "1" | "2" = "1") {
+  const app = createRuntimeApp(config(version), { fetch: fake.transport });
   const server = app.listen(0, "127.0.0.1");
   await new Promise<void>(resolve => server.once("listening", resolve));
   const address = server.address();

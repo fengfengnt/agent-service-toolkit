@@ -10,7 +10,7 @@
 
 **Spec:** [用户已批准的共同设计](C:/Users/70367/.codex/worktrees/xiaohe-auth-card/yunhezhiyuan-portal/docs/superpowers/specs/2026-11-06-xiaohe-lifecycle-history-design.md)；唯一 wire 来源为 [共享主契约 §12](D:/Code/yunhezhiyuan-agents/docs/contracts/2026-11-03-xiaohe-integration-v1.md)。此计划不复制另一份 DTO 规范。
 
-状态：2026-11-07，北京时间，**用户已回复“审阅通过”，三工程计划已批准，按各工程原生方式执行**。稳定基线已交接，AI 已完成 Task 1–5，继续 Task 6；未完成的勾选和下列命令仍不代表已经执行或通过。用户追加允许按需 WSL 隔离部署；现有真人体验库、正式入口与开关保持不变，不自动短信、不建真实账号、不调用模型。
+状态：2026-11-07，北京时间，**用户已回复“审阅通过”，三工程计划已批准，按各工程原生方式执行**。稳定基线已交接，AI 已完成 Task 1–6，继续 Task 7；未完成的勾选和下列命令仍不代表已经执行或通过。用户追加允许按需 WSL 隔离部署；现有真人体验库、正式入口与开关保持不变，不自动短信、不建真实账号、不调用模型。
 
 ## Global Constraints
 
@@ -145,14 +145,14 @@ Task 1（统一契约/基线）→ Task 2（数据/身份）→ Task 3（公共a
 
 **Interfaces:** `project_snapshot_v2(snapshot: ChatSnapshotV2, attempt_id: str | None) -> list[dict]`；`project_event_v2(event: EventEnvelopeV2, context: ProjectionContextV2) -> list[dict]`；`ProjectionContextV2` 保持最大10窗口及最多一个当前assistant内部基线；`RuntimeConfig.viewVersion: 1|2`；原XiaoheBusinessClient签名不变。
 
-- [ ] **Step 1:** 写 `test_v2_projection_does_not_read_or_emit_all_history`、`test_hidden_active_assistant_has_baseline_before_delta`、`test_ready_allows_idle_eof_but_not_active_run_eof`；初始10条+额外独立baseline仍不是第11条首屏消息。
-- [ ] **Step 2:** 写 `test_page_baseline_then_older_delta_does_not_duplicate_or_skip_other_message`、`test_epoch_or_ownership_change_terminates_old_stream`。Runtime新测试：配置默认1/显式2/非法失败；每个业务请求固定版本头，V2回显缺失/V1流/未知CUSTOM均拒绝，浏览器伪造头不能改上游配置；V1模式可接原严格V1响应而无回显，但不能接显式2。info/SSE/过滤错误均回显，info body不变；Number.isSafeInteger拒绝字符串和越界，不能把epoch/sequence转字符串。
-- [ ] **Step 3:** 运行 `uv run --no-sync pytest tests/xiaohe/test_agui_v2.py -v` 和 `node copilot-runtime/tests/run.mjs view-v2`，预期FAIL；Python涉及PG者用隔离库。
-- [ ] **Step 4:** agui selected/connect改成版本分派，V2直接Task4有界查询。V2事件附真实sequence/订阅epoch，重连从受权一致快照开始；raw events续传校验客户端historyEpoch。旧assistant只受控读一条完整基线并标水位，缓冲后续事件，先baseline再delta，对已包含delta按消息水位过滤；不能为了补基线全量重读或误跳别的消息。
-- [ ] **Step 5:** V2 STATE保持当前10条窗口/权威控制，CUSTOM只发v2.event/message-baseline/ready，原运行成功/失败事件不换含义。ready仅证明通道受权快照就绪，活跃EOF仍异常；无run空闲正常ready后退出。不新增SDK消息历史数据库。
-- [ ] **Step 6:** Runtime固定配置、严格V2schema、safe errors及事件白名单按§12；V1路径保留。server在info/SSE/错误统一回显固定版本，info不表示Python探测通过；不放开浏览器控制头/上游URL。配置示例仅文档列出默认1，不改运行env或代理。SDK的messages window不拥有门户history cache；将事件顺序和模型fixture交给门户Owner实现缓存，不代写门户组件。
-- [ ] **Step 7:** 同命令与 `uv run --no-sync pytest tests/xiaohe/test_agui_api.py tests/xiaohe/test_agui_projection.py -v`、`npm --prefix copilot-runtime run typecheck`、`npm --prefix copilot-runtime test` 预期PASS；无实际模型/SSO/浏览器。无需build镜像或启动服务证明类型检查。
-- [ ] **Step 8:** 仅提交任务文件，`git commit -m "feat(xiaohe): project bounded v2 views through runtime"`。
+- [x] **Step 1:** 写 `test_v2_projection_does_not_read_or_emit_all_history`、`test_hidden_active_assistant_has_baseline_before_delta`、`test_ready_allows_idle_eof_but_not_active_run_eof`；初始10条+额外独立baseline仍不是第11条首屏消息。
+- [x] **Step 2:** 写 `test_page_baseline_then_older_delta_does_not_duplicate_or_skip_other_message`、`test_epoch_or_ownership_change_terminates_old_stream`。Runtime新测试：配置默认1/显式2/非法失败；每个业务请求固定版本头，V2回显缺失/V1流/未知CUSTOM均拒绝，浏览器伪造头不能改上游配置；V1模式可接原严格V1响应而无回显，但不能接显式2。info/SSE/过滤错误均回显，info body不变；Number.isSafeInteger拒绝字符串和越界，不能把epoch/sequence转字符串。
+- [x] **Step 3:** 运行 `uv run --no-sync pytest tests/xiaohe/test_agui_v2.py -v` 和 `node copilot-runtime/tests/run.mjs view-v2`，预期FAIL；Python涉及PG者用隔离库。
+- [x] **Step 4:** agui selected/connect改成版本分派，V2直接Task4有界查询。V2事件附真实sequence/订阅epoch，重连从受权一致快照开始；raw events续传校验客户端historyEpoch。旧assistant只受控读一条完整基线并标水位，缓冲后续事件，先baseline再delta，对已包含delta按消息水位过滤；不能为了补基线全量重读或误跳别的消息。
+- [x] **Step 5:** V2 STATE保持当前10条窗口/权威控制，CUSTOM只发v2.event/message-baseline/ready，原运行成功/失败事件不换含义。ready仅证明通道受权快照就绪，活跃EOF仍异常；无run空闲正常ready后退出。不新增SDK消息历史数据库。
+- [x] **Step 6:** Runtime固定配置、严格V2schema、safe errors及事件白名单按§12；V1路径保留。server在info/SSE/错误统一回显固定版本，info不表示Python探测通过；不放开浏览器控制头/上游URL。配置示例仅文档列出默认1，不改运行env或代理。SDK的messages window不拥有门户history cache；将事件顺序和模型fixture交给门户Owner实现缓存，不代写门户组件。
+- [x] **Step 7:** 同命令与 `uv run --no-sync pytest tests/xiaohe/test_agui_api.py tests/xiaohe/test_agui_projection.py -v`、`npm --prefix copilot-runtime run typecheck`、`npm --prefix copilot-runtime test` 预期PASS；无实际模型/SSO/浏览器。无需build镜像或启动服务证明类型检查。
+- [x] **Step 8:** 仅提交任务文件，`git commit -m "feat(xiaohe): project bounded v2 views through runtime"`。
 
 ### Task 7: 隔离组合验证与交接证据
 
@@ -171,4 +171,4 @@ Task 1（统一契约/基线）→ Task 2（数据/身份）→ Task 3（公共a
 
 已按共同设计§4/§5/§6/§7逐项映射：通道ready/EOF→Task6；SSO恢复/原8h→Task5及SSO依赖；长期预算/存量/过期→Task2/3；真分页/卡片/水位→Task4/6；V1兼容→Task1/5/6；组合证据→Task7。五项Review Focus各有具名测试；未把门户滚动、打开意图、前端发送守卫或中心认证实现算成AI代码任务。
 
-用户已批准三工程计划，原生执行方式不再重新询问，使用 `superpowers:executing-plans`。2026-11-07 接待稳定基线41598965已交回且开工门满足，Task 1–5已逐项按RED/GREEN执行；迁移0010及全部PG验证只在新专用可丢弃库进行，未升级现有真人库或切换服务。后续继续Task 6/7。每项结果写入本计划专属 ledger，不把审批记录视为 Task 1 或新增功能已完成。
+用户已批准三工程计划，原生执行方式不再重新询问，使用 `superpowers:executing-plans`。2026-11-07 接待稳定基线41598965已交回且开工门满足，Task 1–6已逐项按RED/GREEN执行；迁移0010及全部PG验证只在新专用可丢弃库进行，未升级现有真人库或切换服务。后续继续Task 7。每项结果写入本计划专属 ledger，不把审批记录视为 Task 1 或新增功能已完成。

@@ -269,13 +269,32 @@ def create_public_router(factory):
 
     @router.get("/conversations/{conversation_id}/events")
     async def events(conversation_id: UUID, request: Request, after: str | None = None):
+        version = parse_view_version(request)
+        history_epoch = None
+        if version == 2:
+            values = request.query_params.getlist("historyEpoch")
+            if (
+                len(values) != 1
+                or not values[0].isascii()
+                or not values[0].isdigit()
+                or len(values[0]) > 16
+            ):
+                raise ServiceError("INPUT_INVALID", 422)
+            history_epoch = int(values[0])
+            if history_epoch > 2**53 - 1:
+                raise ServiceError("INPUT_INVALID", 422)
         last = request.headers.getlist("Last-Event-ID")
         if len(last) > 1:
             raise ServiceError("EVENT_CURSOR_INVALID", 409)
         async with factory.begin() as db:
             actor = await _actor(request, db)
         stream = await stream_events(
-            factory, actor, conversation_id, after, last[0] if last else None
+            factory,
+            actor,
+            conversation_id,
+            after,
+            last[0] if last else None,
+            **({"view_version": 2, "history_epoch": history_epoch} if version == 2 else {}),
         )
         return StreamingResponse(
             stream,

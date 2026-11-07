@@ -44,6 +44,7 @@ export function createRuntimeApp(config: RuntimeConfig, dependencies: { fetch?: 
     const info = request.method === "GET" && request.path === "/copilot-api/info";
     const allowed = request.method === "POST" && /^\/copilot-api\/agent\/default\/(run|connect|stop\/[^/]+)$/.test(request.path);
     response.setHeader("Cache-Control", "private, no-store");
+    response.setHeader("X-Xiaohe-View-Version", String(config.viewVersion));
     if (!info && !allowed) { response.status(404).json({ error: { code: "NOT_FOUND" } }); return; }
     if (info) { next(); return; }
     try {
@@ -63,6 +64,11 @@ export function createRuntimeApp(config: RuntimeConfig, dependencies: { fetch?: 
   app.use(createCopilotExpressHandler({ runtime, basePath: "/copilot-api", cors: false, activateChannels: false,
     hooks: {
       onRequest: ({ request }) => boundedRequest(request),
+      onResponse: ({ response }) => {
+        response.headers.set("Cache-Control", "private, no-store");
+        response.headers.set("X-Xiaohe-View-Version", String(config.viewVersion));
+        return response;
+      },
       async onBeforeHandler({ request, route }) {
         if (route.method === "info") return;
         const context = currentContext();

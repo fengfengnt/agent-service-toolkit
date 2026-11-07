@@ -8,9 +8,11 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from xiaohe.contracts import ChatMessage, EventEnvelope, ServiceError
+from xiaohe.contracts_v2 import EventEnvelopeV2
 from xiaohe.models import Command, Conversation, Event, EventTombstone, Message, RunAttempt, Session
 
 _EVENT = TypeAdapter(EventEnvelope)
+_EVENT_V2 = TypeAdapter(EventEnvelopeV2)
 
 
 def next_position(value: int) -> int:
@@ -51,16 +53,19 @@ def record_event(
     return event
 
 
-def envelope(event: Event):
-    return _EVENT.validate_python(
-        {
-            "eventId": str(event.id),
-            "conversationId": str(event.conversation_id),
-            "runId": str(event.run_id) if event.run_id else None,
-            "type": event.event_type,
-            "payload": event.payload,
-        }
-    )
+def envelope(event: Event, *, view_version=1, history_epoch=None):
+    value = {
+        "eventId": str(event.id),
+        "conversationId": str(event.conversation_id),
+        "runId": str(event.run_id) if event.run_id else None,
+        "type": event.event_type,
+        "payload": event.payload,
+    }
+    if view_version == 2:
+        return _EVENT_V2.validate_python(
+            value | {"sequence": event.sequence, "historyEpoch": history_epoch}
+        )
+    return _EVENT.validate_python(value)
 
 
 async def append_event(db, fence, type: str, payload: dict):
@@ -181,14 +186,16 @@ async def _position(db, actor, conversation_id, after, last_event_id):
     return sequence, conversation.ownership_epoch
 
 
-def _frame(event):
-    value = envelope(event)
+def _frame(event, *, view_version=1, history_epoch=None):
+    value = envelope(event, view_version=view_version, history_epoch=history_epoch)
     return (
         f"id: {value.event_id}\nevent: {value.type}\ndata: {value.model_dump_json(by_alias=True)}\n\n"
     ).encode()
 
 
-async def _expiry_event(factory, actor, conversation_id, epoch):
+async def _expiry_event(
+    factory, actor, conversation_id, epoch, *, view_version=1, history_epoch=None
+):
     from xiaohe.identity import registered_system
 
     async with factory.begin() as db:
@@ -222,6 +229,8 @@ async def _expiry_event(factory, actor, conversation_id, epoch):
         )
         if conversation is None or conversation.ownership_epoch != epoch:
             return None
+        if view_version == 2 and conversation.history_epoch != history_epoch:
+            return None
         event = await db.scalar(
             select(Event).where(
                 Event.conversation_id == conversation.id, Event.event_type == "viewer.expired"
@@ -230,14 +239,29 @@ async def _expiry_event(factory, actor, conversation_id, epoch):
         if event is None:
             event = record_event(db, conversation, "viewer.expired", {"code": "VISITOR_EXPIRED"})
             await db.flush()
-        return _frame(event)
+        return _frame(event, view_version=view_version, history_epoch=history_epoch)
 
 
-async def stream_events(factory, actor, conversation_id, after=None, last_event_id=None):
+async def stream_events(
+    factory,
+    actor,
+    conversation_id,
+    after=None,
+    last_event_id=None,
+    *,
+    view_version=1,
+    history_epoch=None,
+):
     from xiaohe.conversations import require_conversation
 
     async with factory.begin() as db:
         sequence, epoch = await _position(db, actor, conversation_id, after, last_event_id)
+        if view_version == 2:
+            if type(history_epoch) is not int or not 0 <= history_epoch <= 2**53 - 1:
+                raise ServiceError("INPUT_INVALID", 422)
+            conversation = await db.get(Conversation, conversation_id)
+            if conversation.history_epoch != history_epoch:
+                raise ServiceError("HISTORY_RESET_REQUIRED", 409)
 
     async def poll():
         nonlocal sequence
@@ -247,6 +271,8 @@ async def stream_events(factory, actor, conversation_id, after=None, last_event_
                 async with factory.begin() as db:
                     conversation = await require_conversation(db, actor, conversation_id)
                     if conversation.ownership_epoch != epoch:
+                        return
+                    if view_version == 2 and conversation.history_epoch != history_epoch:
                         return
                     rows = (
                         await db.scalars(
@@ -263,13 +289,22 @@ async def stream_events(factory, actor, conversation_id, after=None, last_event_
                         current = await require_conversation(db, actor, conversation_id)
                         if current.ownership_epoch != epoch:
                             return
+                        if view_version == 2 and current.history_epoch != history_epoch:
+                            return
                     if row.sequence != sequence + 1:
                         return
-                    yield _frame(row)
+                    yield _frame(row, view_version=view_version, history_epoch=history_epoch)
                     sequence = row.sequence
             except ServiceError as error:
                 if error.code == "VISITOR_EXPIRED":
-                    expired = await _expiry_event(factory, actor, conversation_id, epoch)
+                    expired = await _expiry_event(
+                        factory,
+                        actor,
+                        conversation_id,
+                        epoch,
+                        view_version=view_version,
+                        history_epoch=history_epoch,
+                    )
                     if expired is not None:
                         yield expired
                 return

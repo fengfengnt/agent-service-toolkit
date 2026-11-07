@@ -20,13 +20,21 @@ from xiaohe.agui_projection import (
     project_run_status,
     project_snapshot,
 )
+from xiaohe.agui_projection_v2 import (
+    ProjectionContextV2,
+    project_event_v2,
+    project_message_baseline_v2,
+    project_run_status_v2,
+    project_snapshot_v2,
+)
 from xiaohe.api import _actor, _body
 from xiaohe.contracts import ChatAction, InputId, RunRef, ServiceError, WireModel
 from xiaohe.conversations import load_snapshot, require_conversation
 from xiaohe.events import stream_events
-from xiaohe.models import Command, Run
-from xiaohe.runs import cancel_run
+from xiaohe.models import Command, Message, Run
+from xiaohe.runs import cancel_run, reply_id
 from xiaohe.streaming import ClosingStreamingResponse
+from xiaohe.view_version import parse_view_version
 
 
 class ConversationInput(WireModel):
@@ -70,9 +78,14 @@ def _control(input):
     return control
 
 
-async def _selected(db, actor, body):
+async def _selected(db, actor, body, *, view_version=1, cursor_secret=None):
     conversation = await require_conversation(db, actor, body.thread_id)
-    snapshot = await load_snapshot(db, actor, body.thread_id)
+    if view_version == 2:
+        from xiaohe.history import load_snapshot_v2
+
+        snapshot = await load_snapshot_v2(db, actor, body.thread_id, cursor_secret=cursor_secret)
+    else:
+        snapshot = await load_snapshot(db, actor, body.thread_id)
     query = select(Command).where(Command.conversation_id == body.thread_id)
     if body.attempt_id is not None:
         rows = (await db.scalars(query.where(Command.client_key == body.attempt_id).limit(2))).all()
@@ -105,11 +118,13 @@ def _frame(event):
     ).encode()
 
 
-async def _check_scope(factory, actor, conversation_id, epoch):
+async def _check_scope(factory, actor, conversation_id, epoch, history_epoch=None):
     async with factory.begin() as db:
         current = await require_conversation(db, actor, conversation_id)
         if current.ownership_epoch != epoch:
             raise ServiceError("FORBIDDEN", 403)
+        if history_epoch is not None and current.history_epoch != history_epoch:
+            raise ServiceError("HISTORY_RESET_REQUIRED", 409)
 
 
 def create_agui_router(factory) -> APIRouter:
@@ -188,7 +203,14 @@ def create_agui_router(factory) -> APIRouter:
     async def status(request: Request):
         body = await _body(request, ConversationInput)
         async with factory.begin() as db:
-            _, snapshot, command, current = await _selected(db, await _actor(request, db), body)
+            version = parse_view_version(request)
+            _, snapshot, command, current = await _selected(
+                db,
+                await _actor(request, db),
+                body,
+                view_version=version,
+                cursor_secret=request.app.state.xiaohe_settings.auth_secret,
+            )
             return {
                 "conversationId": snapshot.conversation_id,
                 "activeRun": snapshot.active_run,
@@ -196,7 +218,7 @@ def create_agui_router(factory) -> APIRouter:
                 "attemptId": command.client_key if command else None,
                 "businessRunId": str(current.id) if current else None,
                 "isRunning": current is not None and current.status in ("queued", "running"),
-                "cursor": snapshot.cursor,
+                "cursor": snapshot.sync.event_cursor if version == 2 else snapshot.cursor,
             }
 
     @router.post("/stop")
@@ -204,7 +226,13 @@ def create_agui_router(factory) -> APIRouter:
         body = await _body(request, ConversationInput)
         async with factory.begin() as db:
             actor = await _actor(request, db)
-            _, snapshot, command, current = await _selected(db, actor, body)
+            _, snapshot, command, current = await _selected(
+                db,
+                actor,
+                body,
+                view_version=parse_view_version(request),
+                cursor_secret=request.app.state.xiaohe_settings.auth_secret,
+            )
             if (
                 current is None
                 or snapshot.active_run is None
@@ -224,10 +252,19 @@ def create_agui_router(factory) -> APIRouter:
     @router.post("/connect")
     async def connect(request: Request):
         body = await _body(request, ConversationInput)
+        version = parse_view_version(request)
+        baseline = None
         async with factory.begin() as db:
             actor = await _actor(request, db)
-            conversation, snapshot, command, current = await _selected(db, actor, body)
+            conversation, snapshot, command, current = await _selected(
+                db,
+                actor,
+                body,
+                view_version=version,
+                cursor_secret=request.app.state.xiaohe_settings.auth_secret,
+            )
             epoch = conversation.ownership_epoch
+            history_epoch = snapshot.history.history_epoch if version == 2 else None
             attempt = command.client_key if command else None
             current_status = current.status if current else None
             business_id = str(current.id) if current else None
@@ -244,9 +281,22 @@ def create_agui_router(factory) -> APIRouter:
             finished_old_attempt = (
                 command is not None and command.completed_at is not None and latest_id != command.id
             )
+            if version == 2 and current_status in ("queued", "running") and command is not None:
+                assistant_id = reply_id(current.id, command.id)
+                if str(assistant_id) not in {m.id for m in snapshot.messages} and await db.scalar(
+                    select(Message.id).where(
+                        Message.id == assistant_id, Message.conversation_id == conversation.id
+                    )
+                ):
+                    from xiaohe.history import load_message_baseline
+
+                    baseline = await load_message_baseline(db, actor, conversation.id, assistant_id)
+        snapshot_projector = project_snapshot_v2 if version == 2 else project_snapshot
+        event_projector = project_event_v2 if version == 2 else project_event
+        status_projector = project_run_status_v2 if version == 2 else project_run_status
         initial = [
             event
-            for event in project_snapshot(snapshot, attempt)
+            for event in snapshot_projector(snapshot, attempt)
             if event["type"] != "RUN_FINISHED"
         ]
         public = next(
@@ -254,9 +304,26 @@ def create_agui_router(factory) -> APIRouter:
         )
         public["businessRunId"] = business_id
         public["businessRunStatus"] = current_status
-        context = ProjectionContext(snapshot.conversation_id, attempt, business_id, public)
+        context = (
+            ProjectionContextV2(
+                snapshot.conversation_id, attempt, business_id, public, history_epoch=history_epoch
+            )
+            if version == 2
+            else ProjectionContext(snapshot.conversation_id, attempt, business_id, public)
+        )
+        if baseline is not None:
+            ready_index = next(
+                i for i, e in enumerate(initial) if e.get("name") == "xiaohe.v2.ready"
+            )
+            initial[ready_index:ready_index] = project_message_baseline_v2(baseline, context)
         source = (
-            await stream_events(factory, actor, body.thread_id, snapshot.cursor)
+            await stream_events(
+                factory,
+                actor,
+                body.thread_id,
+                snapshot.sync.event_cursor if version == 2 else snapshot.cursor,
+                **({"view_version": 2, "history_epoch": history_epoch} if version == 2 else {}),
+            )
             if current_status in ("queued", "running") and not finished_old_attempt
             else None
         )
@@ -264,11 +331,11 @@ def create_agui_router(factory) -> APIRouter:
         async def generate():
             try:
                 for event in initial:
-                    await _check_scope(factory, actor, body.thread_id, epoch)
+                    await _check_scope(factory, actor, body.thread_id, epoch, history_epoch)
                     yield _frame(event)
                 if finished_old_attempt:
                     for event in _finish(context, "completed"):
-                        await _check_scope(factory, actor, body.thread_id, epoch)
+                        await _check_scope(factory, actor, body.thread_id, epoch, history_epoch)
                         yield _frame(event)
                     return
                 if current_status in (
@@ -278,17 +345,17 @@ def create_agui_router(factory) -> APIRouter:
                     "cancelled",
                     "expired",
                 ):
-                    for event in project_run_status(
+                    for event in status_projector(
                         {"id": business_id, "status": current_status}, context
                     ):
-                        await _check_scope(factory, actor, body.thread_id, epoch)
+                        await _check_scope(factory, actor, body.thread_id, epoch, history_epoch)
                         yield _frame(event)
                 if source is None:
                     return
                 async with aclosing(source):
                     async for frame in source:
                         if frame.startswith(b":"):
-                            await _check_scope(factory, actor, body.thread_id, epoch)
+                            await _check_scope(factory, actor, body.thread_id, epoch, history_epoch)
                             yield frame
                             continue
                         payload = next(
@@ -296,12 +363,30 @@ def create_agui_router(factory) -> APIRouter:
                             for line in frame.decode().splitlines()
                             if line.startswith("data: ")
                         )
-                        for event in project_event(json.loads(payload), context):
-                            await _check_scope(factory, actor, body.thread_id, epoch)
+                        value = json.loads(payload)
+                        if version == 2 and value.get("type") == "message.delta":
+                            message_id = value["payload"]["messageId"]
+                            if message_id not in {m["id"] for m in public["messages"]} and (
+                                context.baseline is None
+                                or context.baseline.message.id != message_id
+                            ):
+                                from xiaohe.history import load_message_baseline
+
+                                async with factory.begin() as db:
+                                    baseline = await load_message_baseline(
+                                        db, actor, body.thread_id, _uuid(message_id)
+                                    )
+                                for event in project_message_baseline_v2(baseline, context):
+                                    await _check_scope(
+                                        factory, actor, body.thread_id, epoch, history_epoch
+                                    )
+                                    yield _frame(event)
+                        for event in event_projector(value, context):
+                            await _check_scope(factory, actor, body.thread_id, epoch, history_epoch)
                             yield _frame(event)
                         if context.finished:
                             return
-                await _check_scope(factory, actor, body.thread_id, epoch)
+                await _check_scope(factory, actor, body.thread_id, epoch, history_epoch)
                 yield _frame(error_event("EVENT_CURSOR_EXPIRED"))
             except ServiceError as error:
                 yield _frame(error_event(error.code))

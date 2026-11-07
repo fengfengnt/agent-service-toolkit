@@ -12,7 +12,7 @@ export function createXiaoheRunner(config: RuntimeConfig, transport: typeof fetc
       const abort = new AbortController();
       const client = createBusinessClient(context, config, transport, AbortSignal.any([context.signal, abort.signal]));
       void (async () => {
-        let started = false, terminal = false, snapshot = false;
+        let started = false, terminal = false, snapshot = false, ready = false, active = false;
         const pending: BaseEvent[] = [];
         for await (const event of client.connect(threadId, attemptId)) {
           if (subscriber.closed) return;
@@ -22,7 +22,14 @@ export function createXiaoheRunner(config: RuntimeConfig, transport: typeof fetc
             break;
           }
           if (event.type === EventType.RUN_STARTED) started = true;
-          if (event.type === EventType.STATE_SNAPSHOT) snapshot = true;
+          if (event.type === EventType.STATE_SNAPSHOT) {
+            snapshot = true;
+            if (config.viewVersion === 2) {
+              const state = event.snapshot as { xiaohe: { activeRun: { status: string } | null; businessRunStatus: string | null } };
+              active = [state.xiaohe.activeRun?.status, state.xiaohe.businessRunStatus].some(status => status === "queued" || status === "running");
+            }
+          }
+          if (event.type === EventType.CUSTOM && event.name === "xiaohe.v2.ready") ready = true;
           if (!snapshot) {
             if ((event.type !== EventType.RUN_STARTED && event.type !== EventType.MESSAGES_SNAPSHOT) || pending.length >= 2) throw new RuntimeFailure("UPSTREAM_UNAVAILABLE");
             pending.push(event);
@@ -34,7 +41,7 @@ export function createXiaoheRunner(config: RuntimeConfig, transport: typeof fetc
           if (event.type === EventType.RUN_FINISHED) terminal = true;
           if (terminal) break;
         }
-        if (!subscriber.closed && !terminal && (!snapshot || started)) throw new RuntimeFailure("EVENT_CURSOR_EXPIRED", 409);
+        if (!subscriber.closed && !terminal && (!snapshot || started || (config.viewVersion === 2 && (!ready || active)))) throw new RuntimeFailure("EVENT_CURSOR_EXPIRED", 409);
         subscriber.complete();
       })().catch(error => {
         if (subscriber.closed || context.signal.aborted || abort.signal.aborted) return;
