@@ -56,6 +56,16 @@ npm --prefix copilot-runtime run build
 
 **换端口不隔离同主机 Cookie。** 本次仍用 `portal.lvh.me`，因此必须用本计划独占的新 Chrome profile/context；不能在真人 profile 打开 18593，也不能混入原 443 Cookie。Root 网络探针均用新建空 Cookie jar，门户计划用独占 persistent profile 验证真实浏览器进程关闭/重开，仅记录 Cookie 属性和计数，不导出 Cookie 或 storageState。浏览器证据以门户固定回执为准。
 
+### 2026-11-07 冻结门户静态候选
+
+门户交付 `d264fcc610b6afa478604d9f2ddcbc5706553eae` 加候选 working diff `34e1b80a96febd2f12473beb61b6302a6ee4280227d623b68920c5f852fe7e19` 的冻结构建，不能标成已推送的 Git 版本。静态根为门户本计划 `.superpowers/sdd/2026-11-06-xiaohe-lifecycle-history-portal/preview-dist`，已被新网关引用，清理前必须保留。
+
+只修改本次新网关配置的 `portal_root` 并重启该网关，未重启 API/worker/Runtime。精确核验旧 listener PID 31696 的来源后停止，新 listener PID 16520、launcher PID 44744；其他三个进程及启动时间保持。原 443/18110/18111、真人窗口、共享配置与正式开关未变。
+
+严格 CA/主机名校验下，`GET /portal/` HTML SHA256 为 `75bc4fa17d6b77f84621ae17c209ba14af9fde2b34e8ee5661acc4006fa0eea6`；`/portal/assets/index-B3RfFoar.js` SHA256 为 `9b76cc3808ebe4a8fb5515948e14af6416837d60ccf4aeee8382ae4c8c464f0a`，HTML 引用的 JS/CSS 两项均与制品逐字匹配。Runtime info 仍 200、V2 回显及 `private,no-store`，API fixture 活性和 Runtime 活性仍 200。原始公开证据位于 `preview/gateway-static-switch.json`。
+
+此时仅证明冻结静态包已由新网关正确提供，专用 profile 的真实分页、20 次发送、彻底关闭重开及指定合成访客的模拟到期仍由后续证据判定。
+
 ## 契约、事件与分页交接
 
 唯一主契约为父目录 `docs/contracts/2026-11-03-xiaohe-integration-v1.md`，仓库同名文件是逐字镜像；当前 raw SHA256：`3435d508e3401ba42359e191ff0b90a96f18c05102274a78e9dcce1fa45d6ca9`。原 V1 机器块 SHA256 仍为 `a1f5b073149da2d9fa33f5174f9c11821ef0f47a4b239377bb869b6252a14aaa`。旧 raw `6446…` 只保留为早期记录。

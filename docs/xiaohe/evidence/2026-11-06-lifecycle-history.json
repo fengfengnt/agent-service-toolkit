@@ -121,7 +121,43 @@
         "supplier"
       ],
       "normalSuggestionSendCharged": 1
-    }
+    },
+    "frontendCandidate": {
+      "previousStaticRoot": "D:\\Code\\yunhezhiyuan-agents\\agent-service-toolkit\\.superpowers\\sdd\\2026-11-06-xiaohe-lifecycle-history-ai-runtime\\preview\\portal-spa",
+      "staticRoot": "C:\\Users\\70367\\.codex\\worktrees\\xiaohe-auth-card\\yunhezhiyuan-portal\\.superpowers\\sdd\\2026-11-06-xiaohe-lifecycle-history-portal\\preview-dist",
+      "buildIdentity": {
+        "gitHead": "d264fcc610b6afa478604d9f2ddcbc5706553eae",
+        "worktreeDiffSha256": "34e1b80a96febd2f12473beb61b6302a6ee4280227d623b68920c5f852fe7e19",
+        "origin": "https://portal.lvh.me:18593",
+        "ssoBridgeEnabled": false,
+        "htmlSha256": "75bc4fa17d6b77f84621ae17c209ba14af9fde2b34e8ee5661acc4006fa0eea6",
+        "entry": "assets/index-B3RfFoar.js",
+        "entrySha256": "9b76cc3808ebe4a8fb5515948e14af6416837d60ccf4aeee8382ae4c8c464f0a",
+        "buildRoot": "C:\\Users\\70367\\.codex\\worktrees\\xiaohe-auth-card\\yunhezhiyuan-portal\\.superpowers\\sdd\\2026-11-06-xiaohe-lifecycle-history-portal\\preview-dist"
+      },
+      "status": "verified_https_static_and_info",
+      "oldListenerPid": 31696,
+      "newLauncherPid": 44744,
+      "tlsVerified": true,
+      "htmlSha256": "75bc4fa17d6b77f84621ae17c209ba14af9fde2b34e8ee5661acc4006fa0eea6",
+      "assetChecks": [
+        {
+          "path": "/portal/assets/index-B3RfFoar.js",
+          "sha256": "9b76cc3808ebe4a8fb5515948e14af6416837d60ccf4aeee8382ae4c8c464f0a"
+        },
+        {
+          "path": "/portal/assets/index-CIMaI-Ni.css",
+          "sha256": "56edeb5987e4a6cb93c8f9f06227fc3cb259a0133c9dbf1add17b27e84628bd0"
+        }
+      ],
+      "runtimeInfoVersion": 2,
+      "apiAndRuntimeAlive": true,
+      "browser": false,
+      "realSso": false,
+      "modelsCalled": false,
+      "formalEntryChanged": false
+    },
+    "protectedStaticRoot": "C:\\Users\\70367\\.codex\\worktrees\\xiaohe-auth-card\\yunhezhiyuan-portal\\.superpowers\\sdd\\2026-11-06-xiaohe-lifecycle-history-portal\\preview-dist"
   },
   "previewDatabase": "test_xiaohe_reception_v2_preview_20261107",
   "previewProcesses": [
@@ -139,7 +175,7 @@
     },
     {
       "name": "gateway",
-      "pid": 65608
+      "pid": 44744
     }
   ],
   "runtimeBuildSha256": {
@@ -178,7 +214,7 @@
     "This is 704 broad passes plus one targeted recovery, not a single all-green 705-case invocation",
     "Six WSL Compose cases blocked",
     "Ten physical MinIO cases not selected",
-    "Native Portal browser against new18593 build pending",
+    "New18593 frozen frontend static verified; native Portal persistent-profile browser pending",
     "No real SSO or deployment"
   ],
   "previewListeners": [
@@ -186,9 +222,9 @@
       "kind": "gateway",
       "host": "127.0.0.1",
       "port": 18593,
-      "pid": 31696,
-      "parentPid": 65608,
-      "created": "2026-11-07T18:33:35.4154090+08:00"
+      "pid": 16520,
+      "parentPid": 44744,
+      "created": "2026-11-07T19:15:23.6999050+08:00"
     },
     {
       "kind": "runtime",
