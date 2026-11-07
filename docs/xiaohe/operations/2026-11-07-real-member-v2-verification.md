@@ -36,6 +36,8 @@ Bridge 程序只从既有私有文件加载 `applicationId`、`secret`，显式�
 
 脱敏结果见[真实归并只读证据](../evidence/2026-11-07-real-member-claim.json)。这是数据库身份、记录归并和物理对象字节证据，**不替代会员浏览器验收**。门户首屏数量断言暂未通过，正核对测试驱动是否同时计入 SDK wrapper 与自定义 article；尚未据此判断产品分页故障或修改产品。
 
+门户随后只读复核源码：原 driver catch 只保存错误 name，未保存 stack、message 或实际 count，不能锁定本次 AssertionError 行；SDK 默认 wrapper 是具名 slot 的 fallback，而门户已有自定义 assistant/user slot，现有证据不能证明双计。`open` 只等 input visible、`reopen` 不等待 QDialog 完全消失，存在测试时序缺口，但没有原 DOM/栈，仍不能认定为本次根因。没有修改产品、driver 或冻结构建。后文新增 5 条发生于后续动作，不用于倒推解释先前 UI 断言失败。
+
 ## 会员浏览器原文件下载与界面检查阻塞
 
 Root 随后读取门户 `member-result.json`，确认 `member-browser-readonly-get` 为真实浏览器 GET 200，SHA256 与已封存的原访客文件一致；Runtime 写入仍 20、remoteStops 为 0、认证 complete 仅 `[200]`，未导出 storageState。`bound-member-reopen` 只证明关闭/重开聊天弹窗后同会员和 canonical、额外 complete 为 0，不等于关闭浏览器 context 后用同 profile 重开。原始 API 页长数组跨多个操作累计，也不作为 UI 分页通过证据。脱敏中间结果见[浏览器进度证据](../evidence/2026-11-07-real-member-browser-progress.json)。
@@ -62,7 +64,7 @@ Root 已读取协调聊天原始人类 turn `01a1b640-fe5f-7c30-bdcc-a45653006fd
 | 原文件 | 原 ID/draft/创建时间/object key、68 字节及 SHA256 均保持，实际 S3 GET 200/字节一致 |
 | 业务提交 | 仍为 0，无测试申请提交 |
 
-首次把当前总数误断言为恰好 41，检查失败。随后只读核对源码 `ACTION_TEXT`、Command 的 `reception.action` 与事件关联，确认上述差异，再将私有核验脚本改为验证原 41 保持并逐项溯源额外记录，结果转绿。没有改消息、业务状态或产品代码，也没有由 Root 新发消息。刷新后结果纳入[归并证据](../evidence/2026-11-07-real-member-claim.json)的 `postHumanRefreshReadOnly`；人类反馈纳入[浏览器证据](../evidence/2026-11-07-real-member-browser-progress.json)的 `manualUiAcceptance`。其中只读检查自身的 browser 字段为 false，既有浏览器 GET 200 证据在另一份记录，不是互相替代。
+Root 刷新后私有只读脚本首次把当前总数误断言为恰好 41，检查失败；这是另一条断言，不是门户先前的 UI 断言。随后只读核对源码 `ACTION_TEXT`、Command 的 `reception.action` 与事件关联，确认上述差异，再将私有核验脚本改为验证原 41 保持并逐项溯源额外记录，结果转绿。没有改消息、业务状态或产品代码，也没有由 Root 新发消息。刷新后结果纳入[归并证据](../evidence/2026-11-07-real-member-claim.json)的 `postHumanRefreshReadOnly`；人类反馈纳入[浏览器证据](../evidence/2026-11-07-real-member-browser-progress.json)的 `manualUiAcceptance`。其中只读检查自身的 browser 字段为 false，既有浏览器 GET 200 证据在另一份记录，不是互相替代。
 
 ## 浏览器准备记录与后续限制
 
