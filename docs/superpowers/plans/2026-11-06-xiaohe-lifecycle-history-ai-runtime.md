@@ -85,14 +85,14 @@ Task 1（统一契约/基线）→ Task 2（数据/身份）→ Task 3（公共a
 
 **Interfaces:** `bootstrap_guest_episode(db: AsyncSession, request: Request, response: Response, system: TrustedSystem) -> Actor`；`load_guest_budget(db: AsyncSession, session: Session, *, lock: bool) -> GuestBudget`；`adopt_legacy_guest(db: AsyncSession, session: Session) -> GuestBudget`。预算只承载额度，不输出预算ID或cookie摘要。
 
-- [ ] **Step 1:** 写 `test_budget_survives_close_next_day_and_content_purge`：用20→服务器时钟到期→新guestId/conversation→count20/limit100；断言旧消息不可读且欢迎只1条。`test_legacy_adoption_uses_retained_count_once` 覆盖正文已清但Session count有效、重试不重复预算；已撤销/归属冲突/计数缺失不补0；空白首次正常建立。
-- [ ] **Step 2:** 写 `test_budget_cookie_is_not_content_authority`：预算不能读取旧conversation/会员，已知坏/撤销预算凭据不当首次；内容Cookie缺失但旧有效周期仍在时AUTH_REQUIRED。`test_budget_renewal_and_rotation_never_reset_count` 检查31,536,000秒、Secure/HttpOnly/Lax/Path=/、无Domain、只存摘要；模拟更换受控凭据仍归同预算，旧凭据可识别撤销。没有自动定期轮换功能。
-- [ ] **Step 3:** 在隔离库运行 `uv run --no-sync pytest tests/xiaohe/test_guest_budget.py tests/xiaohe/test_guest_budget_migration.py -v`，预期FAIL。
-- [ ] **Step 4:** 增加 GuestBudget（scope/count/limit/current_session_id）、GuestBudgetCredential（摘要/scope/budget_id/撤销元数据）、GuestBudgetReceipt（最小幂等摘要及原周期）、Session.budget_id；保留旧计数字段作兼容镜像。同一迁移一次增加Task4所需history_epoch=0、membership_sequence=0/索引和Task5 nullable expected_identity，不在后续任务重写已提交/已应用迁移。约束scope和计数非负，budget总数不递减；Receipt按预算/种类/客户端键摘要唯一，不存正文/手机号/请求JSON。迁移只新增结构，不批量猜测绑定旧预算。
-- [ ] **Step 5:** guest内容Cookie设置有限持久Max-Age；user Cookie保持原策略。bootstrap有效guest复用；过期且剩余才建一个新周期，满额已过期返回429；预算仅代表未来额度。现有Session/Cookie可证明且无冲突才lazy承接，预算Cookie缺失但Session已关联时重领同预算凭据，不能另发额度。认领/注销后的合法匿名重开保留该预算，先验证旧内容授权已结束，不重开旧线程。
-- [ ] **Step 6:** 并发锁保留既有 Session→按ID排序Conversation 的顺序，再取预算行锁；不得出现持预算锁反等已有Session/Conversation的路径。bootstrap先无锁读指针，再按该顺序锁并重读；指针变化则释放本次事务重新读取，不在预算锁内追锁另一Session。唯一current_session指针+事务确保同预算只发一个周期/欢迎；测试用两连接竞争、锁超时断言无死锁，不新增通用锁框架。
-- [ ] **Step 7:** 同命令及 `uv run --no-sync pytest tests/xiaohe/test_identity_sessions.py tests/xiaohe/test_migrations.py -v` 预期PASS。迁移测试仅隔离副本，核对旧users/messages/artifact versions/user expires指纹不变；不降级真实库。
-- [ ] **Step 8:** 仅提交任务文件，`git commit -m "feat(xiaohe): persist guest budgets across content episodes"`。记录回滚边界：启用预算后不能退回会独立初始化Session计数的旧应用；结构回退不能当安全业务回退。
+- [x] **Step 1:** 写 `test_budget_survives_close_next_day_and_content_purge`：用20→服务器时钟到期→新guestId/conversation→count20/limit100；断言旧消息不可读且欢迎只1条。`test_legacy_adoption_uses_retained_count_once` 覆盖正文已清但Session count有效、重试不重复预算；已撤销/归属冲突/计数缺失不补0；空白首次正常建立。
+- [x] **Step 2:** 写 `test_budget_cookie_is_not_content_authority`：预算不能读取旧conversation/会员，已知坏/撤销预算凭据不当首次；内容Cookie缺失但旧有效周期仍在时AUTH_REQUIRED。`test_budget_renewal_and_rotation_never_reset_count` 检查31,536,000秒、Secure/HttpOnly/Lax/Path=/、无Domain、只存摘要；模拟更换受控凭据仍归同预算，旧凭据可识别撤销。没有自动定期轮换功能。
+- [x] **Step 3:** 在隔离库运行 `uv run --no-sync pytest tests/xiaohe/test_guest_budget.py tests/xiaohe/test_guest_budget_migration.py -v`，预期FAIL。
+- [x] **Step 4:** 增加 GuestBudget（scope/count/limit/current_session_id）、GuestBudgetCredential（摘要/scope/budget_id/撤销元数据）、GuestBudgetReceipt（最小幂等摘要及原周期）、Session.budget_id；保留旧计数字段作兼容镜像。同一迁移一次增加Task4所需history_epoch=0、membership_sequence=0/索引和Task5 nullable expected_identity，不在后续任务重写已提交/已应用迁移。约束scope和计数非负，budget总数不递减；Receipt按预算/种类/客户端键摘要唯一，不存正文/手机号/请求JSON。迁移只新增结构，不批量猜测绑定旧预算。
+- [x] **Step 5:** guest内容Cookie设置有限持久Max-Age；user Cookie保持原策略。bootstrap有效guest复用；过期且剩余才建一个新周期，满额已过期返回429；预算仅代表未来额度。现有Session/Cookie可证明且无冲突才lazy承接，预算Cookie缺失但Session已关联时重领同预算凭据，不能另发额度。认领/注销后的合法匿名重开保留该预算，先验证旧内容授权已结束，不重开旧线程。
+- [x] **Step 6:** 并发锁保留既有 Session→按ID排序Conversation 的顺序，再取预算行锁；不得出现持预算锁反等已有Session/Conversation的路径。bootstrap先无锁读指针，再按该顺序锁并重读；指针变化则释放本次事务重新读取，不在预算锁内追锁另一Session。唯一current_session指针+事务确保同预算只发一个周期/欢迎；测试用两连接竞争、锁超时断言无死锁，不新增通用锁框架。
+- [x] **Step 7:** 同命令及 `uv run --no-sync pytest tests/xiaohe/test_identity_sessions.py tests/xiaohe/test_migrations.py -v` 预期PASS。迁移测试仅隔离副本，核对旧users/messages/artifact versions/user expires指纹不变；不降级真实库。
+- [x] **Step 8:** 仅提交任务文件，`git commit -m "feat(xiaohe): persist guest budgets across content episodes"`。记录回滚边界：启用预算后不能退回会独立初始化Session计数的旧应用；结构回退不能当安全业务回退。
 
 ### Task 3: 所有业务入口共用预算与到期安全点
 

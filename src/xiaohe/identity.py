@@ -3,7 +3,7 @@ import re
 import secrets
 from datetime import datetime, timedelta
 from ipaddress import ip_address, ip_network
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import Request, Response
 from pydantic import SecretStr
@@ -167,7 +167,7 @@ async def resolve_actor(request: Request, system: TrustedSystem, db: AsyncSessio
     return _actor(await _request_session(request, system, db, csrf_required=True), system)
 
 
-def set_session_cookie(response: Response, token: SecretStr) -> None:
+def set_session_cookie(response: Response, token: SecretStr, *, guest: bool = False) -> None:
     # Keep an expired token recognizable; client expiry would silently create a new guest.
     response.set_cookie(
         SESSION_COOKIE,
@@ -176,6 +176,7 @@ def set_session_cookie(response: Response, token: SecretStr) -> None:
         httponly=True,
         samesite="lax",
         path="/",
+        max_age=31536000 if guest else None,
     )
 
 
@@ -188,8 +189,10 @@ async def _new_session(
     message_limit: int = 100,
     retention_seconds: int = 14400,
     created_at: datetime | None = None,
+    session_id: UUID | None = None,
+    token: SecretStr | None = None,
 ) -> tuple[Session, SecretStr]:
-    token = SecretStr(secrets.token_urlsafe(32))
+    token = token or SecretStr(secrets.token_urlsafe(32))
     guest_id = uuid4() if user_id is None else None
     stamp = created_at or await database_now(db)
     if user_id is not None and await database_now(db) >= stamp + timedelta(
@@ -197,7 +200,7 @@ async def _new_session(
     ):
         raise ServiceError("AUTH_REQUIRED", 401)
     record = Session(
-        id=uuid4(),
+        id=session_id or uuid4(),
         system_id=system.system_id,
         tenant_id=system.tenant_id,
         user_id=user_id,
@@ -280,19 +283,24 @@ async def bootstrap_session(request: Request, response: Response, db: AsyncSessi
     if request.method != "POST":
         raise ServiceError("FORBIDDEN", 403)
     system = await resolve_system(request, db)
-    if _cookie(request) is None:
-        settings = request.app.state.xiaohe_settings
-        record, token = await _new_session(
-            db,
-            system,
-            message_limit=settings.visitor_message_limit,
-            retention_seconds=settings.visitor_retention_seconds,
+    token = _cookie(request)
+    record = (
+        None
+        if token is None
+        else await db.scalar(
+            select(Session).where(
+                Session.token_digest == hashlib.sha256(token.encode()).hexdigest()
+            )
         )
-        set_session_cookie(response, token)
-    else:
+    )
+    if record is not None and record.user_id is not None:
         # Reopening obtains the CSRF token; exact Origin is still mandatory for POST /session.
         record = await _request_session(request, system, db, csrf_required=False)
-    actor = _actor(record, system)
+        actor = _actor(record, system)
+    else:
+        from xiaohe.guest_budget import bootstrap_guest_episode
+
+        actor = await bootstrap_guest_episode(db, request, response, system)
     conversation = await default_conversation(db, actor)
     await ensure_welcome(db, conversation)
     return await load_snapshot(db, actor, conversation.id)
@@ -301,17 +309,23 @@ async def bootstrap_session(request: Request, response: Response, db: AsyncSessi
 async def logout_session(request: Request, response: Response, db: AsyncSession) -> None:
     system = await resolve_system(request, db)
     token = _cookie(request)
-    record = None if token is None else await db.scalar(
-        select(Session)
-        .where(
-            Session.token_digest == hashlib.sha256(token.encode()).hexdigest(),
-            Session.system_id == system.system_id,
-            Session.tenant_id == system.tenant_id,
+    record = (
+        None
+        if token is None
+        else await db.scalar(
+            select(Session)
+            .where(
+                Session.token_digest == hashlib.sha256(token.encode()).hexdigest(),
+                Session.system_id == system.system_id,
+                Session.tenant_id == system.tenant_id,
+            )
+            .with_for_update()
         )
-        .with_for_update()
     )
-    if record is not None and record.user_id is not None and (
-        record.revoked_at is not None or await database_now(db) >= record.expires_at
+    if (
+        record is not None
+        and record.user_id is not None
+        and (record.revoked_at is not None or await database_now(db) >= record.expires_at)
     ):
         # An expired member cannot obtain chat CSRF; a fresh auth context only permits logout.
         from xiaohe.authentication import require_auth_context

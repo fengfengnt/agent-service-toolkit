@@ -74,6 +74,78 @@ class User(Base):
     )
 
 
+class GuestBudget(Base):
+    __tablename__ = "guest_budgets"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["system_id", "tenant_id"], ["xiaohe.systems.system_id", "xiaohe.systems.tenant_id"]
+        ),
+        ForeignKeyConstraint(
+            ["current_session_id", "system_id", "tenant_id"],
+            ["xiaohe.sessions.id", "xiaohe.sessions.system_id", "xiaohe.sessions.tenant_id"],
+            name="fk_guest_budget_current_session",
+            use_alter=True,
+        ),
+        UniqueConstraint("id", "system_id", "tenant_id"),
+        CheckConstraint(
+            "message_count BETWEEN 0 AND message_limit AND message_limit BETWEEN 1 AND 9007199254740991"
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    system_id: Mapped[str]
+    tenant_id: Mapped[int] = mapped_column(BigInteger)
+    message_count: Mapped[int] = mapped_column(BigInteger, server_default="0")
+    message_limit: Mapped[int] = mapped_column(BigInteger, server_default="100")
+    current_session_id: Mapped[UUID | None]
+
+
+class GuestBudgetCredential(Base):
+    __tablename__ = "guest_budget_credentials"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["budget_id", "system_id", "tenant_id"],
+            [
+                "xiaohe.guest_budgets.id",
+                "xiaohe.guest_budgets.system_id",
+                "xiaohe.guest_budgets.tenant_id",
+            ],
+        ),
+    )
+
+    token_digest: Mapped[str] = mapped_column(String(64), primary_key=True)
+    budget_id: Mapped[UUID]
+    system_id: Mapped[str]
+    tenant_id: Mapped[int] = mapped_column(BigInteger)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class GuestBudgetReceipt(Base):
+    __tablename__ = "guest_budget_receipts"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["budget_id", "system_id", "tenant_id"],
+            [
+                "xiaohe.guest_budgets.id",
+                "xiaohe.guest_budgets.system_id",
+                "xiaohe.guest_budgets.tenant_id",
+            ],
+        ),
+        ForeignKeyConstraint(
+            ["session_id", "system_id", "tenant_id"],
+            ["xiaohe.sessions.id", "xiaohe.sessions.system_id", "xiaohe.sessions.tenant_id"],
+        ),
+    )
+
+    budget_id: Mapped[UUID] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(32), primary_key=True)
+    client_key_digest: Mapped[str] = mapped_column(String(64), primary_key=True)
+    payload_digest: Mapped[str] = mapped_column(String(64))
+    session_id: Mapped[UUID]
+    system_id: Mapped[str]
+    tenant_id: Mapped[int] = mapped_column(BigInteger)
+
+
 class Session(Base):
     __tablename__ = "sessions"
     __table_args__ = (
@@ -86,6 +158,16 @@ class Session(Base):
         ),
         UniqueConstraint("guest_id", "system_id", "tenant_id"),
         UniqueConstraint("id", "system_id", "tenant_id", name="uq_sessions_id_scope"),
+        ForeignKeyConstraint(
+            ["budget_id", "system_id", "tenant_id"],
+            [
+                "xiaohe.guest_budgets.id",
+                "xiaohe.guest_budgets.system_id",
+                "xiaohe.guest_budgets.tenant_id",
+            ],
+            name="fk_session_guest_budget",
+        ),
+        CheckConstraint("budget_id IS NULL OR guest_id IS NOT NULL"),
         CheckConstraint("(user_id IS NULL) <> (guest_id IS NULL)"),
         CheckConstraint("message_count >= 0 AND message_limit > 0 AND retention_seconds > 0"),
         CheckConstraint("user_id IS NULL OR expires_at = created_at + interval '8 hours'"),
@@ -109,6 +191,7 @@ class Session(Base):
     message_count: Mapped[int] = mapped_column(Integer, server_default="0")
     message_limit: Mapped[int] = mapped_column(Integer, server_default="100")
     retention_seconds: Mapped[int] = mapped_column(Integer, server_default="14400")
+    budget_id: Mapped[UUID | None]
     merge_operation_id: Mapped[UUID | None]
     cleanup_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cleanup_stopped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -161,6 +244,7 @@ class Conversation(Base):
         UniqueConstraint("id", "system_id", "tenant_id"),
         CheckConstraint("(user_id IS NULL) <> (guest_id IS NULL)"),
         CheckConstraint("(user_id IS NULL) = (project_id IS NULL)"),
+        CheckConstraint("history_epoch BETWEEN 0 AND 9007199254740991"),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -174,6 +258,7 @@ class Conversation(Base):
     direction: Mapped[str] = mapped_column(server_default="unknown")
     ownership_epoch: Mapped[int] = mapped_column(server_default="0")
     event_sequence: Mapped[int] = mapped_column(BigInteger, server_default="0")
+    history_epoch: Mapped[int] = mapped_column(BigInteger, server_default="0")
     merge_pending: Mapped[bool] = mapped_column(server_default=text("false"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.clock_timestamp()
@@ -192,6 +277,7 @@ class Message(Base):
             ],
         ),
         CheckConstraint("role IN ('user', 'assistant')"),
+        CheckConstraint("membership_sequence BETWEEN 0 AND 9007199254740991"),
         UniqueConstraint("conversation_id", "client_message_id"),
         UniqueConstraint(
             "id", "conversation_id", "system_id", "tenant_id", name="uq_messages_id_scope"
@@ -205,6 +291,7 @@ class Message(Base):
     role: Mapped[str]
     parts: Mapped[list[dict]] = mapped_column(JSONB)
     client_message_id: Mapped[str | None] = mapped_column(String(128))
+    membership_sequence: Mapped[int] = mapped_column(BigInteger, server_default="0")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.clock_timestamp()
     )
@@ -559,6 +646,7 @@ class AuthOperationRecord(Base):
     oidc: Mapped[dict] = mapped_column(JSONB)
     browser_challenge: Mapped[str]
     request_digest: Mapped[str] = mapped_column(String(64))
+    expected_identity: Mapped[dict | None] = mapped_column(JSONB)
     client_ip: Mapped[str] = mapped_column(String(45))
     user_agent: Mapped[str] = mapped_column(String(512))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
@@ -683,3 +771,4 @@ Index(
     postgresql_where=Session.guest_id.is_not(None),
 )
 Index("ix_message_history", Message.conversation_id, Message.created_at, Message.id)
+Index("ix_message_membership", Message.conversation_id, Message.membership_sequence)

@@ -22,7 +22,7 @@ from xiaohe.identity import (
     resolve_actor,
     resolve_system,
 )
-from xiaohe.models import Conversation, Message, Project, Session, System, User
+from xiaohe.models import Conversation, GuestBudget, Message, Project, Session, System, User
 from xiaohe.settings import Settings
 
 pytestmark = [pytest.mark.pg, pytest.mark.asyncio]
@@ -94,7 +94,8 @@ async def bootstrap(factory, token=None, **kwargs):
         snapshot = await bootstrap_session(request(token, **kwargs), response, db)
     if token is None:
         cookie = SimpleCookie()
-        cookie.load(response.headers["set-cookie"])
+        for header in response.headers.getlist("set-cookie"):
+            cookie.load(header)
         token = cookie[SESSION_COOKIE].value
     return snapshot, token, response
 
@@ -120,7 +121,7 @@ async def test_private_default_conversation_and_system_isolation(pg_factory):
         "Secure" in response.headers["set-cookie"] and "HttpOnly" in response.headers["set-cookie"]
     )
     assert "SameSite=lax" in response.headers["set-cookie"]
-    assert "Max-Age" not in response.headers["set-cookie"]
+    assert "Max-Age=31536000" in response.headers["set-cookie"]
     async with pg_factory.begin() as db:
         with pytest.raises(ServiceError) as exc:
             await resolve_actor(
@@ -189,10 +190,11 @@ async def test_other_users_thread_rejected_before_toolkit_call(pg_factory):
     internal.assert_not_called()
 
 
-async def test_session_expiry_never_silently_resets_guest(pg_factory):
+async def test_session_expiry_keeps_budget_for_the_new_guest_episode(pg_factory):
     original, token, _ = await bootstrap(pg_factory)
     async with pg_factory.begin() as db:
         await db.execute(update(Session).values(message_count=99))
+        await db.execute(update(GuestBudget).values(message_count=99))
     current, _, _ = await bootstrap(pg_factory, token)
     assert current.viewer.message_count == 99
     assert current.viewer.expires_at == original.viewer.expires_at
@@ -200,11 +202,13 @@ async def test_session_expiry_never_silently_resets_guest(pg_factory):
         await db.execute(
             update(Session).values(expires_at=func.clock_timestamp() - text("interval '1 second'"))
         )
-    with pytest.raises(ServiceError) as exc:
-        await bootstrap(pg_factory, token)
-    assert exc.value.code == "VISITOR_EXPIRED" and exc.value.http_status == 410
+    reopened, _, _ = await bootstrap(pg_factory, token)
+    assert reopened.viewer.message_count == 99
+    assert reopened.viewer.guest_id != original.viewer.guest_id
+    assert reopened.conversation_id != original.conversation_id
     async with pg_factory.begin() as db:
-        assert await db.scalar(select(func.count()).select_from(Session)) == 1
+        assert await db.scalar(select(func.count()).select_from(Session)) == 2
+        assert await db.scalar(select(func.count()).select_from(GuestBudget)) == 1
         assert await db.scalar(select(Session.message_count)) == 99
 
 
@@ -441,7 +445,7 @@ async def test_duplicate_cookie_and_unconfigured_proxy_fail_closed(pg_factory):
 
 
 async def test_expiry_is_checked_after_session_lock_wait(pg_factory):
-    _, token, _ = await bootstrap(pg_factory)
+    original, token, _ = await bootstrap(pg_factory)
     async with pg_factory.begin() as blocker:
         row = await blocker.scalar(select(Session).with_for_update())
         task = asyncio.create_task(bootstrap(pg_factory, token))
@@ -462,8 +466,11 @@ async def test_expiry_is_checked_after_session_lock_wait(pg_factory):
 
             await asyncio.wait_for(wait_for_lock(), 10)
         row.expires_at = await blocker.scalar(select(func.clock_timestamp())) - timedelta(seconds=1)
+    reopened, _, _ = await task
+    assert reopened.conversation_id != original.conversation_id
+    assert reopened.viewer.guest_id != original.viewer.guest_id
     with pytest.raises(ServiceError) as exc:
-        await task
+        await actor(pg_factory, token)
     assert exc.value.code == "VISITOR_EXPIRED"
 
 
