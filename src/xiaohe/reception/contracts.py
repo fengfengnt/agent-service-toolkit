@@ -157,6 +157,11 @@ class ReceptionView(WireModel):
     active_draft: DraftView | None
 
 
+class ReceptionControl(WireModel):
+    client_action_id: InputId
+    action: Literal["accept_invitation", "start_collection"]
+
+
 class ReceptionAction(WireModel):
     client_action_id: InputId
     request_id: InputId

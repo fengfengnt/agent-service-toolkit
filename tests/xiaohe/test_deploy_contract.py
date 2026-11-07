@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -11,18 +12,37 @@ from pydantic import SecretStr
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def docker(*args, **kwargs):
-    prefix = ["wsl", "-d", "Ubuntu", "--", "docker"] if sys.platform == "win32" else ["docker"]
-    return subprocess.run(prefix + list(args), capture_output=True, text=True, **kwargs)
+def compose(root, *args, **kwargs):
+    prefix = ["wsl", "-d", "Ubuntu", "--", "sh"] if sys.platform == "win32" else ["sh"]
+    return subprocess.run(
+        prefix + [root + "/deploy/xiaohe/compose.sh", *args],
+        capture_output=True,
+        text=True,
+        **kwargs,
+    )
+
+
+@pytest.fixture(scope="module", params=[None, "9.8.7"])
+def release_project(request, tmp_path_factory):
+    project = tmp_path_factory.mktemp("release")
+    target = project / "deploy/xiaohe"
+    target.mkdir(parents=True)
+    for name in ("compose.yml", "compose.sh"):
+        shutil.copy2(ROOT / "deploy/xiaohe" / name, target / name)
+    version = request.param or (ROOT / "VERSION").read_text("utf-8").strip()
+    (project / "VERSION").write_text(
+        version + "\n", encoding="utf-8", newline="\n" if request.param else "\r\n"
+    )
+    return project, version
 
 
 @pytest.fixture(scope="module")
-def deployment(tmp_path_factory):
+def deployment(tmp_path_factory, release_project):
     directory = tmp_path_factory.mktemp("deploy")
     runtime = directory / "runtime.env"
     runtime.write_text("AUTH_SECRET=fixture-deploy-secret\n", encoding="utf-8")
     env_file = directory / "compose.env"
-    root, runtime_path = ROOT.as_posix(), runtime.as_posix()
+    root, runtime_path = release_project[0].as_posix(), runtime.as_posix()
     if sys.platform == "win32":
 
         def linux(path):
@@ -38,12 +58,10 @@ def deployment(tmp_path_factory):
         encoding="utf-8",
     )
     env_path = linux(env_file.as_posix()) if sys.platform == "win32" else env_file.as_posix()
-    result = docker(
-        "compose",
+    result = compose(
+        root,
         "--env-file",
         env_path,
-        "-f",
-        root + "/deploy/xiaohe/compose.yml",
         "config",
         "--format",
         "json",
@@ -65,6 +83,19 @@ def test_images_are_pinned_and_processes_separate(deployment):
         assert services[name]["volumes"]
         assert "ports" not in services[name]
     assert "redis" not in services and "celery" not in services
+
+
+def test_deployment_names(deployment, release_project):
+    assert deployment["name"] == "yunhezhiyuan"
+    services = deployment["services"]
+    name = "yunhezhiyuan-aibackend-" + release_project[1]
+    assert services["api"]["image"] == name
+    assert services["worker"]["image"] == name
+    assert services["api"]["container_name"] == name
+    assert services["worker"]["container_name"] == name + "-worker"
+    assert services["postgres"]["container_name"] == "yunhezhiyuan-aibackend-pg"
+    assert deployment["volumes"]["postgres-data"]["name"] == "xiaohe_postgres-data"
+    assert deployment["volumes"]["minio-data"]["name"] == "xiaohe_minio-data"
 
 
 def test_secrets_not_in_browser_or_logs(deployment):

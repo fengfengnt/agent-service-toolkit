@@ -457,7 +457,7 @@ class AuthService:
                 if not isinstance(center, dict) or center.get("repCode") != "0000":
                     raise ServiceError("INPUT_INVALID", 422)
                 if action == "captcha/check":
-                    return None
+                    return {"valid": True}
                 data = center.get("repData", {})
                 try:
                     return PictureChallenge(

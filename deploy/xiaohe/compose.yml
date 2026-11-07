@@ -1,6 +1,6 @@
-name: xiaohe
+name: yunhezhiyuan
 x-business: &business
-  image: ${XIAOHE_IMAGE:?set immutable business image tag or digest}
+  image: yunhezhiyuan-aibackend-${VERSION:?run sh deploy/xiaohe/compose.sh to read VERSION}
   build:
     context: ../..
     dockerfile: docker/Dockerfile.xiaohe
@@ -26,6 +26,7 @@ x-business: &business
 services:
   api:
     <<: *business
+    container_name: yunhezhiyuan-aibackend-${VERSION:?run sh deploy/xiaohe/compose.sh to read VERSION}
     command: [api]
     expose: ['8080']
     networks:
@@ -39,6 +40,7 @@ services:
       start_period: 60s
   worker:
     <<: *business
+    container_name: yunhezhiyuan-aibackend-${VERSION:?run sh deploy/xiaohe/compose.sh to read VERSION}-worker
     command: [worker]
     networks: [private]
     depends_on:
@@ -46,6 +48,7 @@ services:
       postgres: {condition: service_healthy}
       minio: {condition: service_started}
   postgres:
+    container_name: yunhezhiyuan-aibackend-pg
     image: postgres@sha256:3b0cda93be7c8dba2ed484d19393d93845dc3dafb88973e248ba8e6d99d784e1
     environment:
       POSTGRES_USER: xiaohe
@@ -93,7 +96,9 @@ secrets:
   minio_root_password: {file: '${XIAOHE_MINIO_ROOT_PASSWORD_FILE:?set private root password file}'}
 volumes:
   postgres-data:
+    name: xiaohe_postgres-data
   minio-data:
+    name: xiaohe_minio-data
 networks:
   private: {internal: true}
   ingress:

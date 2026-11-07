@@ -227,9 +227,7 @@ async def run_organization_step(factory, fence, client):
                 guest_id=None,
             )
     if application_id is None:
-        answer = (
-            "可以先登记组织需求，受理后再办理相关意向或独立入驻。是否愿意登记？也可以继续咨询。"
-        )
+        answer = "可以先登记组织需求，受理后再办理相关意向或独立入驻。"
         if kind == "sample_demo":
             answer = (await sample_answer()).text + "\n\n" + answer
     elif starting:
@@ -268,13 +266,24 @@ async def run_organization_step(factory, fence, client):
             flow.active_draft_id = None
         elif resume_id is not None:
             flow.active_draft_id = resume_id
-        if application_id is None and flow.active_draft_id is None:
+        offered = (
+            application_id is None
+            and flow.active_draft_id is None
+            and flow.invitation_state == "none"
+        )
+        if offered:
             flow.invitation_state = "offered"
+            answer += "\n\n是否愿意登录并登记需求，方便后续跟进？也可以继续咨询或暂缓。"
         request_id = uuid5(command.id, "organization.input")
         flow.pending_request_id = request_id
         result = AgentOutcome(
             parts=[
                 {"type": "text", "text": answer},
+                *(
+                    [{"type": "auth_request", "intent": "lead"}]
+                    if offered and run.user_id is None
+                    else []
+                ),
                 {
                     "type": "input_request",
                     "requestId": str(request_id),

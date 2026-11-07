@@ -1,0 +1,504 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-06",
+  "result": "PASS_SCOPED_NO_MEMBER_LOGIN",
+  "configuration": {
+    "originalBridge": {
+      "applicationId": "31555063-bbe3-4907-8745-c553208fff23",
+      "baseUrl": "https://sso.lvh.me",
+      "callback": "https://portal.lvh.me/portal/auth/callback",
+      "ca": "/home/fengfeng/yunhezhiyuan/certs/local-ca.pem",
+      "consumers": [
+        {
+          "container": "/yunhezhiyuan-aibackend-0.1.1",
+          "applicationId": "31555063-bbe3-4907-8745-c553208fff23",
+          "enabledBeforeAndAfter": true,
+          "runningSecretMatchesPrivateFile": true,
+          "privateEnvSecretMatchesPrivateFile": true,
+          "issuer": "https://sso.lvh.me",
+          "callback": "https://portal.lvh.me/portal/auth/callback",
+          "ca": "/home/fengfeng/yunhezhiyuan/certs/local-ca.pem",
+          "networkMode": "host"
+        },
+        {
+          "container": "/yunhezhiyuan-aibackend-0.1.1-worker",
+          "applicationId": "31555063-bbe3-4907-8745-c553208fff23",
+          "enabledBeforeAndAfter": true,
+          "runningSecretMatchesPrivateFile": true,
+          "privateEnvSecretMatchesPrivateFile": true,
+          "issuer": "https://sso.lvh.me",
+          "callback": "https://portal.lvh.me/portal/auth/callback",
+          "ca": "/home/fengfeng/yunhezhiyuan/certs/local-ca.pem",
+          "networkMode": "host"
+        }
+      ],
+      "candidateApplicationSource": "same read-only sso-bridge.json mount; authenticated protocol probe passed"
+    },
+    "manualBridge": {
+      "applicationId": "reception-manual-20261106",
+      "baseUrl": "https://sso.lvh.me",
+      "callback": "https://portal.lvh.me/portal/auth/callback",
+      "ca": "\\\\wsl.localhost\\Ubuntu\\home\\fengfeng\\yunhezhiyuan\\certs\\local-ca.pem",
+      "enabled": true,
+      "mode": "controlled",
+      "apiPort": 18094,
+      "httpsGatewayPort": 18116,
+      "configurationKeptSeparate": true
+    },
+    "businessSystems": {
+      "main": {
+        "system_id": "portal",
+        "tenant_id": 1,
+        "portal_client_id": "app_localportal",
+        "allowed_origin": "https://portal.lvh.me",
+        "issuer": "https://sso.lvh.me",
+        "enabled": true
+      },
+      "manual": {
+        "system_id": "portal",
+        "tenant_id": 1,
+        "portal_client_id": "app_localportal",
+        "allowed_origin": "https://portal.lvh.me",
+        "issuer": "https://sso.lvh.me",
+        "enabled": true
+      }
+    },
+    "restoredClientManagementOwnerFromRecoveryReceipt": 165,
+    "clientManagementOwnerUsedAsBusinessTenant": false,
+    "secretsOrHashesPrinted": false,
+    "configurationChanged": false,
+    "restartRequired": false
+  },
+  "centerRecoveryReceiptPublicFields": {
+    "status": "restored",
+    "bridge": {
+      "application_id": "31555063-bbe3-4907-8745-c553208fff23",
+      "application_name": "小鹤本地Portal",
+      "portal_client_id": "app_localportal",
+      "origin": "https://portal.lvh.me",
+      "redirect_uri": "https://portal.lvh.me/portal/auth/callback",
+      "status": "0",
+      "auth_version": "1"
+    },
+    "portal_binding_verified": {
+      "method": "none",
+      "status": 0,
+      "origins": "https://portal.lvh.me",
+      "clientId": "app_localportal",
+      "authVersion": 1,
+      "tenantValid": true,
+      "redirectUris": "https://portal.lvh.me/portal/auth/callback",
+      "tenantStatus": 0,
+      "ownerTenantId": 165,
+      "tenantDeleted": 0,
+      "registeredClientId": "3d539fbf-d418-4bc5-aaa3-aec666f76e31"
+    },
+    "bridge_original_secret_hash_preserved": true,
+    "other_bridge_rows_unchanged": true
+  },
+  "nativeContainerTls": [
+    {
+      "container": "yunhezhiyuan-aibackend-0.1.1",
+      "passed": true,
+      "strictTlsDiscovery": true,
+      "status": 200,
+      "issuer": "https://sso.lvh.me",
+      "resolvedAddresses": [
+        "127.0.0.1"
+      ],
+      "peerAddress": "127.0.0.1",
+      "peerPort": 443,
+      "localAddress": "127.0.0.1",
+      "caReadable": true,
+      "modelCalls": 0
+    },
+    {
+      "container": "yunhezhiyuan-aibackend-candidate-api",
+      "passed": true,
+      "strictTlsDiscovery": true,
+      "status": 200,
+      "issuer": "https://sso.lvh.me",
+      "resolvedAddresses": [
+        "127.0.0.1"
+      ],
+      "peerAddress": "127.0.0.1",
+      "peerPort": 443,
+      "localAddress": "127.0.0.1",
+      "caReadable": true,
+      "modelCalls": 0
+    }
+  ],
+  "nativeManualTls": {
+    "caller": "manual-Windows-native-config",
+    "applicationId": "reception-manual-20261106",
+    "strictTlsDiscovery": true,
+    "caPathType": "existing UNC public CA",
+    "resolvedAddresses": [
+      "127.0.0.1"
+    ],
+    "modelCalls": 0,
+    "secretsOrHashesPrinted": false
+  },
+  "protocol": {
+    "checkedAtUtc": "2026-11-06T05:56:09.170795+00:00",
+    "targets": [
+      {
+        "target": "main-0.1.1",
+        "api": "https://portal.lvh.me/ai-api/v1",
+        "applicationId": "31555063-bbe3-4907-8745-c553208fff23",
+        "checks": [
+          {
+            "check": "missing_auth_context_rejected",
+            "passed": true,
+            "status": 403,
+            "errorCode": "CSRF_INVALID"
+          },
+          {
+            "check": "wrong_origin_rejected",
+            "passed": true,
+            "status": 403,
+            "errorCode": "FORBIDDEN"
+          },
+          {
+            "check": "anonymous_guest_bootstrap",
+            "passed": true,
+            "status": 200
+          },
+          {
+            "check": "anonymous_auth_context",
+            "passed": true,
+            "status": 200
+          },
+          {
+            "check": "context_read_does_not_slide_expiry",
+            "passed": true
+          },
+          {
+            "check": "wrong_auth_csrf_rejected",
+            "passed": true,
+            "status": 403,
+            "errorCode": "CSRF_INVALID"
+          },
+          {
+            "check": "ai_to_center_transaction_created",
+            "passed": true,
+            "status": 201
+          },
+          {
+            "check": "browser_completion_url_is_canonical",
+            "passed": true
+          },
+          {
+            "check": "same_operation_on_same_request",
+            "passed": true,
+            "status": 201
+          },
+          {
+            "check": "unverified_completion_rejected",
+            "passed": true,
+            "status": 409,
+            "errorCode": "AUTH_NOT_READY"
+          },
+          {
+            "check": "captcha_retrieval_without_solving",
+            "passed": true,
+            "status": 200
+          },
+          {
+            "check": "expected_bridge_credential_accepted_over_strict_tls",
+            "passed": true,
+            "status": 200
+          },
+          {
+            "check": "unrelated_context_cannot_cancel",
+            "passed": true,
+            "status": 403,
+            "errorCode": "FORBIDDEN"
+          },
+          {
+            "check": "own_operation_cancelled",
+            "passed": true,
+            "status": 204
+          },
+          {
+            "check": "cancel_idempotent",
+            "passed": true,
+            "status": 204
+          },
+          {
+            "check": "cancelled_operation_cannot_complete",
+            "passed": true,
+            "status": 409,
+            "errorCode": "AUTH_REPLAY"
+          },
+          {
+            "check": "still_guest_no_messages_or_sliding",
+            "passed": true,
+            "status": 200
+          }
+        ],
+        "result": "PASS"
+      },
+      {
+        "target": "candidate-original-bridge",
+        "api": "https://portal.lvh.me/copilot-candidate/ai-api/v1",
+        "applicationId": "31555063-bbe3-4907-8745-c553208fff23",
+        "checks": [
+          {
+            "check": "missing_auth_context_rejected",
+            "passed": true,
+            "status": 403,
+            "errorCode": "CSRF_INVALID"
+          },
+          {
+            "check": "wrong_origin_rejected",
+            "passed": true,
+            "status": 403,
+            "errorCode": "FORBIDDEN"
+          },
+          {
+            "check": "anonymous_guest_bootstrap",
+            "passed": true,
+            "status": 200
+          },
+          {
+            "check": "anonymous_auth_context",
+            "passed": true,
+            "status": 200
+          },
+          {
+            "check": "context_read_does_not_slide_expiry",
+            "passed": true
+          },
+          {
+            "check": "wrong_auth_csrf_rejected",
+            "passed": true,
+            "status": 403,
+            "errorCode": "CSRF_INVALID"
+          },
+          {
+            "check": "ai_to_center_transaction_created",
+            "passed": true,
+            "status": 201
+          },
+          {
+            "check": "browser_completion_url_is_canonical",
+            "passed": true
+          },
+          {
+            "check": "same_operation_on_same_request",
+            "passed": true,
+            "status": 201
+          },
+          {
+            "check": "unverified_completion_rejected",
+            "passed": true,
+            "status": 409,
+            "errorCode": "AUTH_NOT_READY"
+          },
+          {
+            "check": "captcha_retrieval_without_solving",
+            "passed": true,
+            "status": 200
+          },
+          {
+            "check": "expected_bridge_credential_accepted_over_strict_tls",
+            "passed": true,
+            "status": 200
+          },
+          {
+            "check": "unrelated_context_cannot_cancel",
+            "passed": true,
+            "status": 403,
+            "errorCode": "FORBIDDEN"
+          },
+          {
+            "check": "own_operation_cancelled",
+            "passed": true,
+            "status": 204
+          },
+          {
+            "check": "cancel_idempotent",
+            "passed": true,
+            "status": 204
+          },
+          {
+            "check": "cancelled_operation_cannot_complete",
+            "passed": true,
+            "status": 409,
+            "errorCode": "AUTH_REPLAY"
+          },
+          {
+            "check": "still_guest_no_messages_or_sliding",
+            "passed": true,
+            "status": 200
+          }
+        ],
+        "result": "PASS"
+      },
+      {
+        "target": "manual-controlled",
+        "api": "https://portal.lvh.me:18116/ai-api/v1",
+        "applicationId": "reception-manual-20261106",
+        "checks": [
+          {
+            "check": "missing_auth_context_rejected",
+            "passed": true,
+            "status": 403,
+            "errorCode": "CSRF_INVALID"
+          },
+          {
+            "check": "wrong_origin_rejected",
+            "passed": true,
+            "status": 403,
+            "errorCode": "FORBIDDEN"
+          },
+          {
+            "check": "anonymous_guest_bootstrap",
+            "passed": true,
+            "status": 200
+          },
+          {
+            "check": "anonymous_auth_context",
+            "passed": true,
+            "status": 200
+          },
+          {
+            "check": "context_read_does_not_slide_expiry",
+            "passed": true
+          },
+          {
+            "check": "wrong_auth_csrf_rejected",
+            "passed": true,
+            "status": 403,
+            "errorCode": "CSRF_INVALID"
+          },
+          {
+            "check": "ai_to_center_transaction_created",
+            "passed": true,
+            "status": 201
+          },
+          {
+            "check": "browser_completion_url_is_canonical",
+            "passed": true
+          },
+          {
+            "check": "same_operation_on_same_request",
+            "passed": true,
+            "status": 201
+          },
+          {
+            "check": "unverified_completion_rejected",
+            "passed": true,
+            "status": 409,
+            "errorCode": "AUTH_NOT_READY"
+          },
+          {
+            "check": "captcha_retrieval_without_solving",
+            "passed": true,
+            "status": 200
+          },
+          {
+            "check": "expected_bridge_credential_accepted_over_strict_tls",
+            "passed": true,
+            "status": 200
+          },
+          {
+            "check": "unrelated_context_cannot_cancel",
+            "passed": true,
+            "status": 403,
+            "errorCode": "FORBIDDEN"
+          },
+          {
+            "check": "own_operation_cancelled",
+            "passed": true,
+            "status": 204
+          },
+          {
+            "check": "cancel_idempotent",
+            "passed": true,
+            "status": 204
+          },
+          {
+            "check": "cancelled_operation_cannot_complete",
+            "passed": true,
+            "status": 409,
+            "errorCode": "AUTH_REPLAY"
+          },
+          {
+            "check": "still_guest_no_messages_or_sliding",
+            "passed": true,
+            "status": 200
+          }
+        ],
+        "result": "PASS"
+      }
+    ],
+    "smsCalls": 0,
+    "modelCalls": 0,
+    "testAccountsCreated": 0,
+    "realMemberLoginVerified": false,
+    "secretsOrHashesPrinted": false,
+    "strictTlsDiscovery": true,
+    "centerWithoutBridgeCredential": {
+      "status": 401,
+      "rejected": true
+    },
+    "privateFilesBytePreservedWithoutPrintingValuesOrHashes": true,
+    "result": "PASS",
+    "liveExpirationNotWaited": true
+  },
+  "offlineExpiryOnly": {
+    "result": "PASS",
+    "test": "offline_center_expiry_error_mapping",
+    "networkRequests": 0,
+    "syntheticCredentialOnly": true,
+    "applicationError": "AUTH_OPERATION_EXPIRED",
+    "status": 410,
+    "liveTwentyMinuteExpiryNotTested": true,
+    "initialProbeAssertionCorrected": "ServiceError.http_status replaces mistaken .status; product source unchanged"
+  },
+  "preservation": {
+    "result": "PASS",
+    "checkedAtUtc": "2026-11-06T05:59:03.407927+00:00",
+    "protectedContainersUnchanged": 13,
+    "comparedFields": [
+      "id",
+      "image",
+      "startedAt",
+      "restarts",
+      "running",
+      "mounts"
+    ],
+    "configurationChanged": false,
+    "restartPerformed": false,
+    "bridgeOrClientRegistryWritten": false,
+    "formalFlagChanged": false,
+    "accountOrIdentityMigrationPerformed": false
+  },
+  "constraints": {
+    "smsRequests": 0,
+    "modelRequests": 0,
+    "testAccountsCreated": 0,
+    "existingIdentityOrSessionMigrated": false,
+    "oldAuthenticatedSessionsExtended": false,
+    "configOrBridgeSelectionChanged": false,
+    "restartPerformed": false,
+    "formalFlagChanged": false,
+    "messagesSentToOtherThreads": 0,
+    "cookieCsrfTicketsOrChallengesPersisted": false,
+    "secretValuesOrSecretHashesPrinted": false
+  },
+  "unverified": [
+    "real member login state not supplied or reused",
+    "real browser-completion and OIDC callback",
+    "account binding and guest chat/file merge after central data recovery",
+    "new authenticated absolute eight-hour session",
+    "live twenty-minute auth context or operation expiration"
+  ],
+  "userAction": {
+    "configurationChangeNeeded": false,
+    "restartNeeded": false,
+    "forFullMemberAcceptance": "A user-confirmed already authenticated existing real member browser context is required; do not send SMS or create accounts to fill the gap"
+  }
+}

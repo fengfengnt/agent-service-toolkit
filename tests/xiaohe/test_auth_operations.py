@@ -165,3 +165,38 @@ async def test_cancel_is_idempotent_and_never_allows_late_completion(pg_factory)
         assert (await client.post(path + "/cancel", json={})).status_code == 204
         assert (await client.post(path + "/complete", json={})).status_code == 409
         assert len(calls) == 1
+
+
+@pytest.mark.parametrize("valid", [True, False])
+async def test_captcha_check_uses_contract_response_and_rejects_failed_puzzle(pg_factory, valid):
+    from xiaohe.auth_bridge import SsoBridgeClient
+
+    async with client_for(pg_factory) as (client, app):
+        await auth_setup(client, app)
+        created = (await client.post("/ai-api/v1/auth/operations", json=operation_body())).json()
+
+        def center(request):
+            assert str(request.url).endswith("/captcha/check")
+            assert json.loads(request.content) == {
+                "captchaType": "blockPuzzle",
+                "token": "fixture-picture",
+                "pointJson": "fixture-point",
+            }
+            return httpx.Response(
+                200, json={"code": 0, "data": {"repCode": "0000" if valid else "0011"}}
+            )
+
+        app.state.xiaohe_sso = SsoBridgeClient(
+            app.state.xiaohe_settings, transport=httpx.MockTransport(center)
+        )
+        response = await client.post(
+            f"/ai-api/v1/auth/operations/{created['operationId']}/captcha/check",
+            json={"token": "fixture-picture", "pointJson": "fixture-point"},
+        )
+        if valid:
+            assert response.status_code == 200
+            assert response.json() == {"valid": True}
+        else:
+            assert response.status_code == 422
+            assert response.json()["error"]["code"] == "INPUT_INVALID"
+        assert (await session(client))["viewer"]["kind"] == "guest"

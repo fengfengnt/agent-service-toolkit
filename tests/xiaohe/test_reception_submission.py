@@ -256,13 +256,18 @@ async def test_worker_recovers_pending_submission_with_same_key(
         )
     await talk(pg_factory, runtime_env, who, conversation, "查看汇总")
     message, view = await talk(pg_factory, runtime_env, who, conversation, "确认提交")
-    assert view.active_draft.state == "submitting" and "尚未确认" in message.model_dump_json()
+    assert view.active_draft.state == "submitting"
+    assert "正在确认提交结果" in message.model_dump_json()
+    assert "确认受理后" in message.model_dump_json()
+    assert "专员跟进" in message.model_dump_json() and "我的进展" in message.model_dump_json()
+    assert "提交成功" not in message.model_dump_json()
     pending_id = view.active_draft.id
     await talk(pg_factory, runtime_env, who, conversation, "切换到供应商")
     _, view = await talk(pg_factory, runtime_env, who, conversation, "切换到采购商")
     assert view.active_draft is not None and view.active_draft.id == pending_id
     message, view = await talk(pg_factory, runtime_env, who, conversation, "查询提交结果")
     assert view.active_draft.state == "accepted" and "我的进展" in message.model_dump_json()
+    assert "专员跟进" in message.model_dump_json()
     assert client.creates == 1
     first_id = view.active_draft.id
     _, view = await talk(pg_factory, runtime_env, who, conversation, "我要新建需求")

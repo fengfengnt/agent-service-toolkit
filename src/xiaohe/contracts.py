@@ -157,8 +157,19 @@ class ArtifactRef(WireModel):
     status: ArtifactStatus
 
 
+class SystemNoticePart(WireModel):
+    type: Literal["system_notice"]
+    text: str = Field(strict=True)
+
+
 ChatPart = Annotated[
-    TextPart | ChoicePart | SuggestionsPart | InputRequestPart | AuthRequestPart | ArtifactRef,
+    TextPart
+    | ChoicePart
+    | SuggestionsPart
+    | InputRequestPart
+    | AuthRequestPart
+    | ArtifactRef
+    | SystemNoticePart,
     Field(discriminator="type"),
 ]
 

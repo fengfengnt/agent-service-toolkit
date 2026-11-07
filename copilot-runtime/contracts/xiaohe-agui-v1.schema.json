@@ -1424,7 +1424,8 @@
                 "choice": "#/$defs/ChoicePart",
                 "input_request": "#/$defs/InputRequestPart",
                 "suggestions": "#/$defs/SuggestionsPart",
-                "text": "#/$defs/TextPart"
+                "text": "#/$defs/TextPart",
+                "system_notice": "#/$defs/SystemNoticePart"
               },
               "propertyName": "type"
             },
@@ -1446,6 +1447,9 @@
               },
               {
                 "$ref": "#/$defs/ArtifactRef"
+              },
+              {
+                "$ref": "#/$defs/SystemNoticePart"
               }
             ]
           },
@@ -2870,6 +2874,26 @@
           "$ref": "#/$defs/CUSTOM"
         }
       ]
+    },
+    "SystemNoticePart": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "system_notice",
+          "title": "Type",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "text"
+      ],
+      "title": "SystemNoticePart",
+      "type": "object"
     }
   },
   "oneOf": [
@@ -2895,5 +2919,5 @@
       "$ref": "#/$defs/StreamEvent"
     }
   ],
-  "$comment": "由唯一主合同§10提取；文档v1.0.11；SHA256 e76edca826cd784ad8d39b563c8a24d7f6d4c058d5184b949050c01bf5e7465f；源 D:/Code/yunhezhiyuan-agents/docs/contracts/2026-11-03-xiaohe-integration-v1.md"
+  "$comment": "由唯一主合同§10提取；文档v1.0.11；SHA256 55860ca987bd2bd967b473cf8d1138ce433651945c226734055cb957a182ada5；源 docs/contracts/2026-11-03-xiaohe-integration-v1.md"
 }

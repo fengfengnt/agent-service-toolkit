@@ -17,6 +17,7 @@ from xiaohe.reception.contracts import (
     PageCursor,
     PatchDraft,
     ReceptionAction,
+    ReceptionControl,
     SubjectQuery,
 )
 from xiaohe.reception.files import (
@@ -26,7 +27,7 @@ from xiaohe.reception.files import (
     init_file,
     write_file,
 )
-from xiaohe.reception.flow import apply_reception_action
+from xiaohe.reception.flow import apply_reception_action, apply_reception_control
 from xiaohe.reception.store import create_draft, load_reception, patch_draft
 from xiaohe.reception.submission import actor_from_user, create_draft_from_business
 
@@ -89,6 +90,14 @@ def create_reception_router(factory, business_client=None):
                     mode="json", by_alias=True, exclude_none=True
                 )
             return data
+
+    @router.post("/conversations/{conversation_id}/controls", status_code=202)
+    async def control(conversation_id: UUID, request: Request):
+        body = await _body(request, ReceptionControl)
+        async with factory.begin() as db:
+            return await apply_reception_control(
+                db, await _actor(request, db), conversation_id, body
+            )
 
     @router.post("/conversations/{conversation_id}/drafts", status_code=201)
     async def create(conversation_id: UUID, request: Request):

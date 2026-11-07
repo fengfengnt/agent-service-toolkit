@@ -99,6 +99,45 @@ async def draft_file(factory, size=len(PDF)):
 
 
 @pytest.mark.pg
+@pytest.mark.asyncio
+@pytest.mark.parametrize("direction", ["buyer", "organization"])
+async def test_other_directions_store_material_without_extracting_fields(pg_factory, direction):
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    who, conversation = await visitor(pg_factory)
+    async with pg_factory.begin() as db:
+        draft = await create_draft(
+            db,
+            who,
+            conversation,
+            CreateDraft(client_draft_id="optional-material", kind="service", direction=direction),
+        )
+        upload = await init_file(
+            db,
+            who,
+            draft.id,
+            InitFile(
+                client_upload_id="optional-file",
+                category="case",
+                filename="材料.pdf",
+                media_type="application/pdf",
+                bytes=len(PDF),
+                expected_revision=draft.revision,
+            ),
+        )
+    storage = SimpleNamespace(write_reception_object=AsyncMock())
+    ready = await write_file(
+        pg_factory, who, draft.id, upload.file.id, chunks(PDF), artifacts=storage
+    )
+    assert ready.status == "ready" and ready.sha256
+    assert storage.write_reception_object.await_args.args[1] == PDF
+    async with pg_factory() as db:
+        view = await load_reception(db, who, conversation)
+        assert view.active_draft.fields == {} and view.active_draft.files[0].id == ready.id
+
+
+@pytest.mark.pg
 @pytest.mark.minio
 @pytest.mark.asyncio
 async def test_real_private_upload_download_boundaries_and_detach(pg_factory, minio_env):

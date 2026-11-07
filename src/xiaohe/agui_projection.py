@@ -23,7 +23,11 @@ def _messages(public):
         {
             "id": message["id"],
             "role": message["role"],
-            "content": "".join(part["text"] for part in message["parts"] if part["type"] == "text"),
+            "content": "".join(
+                part["text"]
+                for part in message["parts"]
+                if part["type"] in ("text", "system_notice")
+            ),
         }
         for message in public["messages"]
     ]

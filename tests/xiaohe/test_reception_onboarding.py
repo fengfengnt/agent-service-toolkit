@@ -195,6 +195,27 @@ async def test_missing_sample_material_has_no_invented_link_or_delivery():
 
 @pytest.mark.pg
 @pytest.mark.asyncio
+@pytest.mark.parametrize("intent", ["预约方案沟通", "观看样板演示", "索取合作手册", "开始入驻"])
+async def test_guest_organization_intent_offers_login_once_and_preserves_defer(
+    pg_factory, runtime_env, monkeypatch, intent
+):
+    from test_admission import visitor
+
+    await install(pg_factory, runtime_env, monkeypatch)
+    who, conversation = await visitor(pg_factory)
+    await talk(pg_factory, runtime_env, who, conversation, "社群组织")
+    message, view = await talk(pg_factory, runtime_env, who, conversation, intent)
+    assert view.invitation_state == "offered" and not view.draft_refs
+    assert any(part.type == "auth_request" for part in message.parts)
+    await talk(pg_factory, runtime_env, who, conversation, "暂时不用")
+    message, view = await talk(pg_factory, runtime_env, who, conversation, intent)
+    assert view.invitation_state == "deferred" and not view.draft_refs
+    assert all(part.type != "auth_request" for part in message.parts)
+    assert "是否愿意" not in message.model_dump_json()
+
+
+@pytest.mark.pg
+@pytest.mark.asyncio
 async def test_worker_records_intent_and_submits_onboarding_only_after_its_own_summary(
     pg_factory, runtime_env, monkeypatch
 ):

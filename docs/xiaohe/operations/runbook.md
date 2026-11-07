@@ -1,5 +1,19 @@
 # 小鹤业务后端运行说明
 
+## 源码交付核对（2026-11-07）
+
+本次仅整理并推送 `dev-fengfeng`，未修改现有服务、配置或真实数据。退出恢复、认证/留资续接、明确标签采集和回执提示的代码、测试及历史记录已统一纳入交付，见[源码整理记录](2026-11-07-dev-fengfeng-delivery.md)。原申请的真实受理及“我的进展”闭环见[验收记录](2026-11-07-original-application-acceptance.md)。下方运行版本和模型模式按日期保留，不作为实时环境探针结果。
+
+## 历史本地状态（2026-11-05）
+
+已按用户授权升级到 `0.1.1`，原API/worker接入 New API 的 `deepseek-v4.1-flash` 真实模型；原数据库、文件、身份配置和其他服务保留，门户正式开关未变。实际生效的私有模型配置是 WSL `/home/fengfeng/yunhezhiyuan/aibackend/config/runtime-0.1.1.env`，仓库根 `.env` 不会自动更新运行容器。真实调用、备份、归档和回退见[0.1.1接入与替换记录](2026-11-05-newapi-0.1.1.md)。下方0.1.0受控运行章节保留为历史，不能作为当前模型模式或容器版本。
+
+## 本地受控容器运行（2026-11-04）
+
+用户明确选择保留受控模型后，已将本地联调 API/worker 与 PG/MinIO 纳入 `yunhezhiyuan` 分组，API 镜像及容器为 `yunhezhiyuan-aibackend-0.1.0`，worker 容器增加 `-worker`，PG 为 `yunhezhiyuan-aibackend-pg`。当前入口为 `https://portal.lvh.me/portal/`，运行配置及版本入口在 WSL `/home/fengfeng/yunhezhiyuan/aibackend`，使用该目录 `compose.sh` 管理明确的 `aibackend-*` 服务。原宿主进程入口和旧测试依赖容器已停用。
+
+PG 已从 tmpfs 完整恢复并校验到 `xiaohe_postgres-data`，MinIO 继续使用 `xiaohe-agent-test-minio-data`。当前本地配置与下文正式模型 Compose 模板分开：本地使用既有冻结 Python 3.14.7 环境离线构建并保留受控 fixture，正式启动器校验保持。归档、数据核对和验证边界见 `D:/Code/deploy/local-deploy/releases/yunhezhiyuan-aibackend/local/0.1.0/release.md`；本地受控部署通过不代表真实模型或正式环境发布通过。
+
 ## 当前交付与启动门
 
 在 dev-fengfeng 增量二开；原 Dockerfile、Compose、README 及 toolkit 保护目录未改。业务镜像使用 Python 3.14.7，API 与 worker 共用镜像、独立进程。新增 Compose 是待验收配置，不代表已部署。P8/P9核心适配与认领已有隔离集成证据，正式 SSO 开关保持关闭；实际认证配置、三方浏览器和部署验证尚未完成，不能直接用于上线。
@@ -28,13 +42,17 @@ Compose 的默认主机绑定是 127.0.0.1:19443，仅 gateway 有映射。API�
 
 Python、PostgreSQL、MinIO、Nginx 的来源和 digest 见 `deploy/xiaohe/images.lock.json`。Python/Nginx 的远端 manifest 已核对；业务镜像尚未构建。MinIO 使用先前锁定的社区预编译镜像，仅隔离验证，不是官方供应链/生产安全审查结论，详见 [存储记录](../artifacts.md)。
 
-准备私有配置后，用显式 Compose env 文件校验；只输出 quiet，避免展开运行密钥：
+仓库根目录 `VERSION` 是业务版本来源，初始为 `0.1.0`。启动入口自动读取该文件：Compose 分组为 `yunhezhiyuan`，API 镜像与容器名为 `yunhezhiyuan-aibackend-<版本号>`，worker 共用镜像、容器名增加 `-worker`，PG 容器名为 `yunhezhiyuan-aibackend-pg`。发布新版本时先更新 `VERSION`；同版本镜像不覆盖，另行记录实际 digest。
+
+准备私有配置后，通过入口传入显式 Compose env 文件校验；只输出 quiet，避免展开运行密钥：
 
 ```sh
-docker compose --env-file /secure/xiaohe/compose.env -f deploy/xiaohe/compose.yml config --quiet
+sh deploy/xiaohe/compose.sh --env-file /secure/xiaohe/compose.env config --quiet
 ```
 
-后续获相应构建/部署授权时，再构建并记录业务镜像 digest、代码提交、uv.lock hash；将 XIAOHE_IMAGE 改为该不可变产物。示例 tag 只是格式示范。不能以配置解析成功代替镜像构建/服务验收。
+Windows 上从仓库根目录通过 WSL 执行 `wsl -d Ubuntu -- sh deploy/xiaohe/compose.sh --env-file /secure/xiaohe/compose.env config --quiet`。后续获相应构建/部署授权时，同一入口使用 `build`、`up -d` 等 Compose 子命令，并记录业务镜像 digest、代码提交、uv.lock hash。不能以配置解析成功代替镜像构建/服务验收。
+
+分组改名后仍显式使用原默认数据卷 `xiaohe_postgres-data` 和 `xiaohe_minio-data`。若目标环境曾用 `-p` 自定义分组，部署前先核对实际卷名；改名后的容器需要重建，不能靠 restart 应用配置。本次配置修改不迁移或删除运行中容器、数据库及卷；独立的 `compose.test.yml` 保留测试隔离名称。
 
 ## 初始化次序
 

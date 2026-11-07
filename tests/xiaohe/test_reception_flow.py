@@ -254,6 +254,55 @@ async def send_in_db(db, who, conversation, text):
 
 @pytest.mark.pg
 @pytest.mark.asyncio
+@pytest.mark.parametrize("direction", ["采购商", "社群组织", "供应商"])
+@pytest.mark.parametrize("question", ["合作怎么付费", "多少钱"])
+async def test_payment_question_answers_then_invites_and_requires_consent(
+    pg_factory, runtime_env, monkeypatch, direction, question
+):
+    await install(pg_factory, runtime_env, monkeypatch)
+    who, conversation = await visitor(pg_factory)
+    await talk(pg_factory, runtime_env, who, conversation, direction)
+    message, view = await talk(pg_factory, runtime_env, who, conversation, question)
+    assert view.invitation_state == "offered"
+    assert "是否愿意登录并登记需求" in message.model_dump_json()
+    assert any(part.type == "auth_request" for part in message.parts)
+    assert not view.draft_refs
+    assert {"采购商": "RFI", "社群组织": "合同条件待确认", "供应商": "能力画像"}[
+        direction
+    ] in message.model_dump_json()
+    await talk(pg_factory, runtime_env, who, conversation, "暂时不用")
+    message, view = await talk(pg_factory, runtime_env, who, conversation, question)
+    assert view.invitation_state == "deferred"
+    assert "是否愿意" not in message.model_dump_json()
+    assert all(part.type != "auth_request" for part in message.parts)
+    message, view = await talk(pg_factory, runtime_env, who, conversation, "我愿意登记需求")
+    assert view.invitation_state == "accepted"
+    assert any(part.type == "auth_request" for part in message.parts)
+    assert not view.draft_refs
+
+
+@pytest.mark.pg
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "response,offered,accepted",
+    [("是", True, True), ("好的", True, True), ("可以", True, True), ("是", False, False)],
+)
+async def test_short_acceptance_requires_current_invitation(
+    pg_factory, runtime_env, monkeypatch, response, offered, accepted
+):
+    await install(pg_factory, runtime_env, monkeypatch)
+    who, conversation = await visitor(pg_factory)
+    await talk(pg_factory, runtime_env, who, conversation, "采购商")
+    if offered:
+        await talk(pg_factory, runtime_env, who, conversation, "多少钱")
+    message, view = await talk(pg_factory, runtime_env, who, conversation, response)
+    assert (view.invitation_state == "accepted") is accepted
+    assert any(part.type == "auth_request" for part in message.parts) is accepted
+    assert not view.draft_refs
+
+
+@pytest.mark.pg
+@pytest.mark.asyncio
 async def test_fixed_greeting_invitation_and_defer(pg_factory, runtime_env, monkeypatch):
     await install(pg_factory, runtime_env, monkeypatch)
     who, conversation = await visitor(pg_factory)

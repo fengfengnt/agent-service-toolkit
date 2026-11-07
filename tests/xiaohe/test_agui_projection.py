@@ -12,7 +12,7 @@ def test_machine_schema_is_extracted_from_the_single_external_contract(contract_
     from jsonschema import Draft202012Validator
 
     root = Path(__file__).resolve().parents[2]
-    master = root.parent / "docs/contracts/2026-11-03-xiaohe-integration-v1.md"
+    master = root / "docs/contracts/2026-11-03-xiaohe-integration-v1.md"
     source = master.read_text(encoding="utf-8")
     block = source.split("<!-- xiaohe-agui-v1-schema:start -->\n```json\n", 1)[1].split("\n```", 1)[
         0
@@ -27,6 +27,25 @@ def test_machine_schema_is_extracted_from_the_single_external_contract(contract_
     validator = Draft202012Validator(derived)
     for event in project_snapshot(snapshot(contract_fixture, "running"), "attempt-1"):
         validator.validate(event)
+
+
+def test_projection_preserves_system_notice_as_server_notification(contract_fixture):
+    value = contract_fixture("guest_snapshot")
+    value["messages"] = [
+        {
+            "id": "system-1",
+            "role": "assistant",
+            "createdAt": "2026-11-05T00:00:00Z",
+            "parts": [{"type": "system_notice", "text": "采集信息"}],
+        }
+    ]
+    events = project_snapshot(ChatSnapshot.model_validate(value), None)
+    messages = next(event for event in events if event["type"] == "MESSAGES_SNAPSHOT")["messages"]
+    assert messages == [{"id": "system-1", "role": "assistant", "content": "采集信息"}]
+    state = next(event for event in events if event["type"] == "STATE_SNAPSHOT")["snapshot"][
+        "xiaohe"
+    ]
+    assert state["messages"][0]["parts"] == [{"type": "system_notice", "text": "采集信息"}]
 
 
 def snapshot(contract_fixture, status=None):

@@ -1,5 +1,7 @@
 # 本地三方隔离联调运行记录
 
+最新运行方式：2026-11-04 已按用户要求容器化，继续保留受控模型。API/worker/PG/MinIO 现属于 `yunhezhiyuan` 分组，PG 从 tmpfs 完整迁入持久卷并逐表核验，MinIO 原卷保留；原宿主进程、旧存储容器及旧 venv 已清理。下文 PID、私有配置路径和进程命令是历史记录，不再作为当前管理入口。当前使用 WSL `/home/fengfeng/yunhezhiyuan/aibackend/compose.sh`，细节见[运行说明](runbook.md)及 `D:/Code/deploy/local-deploy/releases/yunhezhiyuan-aibackend/local/0.1.0/release.md`。
+
 最新环境（2026-11-04 21:22）：Portal及AI受信Origin/callback已去9444，门户0.1.3，AI固定源b06a57e。新地址`https://portal.lvh.me`的匿名443适配及原账号/历史/会话截止保留均已核验；真人会员新地址登录尚未重验。见[Origin切换记录](2026-11-04-portal-origin-443.md)。后文原地址、PID和会员结果保留为各阶段历史。
 
 后续环境变更：2026-11-04 21:02中心规范issuer及本AI接入均已切换443，旧SSO8443不再兼容。用户批准后，AI原地更新1条用户绑定及1条System登记，原user_id、历史及会话截止完整保留；新API/worker使用固定源码93c99b3，真实匿名443适配通过，真人会员新issuer登录尚未重验。详见[保留身份迁移记录](2026-11-04-sso-issuer-443-preserve-identity.md)。本页原8443地址、PID及结果保留为当时验收历史。

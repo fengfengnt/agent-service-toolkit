@@ -6,10 +6,10 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import Field
 from sqlalchemy import select
 
-from xiaohe.admission import accept_action
+from xiaohe.admission import _accept, _result, accept_action
 from xiaohe.contracts import AgentOutcome, ServiceError, WireModel, WriteFence
 from xiaohe.conversations import WELCOME
-from xiaohe.models import Command, Conversation, Message
+from xiaohe.models import Command, Conversation, Message, Run
 from xiaohe.reception.contracts import FieldValue, ReceptionAction, SkillContext
 from xiaohe.reception.fields import (
     FIELD_LABELS,
@@ -39,7 +39,7 @@ TOPICS = {
         ("security", "安全|合规|隐私|数据"),
         ("integration", "集成|ERP|SRM|系统"),
         ("cases-sla", "案例|SLA"),
-        ("rfx", "比价|RFX|RFI|RFQ|RFP|价格|收费"),
+        ("rfx", "比价|RFX|RFI|RFQ|RFP|价格|收费|付费|多少钱"),
         ("sourcing", "寻源|供应商"),
         ("analysis", "分析|降本|效果"),
         ("requirements", "需求|品类"),
@@ -47,7 +47,7 @@ TOPICS = {
     "organization": [
         ("sample-recommendation", "推荐.*样板|同类型"),
         ("sample", "样板|演示"),
-        ("cooperation", "合作|收费|价格"),
+        ("cooperation", "合作|收费|价格|付费|多少钱"),
         ("launch", "上线|多久"),
         ("revenue", "收益|增收|收入"),
         ("effort", "投入|人力"),
@@ -57,7 +57,7 @@ TOPICS = {
         ("security", "安全|隐私|资料"),
         ("ontology-evolution", "本体|自进化|训练|周期"),
         ("negotiation", "磋商|商机"),
-        ("capability", "品类|能力|价格|收费|开始"),
+        ("capability", "品类|能力|价格|收费|付费|多少钱|开始"),
     ],
 }
 ACTION_TEXT = {
@@ -158,18 +158,62 @@ class Extraction(WireModel):
     fields: dict[str, Candidate] = Field(default_factory=dict)
 
 
+def _labelled_fields(direction, allowed, text):
+    names = {label: key for key, label in FIELD_LABELS.items()}
+    names.update({key: key for key in FIELD_LABELS})
+    names.update({"公司名称": "companyName", "规模": "companyScale"})
+    values, ambiguous, labelled = {}, set(), False
+    for chunk in re.split(r"[；;\n]|[，,](?=\s*[^，,；;\n:：]{1,30}[:：])", text):
+        match = re.fullmatch(r"\s*([^:：]+?)\s*[:：]\s*(.*?)\s*", chunk)
+        if match is None or (key := names.get(match[1])) is None:
+            continue
+        labelled = True
+        if key not in allowed or key in ambiguous or not match[2]:
+            continue
+        value = match[2]
+        normalized = value.rstrip("。！.! ")
+        if re.fullmatch(
+            r"(?:暂(?:时)?)?不(?:提供|填写|透露)|不(?:便|方便|愿意)(?:提供|填写|透露)|不想说|"
+            r"(?:还没(?:有)?|尚未|暂未|未)(?:确定|明确|定下来)|(?:尚|还)?不(?:知道|清楚|确定)|待定|未知|保密",
+            normalized,
+        ):
+            continue
+        if key in (
+            "companyName",
+            "organizationName",
+            "contactName",
+            "city",
+            "industry",
+            "companyScale",
+            "memberSize",
+            "coverage",
+            "organizationType",
+            "companyType",
+            "contactRole",
+        ) and ("或" in value or normalized in ("无", "暂无", "未提供")):
+            continue
+        if key == "onlineChannels":
+            value = [item.strip() for item in re.split(r"[、,，]", value)]
+        elif key == "memberSize":
+            value = map_member_size(value)
+            if value is None:
+                continue
+        if key in values and values[key] != value:
+            values.pop(key)
+            ambiguous.add(key)
+            continue
+        try:
+            values.update(validate_fields(direction, {key: value}))
+        except ServiceError:
+            pass
+    return values if labelled else None
+
+
 async def _extract(model, direction, step, text, definition):
     if re.search(
         r"[？?]|吗|怎么|如何|是否|多少|多久|不是|并非|不要|不确定|也许|或者|可能|不叫", text
     ):
         return {}
-    if model is None:
-        from xiaohe.graph import reception_model
-
-        try:
-            model = reception_model()
-        except ServiceError:
-            return {}
     allowed = (
         [key for group in definition.rounds for key in group.fields]
         if step == "summary"
@@ -177,6 +221,16 @@ async def _extract(model, direction, step, text, definition):
         if step.startswith("round")
         else []
     )
+    labelled = _labelled_fields(direction, allowed, text)
+    if labelled is not None:
+        return labelled
+    if model is None:
+        from xiaohe.graph import reception_model
+
+        try:
+            model = reception_model()
+        except ServiceError:
+            return {}
     result = None
     try:
         async with asyncio.timeout(20):
@@ -211,6 +265,63 @@ async def _extract(model, direction, step, text, definition):
             except ServiceError:
                 pass
     return accepted
+
+
+async def apply_reception_control(db, actor, conversation_id, request):
+    flow = await flow_record(db, actor, conversation_id)
+    if request.action == "start_collection" and actor.user_id is None:
+        raise ServiceError("AUTH_REQUIRED", 401)
+    existing = await db.scalar(
+        select(Command).where(
+            Command.conversation_id == conversation_id,
+            Command.client_key == request.client_action_id,
+        )
+    )
+    if existing is not None:
+        if existing.payload.get("receptionControl") != request.action:
+            raise ServiceError("IDEMPOTENCY_CONFLICT", 409)
+        return await _result(db, actor, existing)
+    conversation = await db.get(Conversation, conversation_id)
+    if (
+        conversation.direction not in LABELS
+        or (
+            request.action == "accept_invitation"
+            and flow.invitation_state not in ("offered", "deferred")
+        )
+        or (
+            request.action == "start_collection"
+            and flow.invitation_state != "accepted"
+            and flow.active_draft_id is None
+        )
+    ):
+        raise ServiceError("ACTION_STALE", 409)
+    waiting = (
+        await db.scalar(
+            select(Run).where(
+                Run.conversation_id == conversation_id,
+                Run.status == "waiting_input",
+                Run.pending_request["requestId"].astext == str(flow.pending_request_id),
+            )
+        )
+        if flow.pending_request_id
+        else None
+    )
+    kind = "action" if waiting is not None else "message"
+    payload = {
+        "receptionControl": request.action,
+        "clientActionId" if waiting else "clientMessageId": request.client_action_id,
+    }
+    if waiting is not None:
+        payload["requestId"] = str(flow.pending_request_id)
+    return await _accept(
+        db,
+        actor,
+        conversation_id,
+        kind,
+        request.client_action_id,
+        payload,
+        system_notice="开始注册或登录" if request.action == "accept_invitation" else "采集信息",
+    )
 
 
 async def apply_reception_action(db, actor, draft_id, request: ReceptionAction):
@@ -302,6 +413,7 @@ async def _prepare_reception_step(
             draft is not None
             and draft.state in ("collecting", "review")
             and not command.payload.get("reception")
+            and not command.payload.get("receptionControl")
             and not _explicit_confirmation(text)
             and not _new_need(text)
             and not _next_round(text)
@@ -312,7 +424,9 @@ async def _prepare_reception_step(
         command_id = command.id
         direction = conversation.direction
     extracted = (
-        await _extract(model, snapshot[2], snapshot[3], text, definition) if snapshot and may_extract else {}
+        await _extract(model, snapshot[2], snapshot[3], text, definition)
+        if snapshot and may_extract
+        else {}
     )
     skill = None
     if direction in TOPICS:
@@ -348,8 +462,10 @@ async def _prepare_reception_step(
 async def _advance(db, conversation, flow, command, run, text, extracted, snapshot, skill):
     request_id = uuid5(command.id, "reception.input")
 
-    def reply(answer, *, suggestions=None, wait=True):
+    def reply(answer, *, suggestions=None, wait=True, auth=False):
         body = [{"type": "text", "text": answer}]
+        if auth:
+            body.append({"type": "auth_request", "intent": "lead"})
         if suggestions:
             body.append(
                 {
@@ -454,11 +570,13 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
             if len(match) != 1:
                 return reply("请先选择一份要继续的草稿，也可以明确要求新建需求。")
             flow.active_draft_id = match[0].id
-    accepted = bool(
+    accepted = command.payload.get("receptionControl") == "accept_invitation" or bool(
         re.fullmatch(
             r"\s*(?:好的[，,]\s*)?(?:(?:我|我们)(?:愿意|要|想|希望)(?:现在|先)?(?:登记|留资|注册|登录|开始)(?:需求|资料|信息|接待|服务)?|(?:我|我们)?(?:同意|接受|愿意)(?:登记|留资|邀请)?)[。！!\s]*",
             text,
         )
+        or flow.invitation_state == "offered"
+        and re.fullmatch(r"\s*(?:是|是的|好|好的|可以)[。！!\s]*", text)
     )
     if (
         re.search(r"暂时?不|稍后|以后|再说|不用|不愿|不想|不同意|不接受", text)
@@ -566,15 +684,20 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
             return reply(
                 skill.text
                 if skill
-                else "该需求已记录，可在“我的进展”查看真实跟进；如有新需求可以明确提出。",
+                else "您的需求已提交，我们会根据您提供的信息安排专员跟进。您可以在页面顶部“我的进展”查看跟进情况；如有新需求，也可以继续告诉我。",
                 wait=False,
             )
         return reply(
             (skill.text + "\n\n" if skill else "")
             + (
-                "本轮可以提供："
-                + "、".join(FIELD_LABELS[key] for group in definition.rounds if group.id == row.step for key in group.fields)
-                + "。选填内容可以跳过；保存本轮只保存当前信息。"
+                "为了更好地为您提供专属服务，请填写"
+                + "、".join(
+                    FIELD_LABELS[key]
+                    for group in definition.rounds
+                    if group.id == row.step
+                    for key in group.fields
+                )
+                + "信息。您也可以跳过。"
                 if row.step != "files"
                 else "可以选填上传企业材料，也可以直接查看汇总。"
             )
@@ -586,12 +709,14 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
         if chosen == current
         else "我可以回答当前方向的服务问题，请说明您的业务需求。其他内容暂无法协助。"
     )
-    if flow.invitation_state == "none" and re.search(
-        r"价格|收费|演示|怎么开始|如何开始|多久上线|怎么合作|看效果|商机多少|交什么资料", text
-    ):
+    offered = flow.invitation_state == "none" and re.search(
+        r"价格|收费|付费|多少钱|演示|怎么开始|如何开始|多久上线|怎么合作|看效果|商机多少|交什么资料",
+        text,
+    )
+    if offered:
         flow.invitation_state = "offered"
         answer += "\n\n是否愿意登录并登记需求，方便后续跟进？也可以继续咨询或暂缓。"
-    return reply(answer)
+    return reply(answer, auth=bool(offered) and run.user_id is None)
 
 
 async def run_reception_step(
@@ -634,7 +759,7 @@ async def run_reception_step(
                 parts=[
                     {
                         "type": "text",
-                        "text": "正式受理结果尚未确认，请稍后重试；系统会核对原提交，不重复创建。",
+                        "text": "感谢您提交需求！您的资料已保存，正在确认提交结果。确认受理后，我们会根据您提交的信息安排专员跟进。您可以在页面顶部“我的进展”查看后续状态。",
                     }
                 ],
                 wait_for_input=False,
@@ -648,12 +773,13 @@ async def run_reception_step(
         draft = await db.get(ReceptionDraft, submission.draft_id)
         name = draft.fields.get("companyName") or draft.fields.get("organizationName") or "本次"
         message = (
-            name + "的入驻申请已记录，待后台人工审核；请到“我的进展”查看真实进度。"
+            name
+            + "的入驻申请已提交，接下来会由专员协助对接与审核。您可以在页面顶部“我的进展”查看后续进展。"
             if draft.kind == "onboarding"
             else name
             + "的"
             + LABELS[draft.direction]
-            + "需求已记录；请在“我的进展”查看后续安排与实际跟进状态。"
+            + "需求已提交成功。我们会根据您提交的信息安排专员跟进，您可以在页面顶部“我的进展”查看跟进情况。"
         )
         parts = [{"type": "text", "text": message}]
         if draft.direction == "organization" and draft.kind == "service":

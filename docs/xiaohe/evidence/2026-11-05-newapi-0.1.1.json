@@ -1,0 +1,248 @@
+{
+  "schemaVersion": 1,
+  "result": "PASS",
+  "date": "2026-11-05",
+  "environment": "local WSL Ubuntu",
+  "version": "0.1.1",
+  "branch": "dev-fengfeng",
+  "configuration": {
+    "passed": true,
+    "modelConfigFile": "/home/fengfeng/yunhezhiyuan/aibackend/config/runtime-0.1.1.env",
+    "caBundle": "/home/fengfeng/yunhezhiyuan/aibackend/config/public-ca-bundle-0.1.1.pem",
+    "rawEnvFormat": true,
+    "effectiveBridgePreserved": true,
+    "issuerPreserved": true,
+    "privateKeyCopied": false,
+    "existingJsonBytesUnchanged": true,
+    "sourceModelEnvUnchanged": true
+  },
+  "modelTests": {
+    "configReadOnly": true,
+    "secretsPrinted": false,
+    "chatSse": {
+      "status": 200,
+      "expectedMarker": true,
+      "chunks": 9,
+      "durationMs": 28430,
+      "modelReported": "deepseek-v4.1-flash-1017"
+    },
+    "firstStructuredProbe": {
+      "passed": false,
+      "error": "OpenAIConnectionError",
+      "cause": "local-only CA overrides public trust in httpx"
+    },
+    "combinedCaUnauthenticatedTls": 401,
+    "structuredProbe": {
+      "passed": true,
+      "durationMs": 6759,
+      "direction": "buyer",
+      "intent": "reception",
+      "model": "deepseek-v4.1-flash",
+      "tlsVerified": true
+    }
+  },
+  "build": {
+    "version": "0.1.1",
+    "imageId": "sha256:241633314bf9fb119ce50e8c94bfed809677a173226c34a437b0a546a1b44859",
+    "revision": "4f4c690171da4de702e7ac8c739d7db0db175381",
+    "archive": "yunhezhiyuan-aibackend-0.1.1.docker.tar",
+    "archiveBytes": 628706304,
+    "archiveSha256": "c7a13d6bc221994d25f66870d4dc98d76b90f8095409e62566f7e16ca46d2d5f",
+    "imageChecks": {
+      "sourceFilesVerified": 88,
+      "python": "3.14.7",
+      "controlledFixtureRemoved": true,
+      "deploymentFakeGuardRejects": true,
+      "langchainOpenaiVersion": "1.7.2",
+      "openaiVersion": "3.35.1"
+    },
+    "uvLockSha256": "2099fbf328fcf17544c6a07c72b404671dbe868b9e633ecf00d669433e13740d",
+    "secretsArchived": false,
+    "productionApproved": false
+  },
+  "dependencyRebuild": {
+    "method": "uv sync --frozen --no-dev --no-install-project --offline",
+    "uvVersion": "0.13.0",
+    "python": "3.14.7",
+    "uvLockSha256": "2099fbf328fcf17544c6a07c72b404671dbe868b9e633ecf00d669433e13740d",
+    "cleanVenv": true,
+    "baseImageId": "sha256:467db8be0c5fa1b2ca85f30df43adb8815e3316572a1106c8c8bda4a166d22ff",
+    "testFixtureRemoved": true
+  },
+  "runtimeFactory": {
+    "runtimeConfigurationValidated": true,
+    "realModelFactorySelected": true,
+    "appFactoryCreated": true,
+    "effectiveSsoBridgeEnabled": true,
+    "ms": 17012,
+    "modelRequests": 0,
+    "secretsPrinted": false
+  },
+  "backup": {
+    "backupDirectory": "/home/fengfeng/yunhezhiyuan/backups/aibackend-0.1.1-20261105T141921Z",
+    "databaseDumpBytes": 306491,
+    "databaseDumpSha256": "dbc067c547125c38dba1783764e48467fcd6d8943e901406f004c3b28cf3548f",
+    "pgRestoreListVerified": true,
+    "pgRestoreListLines": 235,
+    "rolesBackupVerified": true,
+    "minioArchiveBytes": 61674,
+    "minioArchiveSha256": "06c852ac44ad9cc76ac4aaddee4238c45aba715d822ea8ab3cc6bb8e1fa8e817",
+    "minioArchivedFiles": 294,
+    "privateFilesMode": "0600",
+    "dataServicesChanged": false
+  },
+  "cutover": {
+    "checkedAtUtc": "2026-11-05T14:36:30.611596+00:00",
+    "version": "0.1.1",
+    "composeCutoverPass": true,
+    "rollbackPerformed": false,
+    "onlyApplicationServicesSelected": true,
+    "services": [
+      {
+        "name": "/yunhezhiyuan-aibackend-0.1.1",
+        "imageId": "sha256:241633314bf9fb119ce50e8c94bfed809677a173226c34a437b0a546a1b44859",
+        "id": "91779821126c59cbd138e9e3a23af6af02af7120adf5d1e4e5d7d3df44e435c6",
+        "status": "running",
+        "health": "healthy"
+      },
+      {
+        "name": "/yunhezhiyuan-aibackend-0.1.1-worker",
+        "imageId": "sha256:241633314bf9fb119ce50e8c94bfed809677a173226c34a437b0a546a1b44859",
+        "id": "faf875543496767f9704192f6f91c8b10e301b27b9ef3ecf5a8f8e562da39f18",
+        "status": "running",
+        "health": null
+      }
+    ]
+  },
+  "deployedBusinessJourney": {
+    "test": "deployed-https-real-model-guest-journey",
+    "tlsVerified": true,
+    "bootstrapStatus": 200,
+    "messageStatus": 202,
+    "newGuestTurns": 1,
+    "cookiePersisted": false,
+    "smsCalls": 0,
+    "memberLoginCalls": 0,
+    "result": "PASS",
+    "durationMs": 4444,
+    "assistantMessages": 1,
+    "answerPresent": true,
+    "answerFromControlledFixture": false,
+    "activeRunCleared": true,
+    "quotaCount": 1,
+    "replyParts": [
+      "text"
+    ],
+    "sameConversationAfterSessionRestore": true,
+    "messageIdsPreserved": true,
+    "deadlinePreservedAfterRead": true,
+    "databaseLatestRunStatus": "completed",
+    "totalCompletedRunsAfterProbe": 3
+  },
+  "preservation": {
+    "result": "PASS",
+    "checkedAtUtc": "2026-11-05T14:40:10.697389+00:00",
+    "version": "0.1.1",
+    "protectedExistingContainersUnchanged": 26,
+    "protectedNames": [
+      "/yunhezhiyuan-aibackend-candidate-api",
+      "/yunhezhiyuan-aibackend-candidate-worker",
+      "/yunhezhiyuan-aibackend-copilotruntime",
+      "/yunhezhiyuan-aibackend-candidate-pg",
+      "/yunhezhiyuan-aibackend-candidate-minio",
+      "/yunhezhiyuan-aibackend-minio",
+      "/yunhezhiyuan-aibackend-pg",
+      "/ontology-fuseki",
+      "/yunhezhiyuan-newapi-0.2.3",
+      "/yunhezhiyuan-bussinessplatform-1.0.2",
+      "/yunhezhiyuan-ontology-0.1.1",
+      "/yunhezhiyuan-serverbackend-0.1.0",
+      "/yunhezhiyuan-serverbackend-redis",
+      "/yunhezhiyuan-serverbackend-mysql",
+      "/yunhezhiyuan-nginx",
+      "/inst-xiaocai-api",
+      "/inst-xiaocai-worker",
+      "/inst-xiaocai-nginx",
+      "/inst-xiaocai-web",
+      "/inst-xiaocai-kernel",
+      "/inst-xiaocai-postgres",
+      "/inst-xiaocai-qdrant",
+      "/inst-xiaocai-redis",
+      "/inst-xiaocai-search",
+      "/inst-xiaocai-elasticsearch",
+      "/postgres-server"
+    ],
+    "privateRuntimeAndBridgeBytesUnchanged": true,
+    "existingModelEnvReadOnly": true,
+    "deployedKeyMatchesConfiguredKey": true,
+    "modelKeyPrinted": false,
+    "http": {
+      "portal": {
+        "status": 200,
+        "sha256": "6d0c17c0c75eb5edc3588f45e437be8c90569788f2e41d6062e4b4f1f84f4995"
+      },
+      "ssoDiscovery": {
+        "status": 200,
+        "sha256": "23fc0b1d689777c09a752ea7c217f7179ea1bdc1c5e72d0c0722c0e2d07c8857"
+      },
+      "apiReady": {
+        "status": 200,
+        "sha256": "31bf75f4c0a97cc1f7b60df824fa390b3be9ba014f29b63c87c698ba63d9a9fd"
+      }
+    },
+    "services": [
+      {
+        "name": "/yunhezhiyuan-aibackend-0.1.1",
+        "imageId": "sha256:241633314bf9fb119ce50e8c94bfed809677a173226c34a437b0a546a1b44859",
+        "status": "running",
+        "health": "healthy",
+        "restartCount": 0,
+        "realModelConfigured": true,
+        "keyPresent": true,
+        "effectiveBridgeEnabled": true
+      },
+      {
+        "name": "/yunhezhiyuan-aibackend-0.1.1-worker",
+        "imageId": "sha256:241633314bf9fb119ce50e8c94bfed809677a173226c34a437b0a546a1b44859",
+        "status": "running",
+        "health": null,
+        "restartCount": 0,
+        "realModelConfigured": true,
+        "keyPresent": true,
+        "effectiveBridgeEnabled": true
+      }
+    ],
+    "runStatusCounts": {
+      "completed": 3
+    },
+    "existingVolumesDeleted": false,
+    "databaseRestoredOrMigrated": false,
+    "frontendReplaced": false,
+    "formalFrontendFlagChanged": false,
+    "candidateRuntimeReplaced": false,
+    "smsCalls": 0,
+    "memberG2Reused": true
+  },
+  "boundaries": {
+    "realProviderCallsAuthorized": true,
+    "successfulRealProviderTestPaths": 3,
+    "browserRealModelNotTested": true,
+    "realMemberLoginNotRepeated": true,
+    "memberG2HistoricalEvidenceReused": true,
+    "sameArtifactV1ToV2NotTested": true,
+    "longRequestsConcurrencyCapacityNotTested": true,
+    "professionalHandlersNotImplementedByThisDeployment": true,
+    "candidateNodeRuntimeUnchanged": true,
+    "frontendFormalFlagUnchanged": true,
+    "productionReleaseApproved": false,
+    "backupRestoreDrillNotPerformed": true,
+    "gitPushOrMergePerformed": false
+  },
+  "failuresRetained": [
+    "initial LangChain CA trust failure; combined public CA verified",
+    "unsupported Buildx --cpus option; build had not begun",
+    "venv absolute Python alias unavailable in image; fixed to same pinned interpreter",
+    "first role export did not pass; configured PG administrator export verified",
+    "first app factory probe exceeded 30-second bound; later bounded 90-second probe passed in 17 seconds"
+  ]
+}

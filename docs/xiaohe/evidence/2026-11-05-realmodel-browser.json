@@ -1,0 +1,474 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-05",
+  "overall": "BUSINESS_ACCEPTANCE_NOT_PASSED",
+  "technical": "PASS_WITH_EVIDENCE_BOUNDARIES",
+  "sources": {
+    "frontendProduct": "21b8337eb1f983e7136333a18a8810cc3b412a86",
+    "runtimeProduct": "af2e6a21d49bbc35fc2adc36dcc1fe243275f457",
+    "runtimeImageId": "sha256:97487c6d389e18136c5c8129f843e28e77f87db6a8b389accad90262966370b4",
+    "realBackendVersion": "0.1.1",
+    "realBackendImageId": "sha256:241633314bf9fb119ce50e8c94bfed809677a173226c34a437b0a546a1b44859",
+    "model": "deepseek-v4.1-flash",
+    "portalEvidenceCommitAtInitialReceipt": "695824a",
+    "portalEvidenceFinalBoundaryCommit": "aaca909"
+  },
+  "tls": {
+    "result": "PASS",
+    "strictTLS": true,
+    "noModelRequests": true,
+    "checks": [
+      {
+        "path": "/healthz",
+        "method": "GET",
+        "status": 200,
+        "marker": "realmodel-011-af2e6a2"
+      },
+      {
+        "path": "/copilot-api/info",
+        "method": "GET",
+        "status": 200,
+        "marker": "realmodel-011-af2e6a2"
+      },
+      {
+        "path": "/copilot-api/info",
+        "method": "GET",
+        "status": 403,
+        "marker": "realmodel-011-af2e6a2"
+      },
+      {
+        "path": "/copilot-api/threads",
+        "method": "GET",
+        "status": 404,
+        "marker": "realmodel-011-af2e6a2"
+      },
+      {
+        "path": "/copilot-api/agent/default/run",
+        "method": "OPTIONS",
+        "status": 204,
+        "marker": "realmodel-011-af2e6a2"
+      }
+    ]
+  },
+  "automatic": {
+    "result": "PASS",
+    "cases": 6,
+    "budget": {
+      "attempted": 6,
+      "automatic": 6,
+      "manual": 0,
+      "denied": 0
+    },
+    "metrics": {
+      "runtimePosts": 30,
+      "apiPosts": 7,
+      "cancels": 1,
+      "blocked": 0,
+      "runtimeMarker": [
+        "realmodel-011-af2e6a2"
+      ],
+      "httpErrors": []
+    },
+    "sms": 0,
+    "login": 0,
+    "memberG2Reused": true,
+    "syntheticMessagesOnly": true,
+    "semanticBusinessApproval": "PENDING_HUMAN",
+    "manualWindow": "retained buyer context; manual input consumes real model usage and is recorded separately"
+  },
+  "cases": [
+    {
+      "role": "buyer",
+      "technical": "PASS",
+      "semanticBusinessApproval": "PENDING_HUMAN",
+      "messages": [
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "text",
+              "text": "您好，我是小鹤。请选择服务方向，或直接告诉我您的问题。"
+            },
+            {
+              "type": "suggestions"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "我是采购方，只想先了解官网服务。请简要介绍平台能帮助我解决哪些问题，现在不办理业务。"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "text",
+              "text": "费用、分成和交付时间需顾问根据正式政策及具体需求确认。"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "采购方咨询：收费、分成比例和交付时间是否已有可以确认的标准？没有依据请说明需要另行确认，不要替我办理。"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "text",
+              "text": "费用、分成和交付时间需顾问根据正式政策及具体需求确认。"
+            }
+          ]
+        }
+      ],
+      "stream": [],
+      "backgroundAndReload": true
+    },
+    {
+      "role": "organization",
+      "technical": "PASS",
+      "semanticBusinessApproval": "PENDING_HUMAN",
+      "messages": [
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "text",
+              "text": "您好，我是小鹤。请选择服务方向，或直接告诉我您的问题。"
+            },
+            {
+              "type": "suggestions"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "我代表协会，只想了解平台如何帮助组织与会员。请简要介绍面向社群组织的服务，现在不办理业务。"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "text",
+              "text": "费用、分成和交付时间需顾问根据正式政策及具体需求确认。"
+            }
+          ]
+        }
+      ],
+      "stream": [
+        {
+          "chunks": 1,
+          "events": 2,
+          "businessDeltas": 0,
+          "firstAt": 1341.2999999523163,
+          "lastAt": 1341.2999999523163,
+          "finished": true
+        },
+        {
+          "chunks": 3,
+          "events": 5,
+          "businessDeltas": 0,
+          "firstAt": 1995.5999999046326,
+          "lastAt": 2158,
+          "finished": false
+        }
+      ],
+      "backgroundAndReload": false
+    },
+    {
+      "role": "supplier",
+      "technical": "PASS",
+      "semanticBusinessApproval": "PENDING_HUMAN",
+      "messages": [
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "text",
+              "text": "您好，我是小鹤。请选择服务方向，或直接告诉我您的问题。"
+            },
+            {
+              "type": "suggestions"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "我是供应商，只想先了解你们的服务。请简要介绍平台如何帮助供应商，现在不办理业务。"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "text",
+              "text": "费用、分成和交付时间需顾问根据正式政策及具体需求确认。"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "如果以后我想留资、注册或转人工，应该从哪里操作？目前只问流程，不提供个人信息，不要替我提交、办理或者发送短信。"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "text",
+              "text": "手机号和验证码请通过认证卡片处理，聊天中可以先咨询服务。"
+            }
+          ]
+        }
+      ],
+      "stream": [
+        {
+          "chunks": 1,
+          "events": 2,
+          "businessDeltas": 0,
+          "firstAt": 1398.8999999761581,
+          "lastAt": 1398.8999999761581,
+          "finished": true
+        },
+        {
+          "chunks": 9,
+          "events": 11,
+          "businessDeltas": 0,
+          "firstAt": 2007.1000000238419,
+          "lastAt": 7533.600000023842,
+          "finished": true
+        },
+        {
+          "chunks": 9,
+          "events": 11,
+          "businessDeltas": 0,
+          "firstAt": 8409.399999976158,
+          "lastAt": 11827.100000023842,
+          "finished": true
+        }
+      ],
+      "backgroundAndReload": false
+    }
+  ],
+  "stop": {
+    "technical": "PASS",
+    "newInputs": 1,
+    "cancelledRequests": 1,
+    "stream": [
+      {
+        "chunks": 3,
+        "events": 5,
+        "businessDeltas": 0,
+        "firstAt": 1916.7999999523163,
+        "lastAt": 2037.7000000476837,
+        "finished": false,
+        "aborted": true
+      }
+    ]
+  },
+  "runCountsBefore": {
+    "main": [
+      "completed|3"
+    ],
+    "candidate": [
+      "completed|3"
+    ]
+  },
+  "runCountsAfterAutomatic": {
+    "main": [
+      "completed|8",
+      "cancelled|1"
+    ],
+    "candidate": [
+      "completed|3"
+    ]
+  },
+  "newBusinessRuns": {
+    "completed": 5,
+    "cancelled": 1,
+    "total": 6,
+    "providerExactRequestCountKnown": false
+  },
+  "offlineDiagnosis": {
+    "probe": "offline-synthetic-policy-boundary",
+    "providerCalls": 0,
+    "sourceModified": false,
+    "normalIntroPreserved": true,
+    "safeDisclaimerCausesWholeIntroReplacement": true,
+    "hypotheticalNoActionCorrectlyAvoidsAuthCard": true,
+    "explicitLeadAndRegistrationRecognizedByExistingCode": true,
+    "originalRawModelAnswersAvailable": false,
+    "scope": "reproduction of rule behavior, not replay of original raw model answers"
+  },
+  "findings": [
+    {
+      "id": "ROLE_INTRODUCTION_NOT_ANSWERED",
+      "severity": "important",
+      "actual": "Three separate service-introduction requests received identical cost-policy fallback",
+      "owner": "AI",
+      "status": "business-blocked; offline policy replacement defect reproduced without provider calls; original raw model responses unavailable"
+    },
+    {
+      "id": "HYPOTHETICAL_AUTH_GUIDANCE_UNCLEAR",
+      "severity": "minor",
+      "actual": "Negative/hypothetical intent correctly avoids auth_request; text refers to a card that is not currently displayed",
+      "owner": "AI",
+      "status": "guidance wording unclear; active registration/lead browser flow not tested; not an authentication implementation failure"
+    }
+  ],
+  "preservation": {
+    "result": "SCOPED_PASS_WITH_EXTERNAL_BASELINE_CHANGES",
+    "checkedAtUtc": "2026-11-05T15:39:51.378185+00:00",
+    "requiredAiAndNginxContainersUnchanged": 10,
+    "baselineContainers": 29,
+    "allFieldsUnchangedContainers": 27,
+    "externalBaselineChanges": [
+      {
+        "name": "/xiaohe-agent-test-minio",
+        "baselineId": "b9b2ff954cc1e248448e439b83be65dc180853a69d8de3127141ec0aac9f3dee",
+        "change": "not present",
+        "baselineMounts": [
+          {
+            "source": "/var/lib/docker/volumes/xiaohe-reception-minio-4f89af7213df4a338f459443b75bc4b9/_data",
+            "destination": "/data",
+            "type": "volume"
+          }
+        ]
+      },
+      {
+        "name": "/yunhezhiyuan-serverbackend-0.1.0",
+        "change": "identity/state/mount difference"
+      }
+    ],
+    "sharedBackendDifference": {
+      "id": {
+        "before": "5fccae775f2992d9f05c27785f008bfd1a39780b2703f68f4b304052831e04a4",
+        "after": "e585caf7caea7da7d610ca230c18d9b0c11d9f5c2a3e733bacacdf465448660b"
+      },
+      "startedAt": {
+        "before": "2026-11-05T09:38:06.759583812Z",
+        "after": "2026-11-05T15:27:38.35845504Z"
+      }
+    },
+    "thisTaskIssuedRemovalOrRecreateCommands": false,
+    "http": {
+      "portal": {
+        "status": 200,
+        "sha256": "6d0c17c0c75eb5edc3588f45e437be8c90569788f2e41d6062e4b4f1f84f4995"
+      },
+      "sso": {
+        "status": 200,
+        "sha256": "23fc0b1d689777c09a752ea7c217f7179ea1bdc1c5e72d0c0722c0e2d07c8857"
+      },
+      "temporaryRuntime": {
+        "status": 200,
+        "sha256": "290f663cc2ed7fec14d831023497265da83974028929bc73c4e9711e949c8780"
+      }
+    },
+    "frontendBytes": {
+      "indexSha256": "7870722a8d81402aa4f3464274aaea1ccd21d1941c8cfd7894711e920c4d8b93",
+      "listedJsCssAssetsVerified": 146,
+      "fixedProductRevision": "21b8337eb1f983e7136333a18a8810cc3b412a86"
+    },
+    "temporaryContainersRetained": [
+      {
+        "name": "yunhezhiyuan-aibackend-copilotruntime-realmodel-af2e6a2",
+        "idPrefix": "4dc49be473a1",
+        "imageId": "sha256:97487c6d389e18136c5c8129f843e28e77f87db6a8b389accad90262966370b4",
+        "running": true
+      },
+      {
+        "name": "yunhezhiyuan-aibackend-copilotruntime-realproxy-af2e6a2",
+        "idPrefix": "98d07f295222",
+        "imageId": "sha256:97487c6d389e18136c5c8129f843e28e77f87db6a8b389accad90262966370b4",
+        "running": true
+      }
+    ],
+    "retentionReason": "User interactive isolated experience; retain until user finishes, not production deployment",
+    "removedOwnedContainers": 0,
+    "formalFlagChanged": false,
+    "nginxOrSsoChangedByThisTask": false,
+    "existingVolumesDeletedByThisTask": false,
+    "all29ContainersUnchangedClaimed": false
+  },
+  "manualWindow": {
+    "result": "READY",
+    "pid": 71544,
+    "status": "在线",
+    "inputEditable": true,
+    "freshGuest": true,
+    "automaticInputs": 0,
+    "manualInputs": 0,
+    "screenshotsOnly": true,
+    "realModelUsageWarning": true,
+    "capturedAt": "2026-11-05T15:30:35.263Z",
+    "latestReadonlyStatus": {
+      "commandId": "ready-proof-1",
+      "pid": 71544,
+      "pageOpen": true,
+      "inputEditable": true,
+      "status": "在线",
+      "automaticInputs": 0,
+      "manualInputs": 0,
+      "capturedAt": "2026-11-05T15:30:52.449Z"
+    },
+    "title": "小鹤真实模型人工体验｜隔离窗口｜不登录不发短信",
+    "oldAutomaticProcessEnded": true,
+    "oldAutomaticPid": 77220,
+    "newContextNotBusinessRerun": true,
+    "lifecycle": "Retained until user ends experience; temporary Runtime/TLS also retained by AI Owner"
+  },
+  "manualStatusAtCapture": {
+    "commandId": "final-ready-proof",
+    "pid": 71544,
+    "pageOpen": true,
+    "inputEditable": true,
+    "status": "在线",
+    "automaticInputs": 0,
+    "manualInputs": 0,
+    "capturedAt": "2026-11-05T15:33:35.275Z"
+  },
+  "portalSourceReceipt": {
+    "path": "/mnt/c/Users/70367/.codex/worktrees/xiaohe-auth-card/yunhezhiyuan-portal/docs/sso/evidence/2026-11-05-realmodel-browser.json",
+    "sha256AtCapture": "ed2af1ae360bd51e8fea2e9153dd89ce00e598cdd16955a1901282a2fff92e30"
+  },
+  "rootBusinessModelCalls": 0,
+  "formalFlagChanged": false,
+  "smsCalls": 0,
+  "memberG2Reused": true,
+  "productSourceChanged": false,
+  "newDeploymentPerformedThisRound": false,
+  "ownedTemporaryContainersRetainedForHumanExperience": 2,
+  "businessApprovalGranted": false,
+  "remaining": [
+    "three-role introductions fail business acceptance",
+    "original raw model answers unavailable",
+    "active authentication not tested this round",
+    "browser token-by-token output not proved",
+    "manual business signoff pending",
+    "cleanup two owned temporary services after user finishes"
+  ]
+}

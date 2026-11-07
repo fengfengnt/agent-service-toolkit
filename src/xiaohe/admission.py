@@ -84,7 +84,14 @@ async def _result(db: AsyncSession, actor: Actor, command: Command) -> AcceptedT
 
 
 async def _accept(
-    db: AsyncSession, actor: Actor, conversation_id: UUID, kind: str, key: str, payload: dict
+    db: AsyncSession,
+    actor: Actor,
+    conversation_id: UUID,
+    kind: str,
+    key: str,
+    payload: dict,
+    *,
+    system_notice: str | None = None,
 ) -> AcceptedTurn:
     digest = hashlib.sha256(
         json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()
@@ -107,7 +114,11 @@ async def _accept(
             return await _result(db, actor, existing)
         if conversation.merge_pending:
             raise ServiceError("MERGE_PENDING", 409)
-        if actor.guest_id is not None and session.message_count >= session.message_limit:
+        if (
+            system_notice is None
+            and actor.guest_id is not None
+            and session.message_count >= session.message_limit
+        ):
             raise ServiceError("VISITOR_LIMIT_REACHED", 429)
         active = await db.scalar(
             select(Run)
@@ -120,7 +131,7 @@ async def _accept(
         if kind == "message":
             if active is not None:
                 raise ServiceError("RUN_ACTIVE", 409)
-            visible = payload["text"]
+            visible = system_notice if system_notice is not None else payload["text"]
             run = None
         else:
             request_id = payload["requestId"]
@@ -144,7 +155,9 @@ async def _accept(
             if consumed is not None:
                 raise ServiceError("ACTION_STALE", 409)
             question = run.pending_request
-            if question.get("type") == "choice" and "optionId" in payload:
+            if system_notice is not None:
+                visible = system_notice
+            elif question.get("type") == "choice" and "optionId" in payload:
                 options = [
                     x for x in question.get("options", []) if x.get("id") == payload["optionId"]
                 ]
@@ -161,8 +174,10 @@ async def _accept(
             conversation_id=conversation.id,
             system_id=actor.system.system_id,
             tenant_id=actor.system.tenant_id,
-            role="user",
-            parts=[{"type": "text", "text": visible}],
+            role="assistant" if system_notice is not None else "user",
+            parts=[
+                {"type": "system_notice" if system_notice is not None else "text", "text": visible}
+            ],
             client_message_id=key if kind == "message" else None,
         )
         db.add(message)
@@ -212,7 +227,7 @@ async def _accept(
         db.add(command)
         await db.flush()
         run.job_id = await defer_run(db, run.id, f"{actor.system.tenant_id}:{conversation.id}")
-        if actor.guest_id is not None:
+        if actor.guest_id is not None and system_notice is None:
             changed = await db.scalar(
                 update(Session)
                 .where(

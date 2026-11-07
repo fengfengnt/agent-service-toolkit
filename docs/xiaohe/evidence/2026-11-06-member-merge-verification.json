@@ -1,0 +1,255 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-06",
+  "result": "BACKEND_BINDING_CONFIRMED_UI_AND_FILE_PENDING",
+  "backendInitialState": {
+    "checkedAtUtc": "2026-11-06T06:28:30.532052+00:00",
+    "readOnly": true,
+    "cookieOrIdentitySecretsRead": false,
+    "environments": {
+      "main-0.1.1": {
+        "activeAuthenticatedSessions": 0,
+        "authenticatedSessionLatestCreatedAt": "2026-11-04 10:14:51.663393+00",
+        "authOperationSummary": {
+          "total": 19,
+          "bound": 6,
+          "verified": 6,
+          "cancelled": 6
+        },
+        "recentNonProbeOperations": [
+          {
+            "created_at": "2026-11-04T13:22:13.187353+00:00",
+            "expires_at": "2026-11-04T13:42:13.187353+00:00",
+            "stage": "BROWSER_COMPLETION_REQUIRED",
+            "intent": "restore",
+            "bound": false,
+            "verified": false,
+            "cancelled": true,
+            "has_source_session": true
+          },
+          {
+            "created_at": "2026-11-04T13:01:59.404435+00:00",
+            "expires_at": "2026-11-04T13:21:59.404435+00:00",
+            "stage": "BROWSER_COMPLETION_REQUIRED",
+            "intent": "restore",
+            "bound": false,
+            "verified": false,
+            "cancelled": true,
+            "has_source_session": true
+          },
+          {
+            "created_at": "2026-11-04T10:44:50.657377+00:00",
+            "expires_at": "2026-11-04T11:04:50.657377+00:00",
+            "stage": "PHONE_REQUIRED",
+            "intent": "restore",
+            "bound": false,
+            "verified": false,
+            "cancelled": false,
+            "has_source_session": true
+          },
+          {
+            "created_at": "2026-11-04T10:14:50.598676+00:00",
+            "expires_at": "2026-11-04T10:34:50.598676+00:00",
+            "stage": "COMPLETED",
+            "intent": "restore",
+            "bound": true,
+            "verified": true,
+            "cancelled": false,
+            "has_source_session": true
+          },
+          {
+            "created_at": "2026-11-04T09:49:50.083361+00:00",
+            "expires_at": "2026-11-04T10:09:50.083361+00:00",
+            "stage": "COMPLETED",
+            "intent": "restore",
+            "bound": true,
+            "verified": true,
+            "cancelled": false,
+            "has_source_session": true
+          }
+        ],
+        "claimStatusCounts": [
+          {
+            "status": "merged",
+            "count": 2
+          }
+        ],
+        "dataCounts": {
+          "users": 1,
+          "messages": 17,
+          "artifacts": 2
+        }
+      },
+      "manual-controlled": {
+        "activeAuthenticatedSessions": 2,
+        "authenticatedSessionLatestCreatedAt": "2026-11-06 06:15:07.111879+00",
+        "authOperationSummary": {
+          "total": 15,
+          "bound": 2,
+          "verified": 2,
+          "cancelled": 8
+        },
+        "recentNonProbeOperations": [
+          {
+            "created_at": "2026-11-06T06:14:18.114289+00:00",
+            "expires_at": "2026-11-06T06:34:18.114289+00:00",
+            "stage": "COMPLETED",
+            "intent": "restore",
+            "bound": true,
+            "verified": true,
+            "cancelled": false,
+            "has_source_session": true
+          },
+          {
+            "created_at": "2026-11-06T06:00:48.615635+00:00",
+            "expires_at": "2026-11-06T06:20:48.615635+00:00",
+            "stage": "PHONE_REQUIRED",
+            "intent": "lead",
+            "bound": false,
+            "verified": false,
+            "cancelled": true,
+            "has_source_session": true
+          },
+          {
+            "created_at": "2026-11-06T03:46:51.216409+00:00",
+            "expires_at": "2026-11-06T04:06:51.216409+00:00",
+            "stage": "COMPLETED",
+            "intent": "lead",
+            "bound": true,
+            "verified": true,
+            "cancelled": false,
+            "has_source_session": true
+          },
+          {
+            "created_at": "2026-11-06T03:37:52.612577+00:00",
+            "expires_at": "2026-11-06T03:57:52.612577+00:00",
+            "stage": "PHONE_REQUIRED",
+            "intent": "lead",
+            "bound": false,
+            "verified": false,
+            "cancelled": false,
+            "has_source_session": true
+          },
+          {
+            "created_at": "2026-11-06T03:09:08.728011+00:00",
+            "expires_at": "2026-11-06T03:29:08.728011+00:00",
+            "stage": "BROWSER_COMPLETION_REQUIRED",
+            "intent": "lead",
+            "bound": false,
+            "verified": false,
+            "cancelled": false,
+            "has_source_session": true
+          }
+        ],
+        "claimStatusCounts": [
+          {
+            "status": "merged",
+            "count": 2
+          }
+        ],
+        "dataCounts": {
+          "users": 1,
+          "messages": 103,
+          "artifacts": 0
+        }
+      }
+    }
+  },
+  "latestBinding": {
+    "checkedAtUtc": "2026-11-06T06:31:20.449937+00:00",
+    "environment": "manual-controlled",
+    "readOnly": true,
+    "credentialOrUserIdentifiersPrinted": false,
+    "latestCompletedBinding": {
+      "operationCreatedAt": "2026-11-06T06:14:18.114289+00:00",
+      "bindingCompleted": true,
+      "identityMatchesMappedUser": true,
+      "issuerCanonical": true,
+      "portalClientMatches": true,
+      "businessScopeMatches": true,
+      "sourceSessionWasGuest": true,
+      "sourceSessionRevoked": true,
+      "claimPresent": true,
+      "claimStatus": "merged",
+      "claimTargetMatchesUser": true,
+      "authenticatedSessionStillValid": true,
+      "authenticatedSessionCreatedAt": "2026-11-06T06:15:07.111879+00:00",
+      "authenticatedSessionExpiresAt": "2026-11-06T14:15:07.111879+00:00",
+      "absoluteEightHours": true,
+      "sourceMessagesRemaining": 0,
+      "targetMessages": 12,
+      "targetUserMessages": 5,
+      "guestRunInputsNowInTarget": 0,
+      "sourceArtifacts": 0,
+      "targetArtifacts": 0,
+      "allArtifactVersions": 0,
+      "fileReferencesInTarget": 0
+    }
+  },
+  "chatAndFileScope": {
+    "allFileCategories": {
+      "producedArtifacts": 0,
+      "artifactVersions": 0,
+      "uploadedReceptionFiles": 0,
+      "readyReceptionFiles": 0
+    },
+    "latestBoundTarget": {
+      "claimStatus": "merged",
+      "sourceMessagesRemaining": 0,
+      "targetMessages": 12,
+      "sourceReceptionFiles": 0,
+      "targetReceptionFiles": 0,
+      "targetReceptionReadyFiles": 0,
+      "targetReceptionDrafts": 1,
+      "runsOwnedByBoundUser": 2,
+      "foreignOwnedRunsAtTarget": 0,
+      "messagesHaveTargetScope": true
+    },
+    "boundUserClaimHistory": [
+      {
+        "created_at": "2026-11-06T03:47:26.268088+00:00",
+        "updated_at": "2026-11-06T03:47:26.410243+00:00",
+        "status": "merged",
+        "remaining_source_messages": 0
+      },
+      {
+        "created_at": "2026-11-06T06:15:07.182119+00:00",
+        "updated_at": "2026-11-06T06:15:07.260721+00:00",
+        "status": "merged",
+        "remaining_source_messages": 0
+      }
+    ],
+    "readOnly": true,
+    "checkedAtUtc": "2026-11-06T06:33:23.960811+00:00",
+    "note": "Manual code migrates Run.guest_id to NULL when claiming; the earlier guestRunInputsNowInTarget count cannot identify provenance and is not used as a loss indicator."
+  },
+  "window": {
+    "userConfirmedLoggedIn": true,
+    "automationCouldVerifyCurrentWindow": false,
+    "nativeWindowReportedMinimized": true,
+    "newBrowserNotUsedAsReplacement": true,
+    "currentTabNotLinkedByExportingCookies": true
+  },
+  "refreshBaselineSaved": true,
+  "rawStateFingerprintsKeptOnlyInIgnoredWorkspace": true,
+  "requiredUserAction": "Refresh the same existing Portal Edge window and confirm member status and old chat remain visible; do not log out or request SMS",
+  "fileMergeSampleAvailable": false,
+  "verifiedByThisRound": {
+    "backendExistingBindingIdentityConsistency": true,
+    "backendClaimMergedAndOwned": true,
+    "newBindingPerformed": false,
+    "chatContentBeforeAfterMergeByteParity": false,
+    "browserRefreshRecovery": false,
+    "guestFileMergeAndDownload": false
+  },
+  "constraints": {
+    "sqlMutations": 0,
+    "smsRequests": 0,
+    "testAccountsCreated": 0,
+    "modelRequests": 0,
+    "cookiesCsrfCodesKeysOrUserIdentifiersPrinted": false,
+    "formalFlagChanged": false,
+    "deploymentChanged": false,
+    "bridgeSelectionChanged": false
+  }
+}
