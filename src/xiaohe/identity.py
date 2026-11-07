@@ -300,12 +300,30 @@ async def bootstrap_session(request: Request, response: Response, db: AsyncSessi
 
 async def logout_session(request: Request, response: Response, db: AsyncSession) -> None:
     system = await resolve_system(request, db)
-    actor = await resolve_actor(request, system, db)
-    record = await require_session(db, actor)
-    if actor.user_id is not None:
+    token = _cookie(request)
+    record = None if token is None else await db.scalar(
+        select(Session)
+        .where(
+            Session.token_digest == hashlib.sha256(token.encode()).hexdigest(),
+            Session.system_id == system.system_id,
+            Session.tenant_id == system.tenant_id,
+        )
+        .with_for_update()
+    )
+    if record is not None and record.user_id is not None and (
+        record.revoked_at is not None or await database_now(db) >= record.expires_at
+    ):
+        # An expired member cannot obtain chat CSRF; a fresh auth context only permits logout.
+        from xiaohe.authentication import require_auth_context
+
+        await require_auth_context(db, request)
+    else:
+        actor = await resolve_actor(request, system, db)
+        record = await require_session(db, actor)
+    if record.user_id is not None:
         from xiaohe.models import AuthContextRecord, AuthOperationRecord
 
-        record.revoked_at = await database_now(db)
+        record.revoked_at = record.revoked_at or await database_now(db)
         operations = await db.scalars(
             select(AuthOperationRecord)
             .where(
