@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from xiaohe.artifacts import referenced_parts
 from xiaohe.contracts import ChatMessage, ServiceError, ToolkitExecution
 from xiaohe.database import create_database_engine
-from xiaohe.events import persist_reply_chunk, record_event
+from xiaohe.events import next_position, persist_reply_chunk, record_event
 from xiaohe.jobs import wake_claims
 from xiaohe.models import Command, Conversation, Message, Run, RunAttempt, Session
 from xiaohe.runs import (
@@ -86,6 +86,7 @@ class RunWorker:
                     tenant_id=run.tenant_id,
                     role="assistant",
                     parts=[],
+                    membership_sequence=next_position(conversation.event_sequence),
                 )
                 db.add(message)
                 await db.flush()

@@ -114,14 +114,14 @@ Task 1（统一契约/基线）→ Task 2（数据/身份）→ Task 3（公共a
 
 **Interfaces:** `load_snapshot_v2(db: AsyncSession, actor: Actor, conversation_id: UUID, *, cursor_secret: SecretStr) -> ChatSnapshotV2`；`load_history_page(db, actor, conversation_id: UUID, before: str, *, cursor_secret: SecretStr) -> HistoryPageV2`；`load_message_baseline(db, actor, conversation_id: UUID, message_id: UUID) -> MessageBaselineV2`；`encode_history_cursor(payload: HistoryCursor, secret: SecretStr) -> str` / `decode_history_cursor(token: str, secret: SecretStr) -> HistoryCursor`。内部HistoryCursor明确含scope_digest/principal_digest/conversation_id/history_epoch/ceiling_sequence/before_created_at/before_id，不输出为公共DTO；secret由调用点传当前Settings.auth_secret，不从全局环境另读。
 
-- [ ] **Step 1:** 写 `test_35_messages_page_10_10_10_5`：相同createdAt亦无重复遗漏、保持ID/parts/精确version。`test_append_with_same_timestamp_cannot_enter_frozen_older_page` 在上界前后随机UUID，新增消息只走实时，不进入旧页。
-- [ ] **Step 2:** 写 `test_merge_invalidates_target_history_not_ordinary_append`、`test_cursor_cannot_cross_owner_system_or_episode`、`test_active_input_locates_old_card_without_eleventh_initial_message`、`test_late_page_baseline_is_not_global_event_progress`；恶意cursor不回显内部身份；源guest只FORBIDDEN/过期，不披露target。
-- [ ] **Step 3:** 隔离库运行 `uv run --no-sync pytest tests/xiaohe/test_history_v2.py tests/xiaohe/test_history_v2_races.py -v`，预期FAIL。
-- [ ] **Step 4:** Conversation新增history_epoch=0；Message新增membership_sequence=0用于存量。新Message在其首个upsert前设置为即将分配的Event.sequence，后续正文upsert不改；welcome/用户/assistant/system_notice等创建点全部覆盖。存量0归入初始视图，新seq必须严格更大。归并按目标新upsert序号重置被移动消息的membership_sequence并递增目标history_epoch，ID/createdAt不变。
-- [ ] **Step 5:** 按scope/canonical/epoch及 membership_sequence<=初始watermark筛成员，createdAt/id keyset取11判断hasMore、返回10正序；复用Conversation短事务锁取得page/body水位及activeRun/activeInput，不查询全量。使用Task2的 `(conversation_id,created_at,id)` 索引；用查询记录断言LIMIT和有界读取，避免实现为Python切片。记录事件/epoch递增和V2序列化均检查安全整数上界，不截断；增加 `test_sequence_and_epoch_overflow_fail_closed`。
-- [ ] **Step 6:** cursor用标准库HMAC-SHA256签名，密钥由现有AUTH_SECRET以固定上下文 `xiaohe.history-cursor.v2` 派生，不新增基础设施或输出密钥；内部含scope/主体绑定摘要/canonical/epoch/成员上界/before键，定长校验+常时验签，最大2048字节。密钥变化导致旧cursor失效后重取视图，不变更身份或配额。消息定位与页读取都独立鉴权/CSRF，不靠cursor授权。
-- [ ] **Step 7:** 同命令及 `uv run --no-sync pytest tests/xiaohe/test_event_recovery.py tests/xiaohe/test_guest_claim.py tests/xiaohe/test_welcome.py -v` 预期PASS；用页水位只比较同消息基线的模型断言覆盖迟到页，不能声称已验证门户滚动。
-- [ ] **Step 8:** 仅提交任务文件，`git commit -m "feat(xiaohe): add authorized keyset history views"`。
+- [x] **Step 1:** 写 `test_35_messages_page_10_10_10_5`：相同createdAt亦无重复遗漏、保持ID/parts/精确version。`test_append_with_same_timestamp_cannot_enter_frozen_older_page` 在上界前后随机UUID，新增消息只走实时，不进入旧页。
+- [x] **Step 2:** 写 `test_merge_invalidates_target_history_not_ordinary_append`、`test_cursor_cannot_cross_owner_system_or_episode`、`test_active_input_locates_old_card_without_eleventh_initial_message`、`test_late_page_baseline_is_not_global_event_progress`；恶意cursor不回显内部身份；源guest只FORBIDDEN/过期，不披露target。
+- [x] **Step 3:** 隔离库运行 `uv run --no-sync pytest tests/xiaohe/test_history_v2.py tests/xiaohe/test_history_v2_races.py -v`，预期FAIL。
+- [x] **Step 4:** Conversation新增history_epoch=0；Message新增membership_sequence=0用于存量。新Message在其首个upsert前设置为即将分配的Event.sequence，后续正文upsert不改；welcome/用户/assistant/system_notice等创建点全部覆盖。存量0归入初始视图，新seq必须严格更大。归并按目标新upsert序号重置被移动消息的membership_sequence并递增目标history_epoch，ID/createdAt不变。
+- [x] **Step 5:** 按scope/canonical/epoch及 membership_sequence<=初始watermark筛成员，createdAt/id keyset取11判断hasMore、返回10正序；复用Conversation短事务锁取得page/body水位及activeRun/activeInput，不查询全量。使用Task2的 `(conversation_id,created_at,id)` 索引；用查询记录断言LIMIT和有界读取，避免实现为Python切片。记录事件/epoch递增和V2序列化均检查安全整数上界，不截断；增加 `test_sequence_and_epoch_overflow_fail_closed`。
+- [x] **Step 6:** cursor用标准库HMAC-SHA256签名，密钥由现有AUTH_SECRET以固定上下文 `xiaohe.history-cursor.v2` 派生，不新增基础设施或输出密钥；内部含scope/主体绑定摘要/canonical/epoch/成员上界/before键，定长校验+常时验签，最大2048字节。密钥变化导致旧cursor失效后重取视图，不变更身份或配额。消息定位与页读取都独立鉴权/CSRF，不靠cursor授权。
+- [x] **Step 7:** 同命令及 `uv run --no-sync pytest tests/xiaohe/test_event_recovery.py tests/xiaohe/test_guest_claim.py tests/xiaohe/test_welcome.py -v` 预期PASS；用页水位只比较同消息基线的模型断言覆盖迟到页，不能声称已验证门户滚动。
+- [x] **Step 8:** 仅提交任务文件，`git commit -m "feat(xiaohe): add authorized keyset history views"`。
 
 ### Task 5: bootstrap、complete 和快照统一 V2
 

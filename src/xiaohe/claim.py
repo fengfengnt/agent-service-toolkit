@@ -9,7 +9,7 @@ from xiaohe.authentication import bound_operation
 from xiaohe.contracts import Actor, ChatMessage, ServiceError, VerifiedCompletion
 from xiaohe.conversations import default_conversation, ensure_welcome, load_snapshot
 from xiaohe.database import database_now
-from xiaohe.events import record_event
+from xiaohe.events import next_position, record_event
 from xiaohe.identity import _cookie, _new_session, _request_session, bind_user, set_session_cookie
 from xiaohe.jobs import cancel_run_job, defer_run
 from xiaohe.models import (
@@ -53,6 +53,8 @@ async def _merge(db, claim, source, target):
             .order_by(Message.created_at, Message.id)
         )
     ).all()
+    if source_messages:
+        target.history_epoch = next_position(target.history_epoch)
     for message in source_messages:
         if message.client_message_id and await db.scalar(
             select(Message.id).where(
@@ -129,6 +131,7 @@ async def _merge(db, claim, source, target):
         )
     )
     for message in source_messages:
+        message.membership_sequence = next_position(target.event_sequence)
         record_event(
             db,
             target,

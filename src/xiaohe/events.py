@@ -13,6 +13,12 @@ from xiaohe.models import Command, Conversation, Event, EventTombstone, Message,
 _EVENT = TypeAdapter(EventEnvelope)
 
 
+def next_position(value: int) -> int:
+    if type(value) is not int or not 0 <= value < 2**53 - 1:
+        raise ServiceError("UPSTREAM_UNAVAILABLE", 503)
+    return value + 1
+
+
 def record_event(
     db: AsyncSession,
     conversation: Conversation,
@@ -30,7 +36,7 @@ def record_event(
             "payload": payload,
         }
     )
-    conversation.event_sequence += 1
+    conversation.event_sequence = next_position(conversation.event_sequence)
     event = Event(
         id=event_id,
         conversation_id=conversation.id,
@@ -98,6 +104,7 @@ async def persist_reply_chunk(db, fence, message_id: UUID, chunk_key: str, text:
             tenant_id=run.tenant_id,
             role="assistant",
             parts=[],
+            membership_sequence=next_position(conversation.event_sequence),
         )
         db.add(message)
         await db.flush()

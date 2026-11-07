@@ -92,7 +92,7 @@ async def require_conversation(
 
 
 async def ensure_welcome(db: AsyncSession, conversation: Conversation) -> None:
-    from xiaohe.events import record_event
+    from xiaohe.events import next_position, record_event
 
     await db.scalar(
         select(Conversation).where(Conversation.id == conversation.id).with_for_update()
@@ -107,6 +107,7 @@ async def ensure_welcome(db: AsyncSession, conversation: Conversation) -> None:
         system_id=conversation.system_id,
         tenant_id=conversation.tenant_id,
         role="assistant",
+        membership_sequence=next_position(conversation.event_sequence),
         parts=[
             {"type": "text", "text": WELCOME},
             {
@@ -170,6 +171,22 @@ async def load_snapshot(db: AsyncSession, actor: Actor, conversation_id: UUID) -
         .order_by(Event.sequence.desc())
         .limit(1)
     )
+    merge = await load_merge_state(db, actor, conversation, session)
+    return ChatSnapshot(
+        viewer=viewer,
+        csrf={"headerName": CSRF_HEADER, "token": session.csrf_token},
+        conversation_id=str(conversation.id),
+        messages=[
+            ChatMessage(id=str(row.id), role=row.role, created_at=row.created_at, parts=row.parts)
+            for row in messages
+        ],
+        active_run=RunRef(id=str(active.id), status=active.status) if active else None,
+        cursor=str(cursor) if cursor else None,
+        merge=merge,
+    )
+
+
+async def load_merge_state(db, actor, conversation, session):
     merge = None
     if actor.user_id is not None and session.merge_operation_id is not None:
         claim = await db.scalar(
@@ -190,23 +207,7 @@ async def load_snapshot(db: AsyncSession, actor: Actor, conversation_id: UUID) -
                     "skipped_expired": "SKIPPED_EXPIRED",
                 }[claim.status],
             }
-    return ChatSnapshot(
-        viewer=viewer,
-        csrf={"headerName": CSRF_HEADER, "token": session.csrf_token},
-        conversation_id=str(conversation.id),
-        messages=[
-            ChatMessage(
-                id=str(row.id),
-                role=row.role,
-                created_at=row.created_at,
-                parts=row.parts,
-            )
-            for row in messages
-        ],
-        active_run=RunRef(id=str(active.id), status=active.status) if active else None,
-        cursor=str(cursor) if cursor else None,
-        merge=merge,
-    )
+    return merge
 
 
 async def load_viewer(db: AsyncSession, actor: Actor) -> Viewer:

@@ -18,7 +18,7 @@ async def test_initial_welcome_is_persisted_once_without_a_run_or_quota(pg_facto
         assert welcome["role"] == "assistant"
         choices = next(p for p in welcome["parts"] if p["type"] == "suggestions")
         assert [(item["id"], item["text"]) for item in choices["items"]] == [
-            ("buyer", "采购方"),
+            ("buyer", "采购商"),
             ("organization", "社群组织"),
             ("supplier", "供应商"),
         ]

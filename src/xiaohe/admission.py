@@ -18,7 +18,7 @@ from xiaohe.contracts import (
     ServiceError,
 )
 from xiaohe.conversations import load_viewer, require_conversation
-from xiaohe.events import record_event
+from xiaohe.events import next_position, record_event
 from xiaohe.guest_budget import charge_guest_message, load_guest_budget
 from xiaohe.identity import require_session
 from xiaohe.jobs import defer_run
@@ -178,6 +178,7 @@ async def _accept(
                 {"type": "system_notice" if system_notice is not None else "text", "text": visible}
             ],
             client_message_id=key if kind == "message" else None,
+            membership_sequence=next_position(conversation.event_sequence),
         )
         db.add(message)
         await db.flush()
