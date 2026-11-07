@@ -4013,6 +4013,3662 @@ type MessageBaselineV2 = {
 
 至少覆盖：20→4h→剩80；99/100/101/幂等；关闭/隔天及凭据轮换不清零；已知坏旧凭据不补0；并发重开与旧流/清理/claim 竞争；35条10/10/10/5及同时间戳新消息；归并后旧cursor；迟到页与delta水位；旧waiting_input定位及精确文件版本；跨身份/系统游标；V1/V2兼容与拒绝混用；原8h及complete丢失；空闲ready/活跃EOF。测试只能在批准后使用隔离库、离线/受控模型和伪造身份 fixture，不触碰现有体验窗口/服务。
 
+
+### 12.8 V2 机器契约（2026-11-07，Task 1 离线消费基线）
+
+下块是 §12 DTO 与 AG-UI 的唯一机器来源，Runtime 副本仅提取。导出名称为 `$defs` 中的 `ChatSnapshotV2`、`HistoryPageV2`、`MessageBaselineV2`、`PublicSnapshotV2`、`BootstrapInputV2`、`CreateAuthOperationV2`、`ExpectedIdentity`、`WireEventV2` 和 `StreamEventV2`。固定虚构样例位于 `tests/xiaohe/contracts/view_v2.json`。此交付只解锁离线消费；预算、分页 API、恢复约束的实际持久化和 Runtime V2 尚待后续任务，不代表已经部署或通过三方验收。V1 机器块保持原字节。
+
+<!-- xiaohe-agui-v2-schema:start -->
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:xiaohe:agui:v2",
+  "title": "小鹤显式 V2 有界视图与 AG-UI 扩展",
+  "$defs": {
+    "AguiActivityMessage": {
+      "additionalProperties": true,
+      "description": "Structured progress that is not conversation content, materialised as a\nmessage so it keeps its place in the sequence. Stands alone rather than\ncomposing BaseMessage, because its content is an object rather than a\nstring.",
+      "properties": {
+        "subagentRunId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subagentrunid"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "role": {
+          "const": "activity",
+          "default": "activity",
+          "title": "Role",
+          "type": "string"
+        },
+        "activityType": {
+          "title": "Activitytype",
+          "type": "string"
+        },
+        "content": {
+          "additionalProperties": true,
+          "title": "Content",
+          "type": "object"
+        },
+        "metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metadata"
+        }
+      },
+      "required": [
+        "id",
+        "activityType",
+        "content"
+      ],
+      "title": "ActivityMessage",
+      "type": "object"
+    },
+    "AguiAssistantMessage": {
+      "additionalProperties": true,
+      "description": "A message from the agent. Content is optional because a turn may consist\nonly of tool calls.",
+      "properties": {
+        "subagentRunId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subagentrunid"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "role": {
+          "const": "assistant",
+          "default": "assistant",
+          "title": "Role",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "encryptedValue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Encryptedvalue"
+        },
+        "metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metadata"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Content"
+        },
+        "toolCalls": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/AguiToolCall"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Toolcalls"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "AssistantMessage",
+      "type": "object"
+    },
+    "AguiAudioPart": {
+      "additionalProperties": true,
+      "description": "An audio part.",
+      "properties": {
+        "type": {
+          "const": "audio",
+          "default": "audio",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "source": {
+          "discriminator": {
+            "mapping": {
+              "data": "#/$defs/AguiDataSource",
+              "file": "#/$defs/AguiFileSource",
+              "url": "#/$defs/AguiUrlSource"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/AguiDataSource"
+            },
+            {
+              "$ref": "#/$defs/AguiUrlSource"
+            },
+            {
+              "$ref": "#/$defs/AguiFileSource"
+            }
+          ],
+          "title": "Source"
+        },
+        "metadata": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metadata"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "title": "AudioPart",
+      "type": "object"
+    },
+    "AguiContext": {
+      "additionalProperties": true,
+      "description": "A named piece of ambient information given to the agent for the run,\ndistinct from the conversation.",
+      "properties": {
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "description",
+        "value"
+      ],
+      "title": "Context",
+      "type": "object"
+    },
+    "AguiDataSource": {
+      "additionalProperties": true,
+      "description": "Bytes carried inline.",
+      "properties": {
+        "type": {
+          "const": "data",
+          "default": "data",
+          "title": "Type",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        },
+        "mimeType": {
+          "title": "Mimetype",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "mimeType"
+      ],
+      "title": "DataSource",
+      "type": "object"
+    },
+    "AguiDeveloperMessage": {
+      "additionalProperties": true,
+      "description": "Instructions from the application developer.",
+      "properties": {
+        "subagentRunId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subagentrunid"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "role": {
+          "const": "developer",
+          "default": "developer",
+          "title": "Role",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "encryptedValue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Encryptedvalue"
+        },
+        "metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metadata"
+        },
+        "content": {
+          "title": "Content",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "content"
+      ],
+      "title": "DeveloperMessage",
+      "type": "object"
+    },
+    "AguiDocumentPart": {
+      "additionalProperties": true,
+      "description": "A document part.",
+      "properties": {
+        "type": {
+          "const": "document",
+          "default": "document",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "source": {
+          "discriminator": {
+            "mapping": {
+              "data": "#/$defs/AguiDataSource",
+              "file": "#/$defs/AguiFileSource",
+              "url": "#/$defs/AguiUrlSource"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/AguiDataSource"
+            },
+            {
+              "$ref": "#/$defs/AguiUrlSource"
+            },
+            {
+              "$ref": "#/$defs/AguiFileSource"
+            }
+          ],
+          "title": "Source"
+        },
+        "metadata": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metadata"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "title": "DocumentPart",
+      "type": "object"
+    },
+    "AguiFileSource": {
+      "additionalProperties": true,
+      "description": "Bytes already at the provider, named by a handle the provider issued: an\nOpenAI or Anthropic file id, a Gemini file URI, a storage URL only that\nprovider can read. No bytes travel and nothing is fetched. Only the\nprovider that minted the handle can resolve it; a peer that cannot drops\nthe part as it drops any part it cannot use.",
+      "properties": {
+        "type": {
+          "const": "file",
+          "default": "file",
+          "title": "Type",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider"
+        },
+        "mimeType": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mimetype"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "FileSource",
+      "type": "object"
+    },
+    "AguiFunctionCall": {
+      "additionalProperties": true,
+      "description": "The name and arguments of a tool call.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "arguments": {
+          "title": "Arguments",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "arguments"
+      ],
+      "title": "FunctionCall",
+      "type": "object"
+    },
+    "AguiImagePart": {
+      "additionalProperties": true,
+      "description": "An image part.",
+      "properties": {
+        "type": {
+          "const": "image",
+          "default": "image",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "source": {
+          "discriminator": {
+            "mapping": {
+              "data": "#/$defs/AguiDataSource",
+              "file": "#/$defs/AguiFileSource",
+              "url": "#/$defs/AguiUrlSource"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/AguiDataSource"
+            },
+            {
+              "$ref": "#/$defs/AguiUrlSource"
+            },
+            {
+              "$ref": "#/$defs/AguiFileSource"
+            }
+          ],
+          "title": "Source"
+        },
+        "metadata": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metadata"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "title": "ImagePart",
+      "type": "object"
+    },
+    "AguiReasoningMessage": {
+      "additionalProperties": true,
+      "description": "A span of the agent's reasoning, materialised as a message. Stands alone\nrather than composing BaseMessage, because it carries no name.",
+      "properties": {
+        "subagentRunId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subagentrunid"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "role": {
+          "const": "reasoning",
+          "default": "reasoning",
+          "title": "Role",
+          "type": "string"
+        },
+        "content": {
+          "title": "Content",
+          "type": "string"
+        },
+        "encryptedValue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Encryptedvalue"
+        },
+        "metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metadata"
+        }
+      },
+      "required": [
+        "id",
+        "content"
+      ],
+      "title": "ReasoningMessage",
+      "type": "object"
+    },
+    "AguiResumeEntry": {
+      "additionalProperties": true,
+      "description": "An answer to one interrupt, sent on the run that continues from it.",
+      "properties": {
+        "interruptId": {
+          "title": "Interruptid",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "resolved",
+            "cancelled"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "payload": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Payload"
+        },
+        "metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metadata"
+        }
+      },
+      "required": [
+        "interruptId",
+        "status"
+      ],
+      "title": "ResumeEntry",
+      "type": "object"
+    },
+    "AguiSystemMessage": {
+      "additionalProperties": true,
+      "description": "Instructions from the system.",
+      "properties": {
+        "subagentRunId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subagentrunid"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "role": {
+          "const": "system",
+          "default": "system",
+          "title": "Role",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "encryptedValue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Encryptedvalue"
+        },
+        "metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metadata"
+        },
+        "content": {
+          "title": "Content",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "content"
+      ],
+      "title": "SystemMessage",
+      "type": "object"
+    },
+    "AguiTextPart": {
+      "additionalProperties": true,
+      "description": "A text part.",
+      "properties": {
+        "type": {
+          "const": "text",
+          "default": "text",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "metadata": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metadata"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "TextPart",
+      "type": "object"
+    },
+    "AguiTool": {
+      "additionalProperties": true,
+      "description": "A tool the agent may call.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "parameters": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parameters"
+        },
+        "metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metadata"
+        }
+      },
+      "required": [
+        "name",
+        "description"
+      ],
+      "title": "Tool",
+      "type": "object"
+    },
+    "AguiToolCall": {
+      "additionalProperties": true,
+      "description": "A call an assistant message made. Carries no subagent attribution of its\nown and inherits its containing message's, since several calls can share\none parent.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "function",
+          "default": "function",
+          "title": "Type",
+          "type": "string"
+        },
+        "function": {
+          "$ref": "#/$defs/AguiFunctionCall"
+        },
+        "encryptedValue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Encryptedvalue"
+        },
+        "metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metadata"
+        }
+      },
+      "required": [
+        "id",
+        "function"
+      ],
+      "title": "ToolCall",
+      "type": "object"
+    },
+    "AguiToolMessage": {
+      "additionalProperties": true,
+      "description": "What a tool returned, as a message in the conversation. Stands alone\nrather than composing BaseMessage, because it carries no name.",
+      "properties": {
+        "subagentRunId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subagentrunid"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "role": {
+          "const": "tool",
+          "default": "tool",
+          "title": "Role",
+          "type": "string"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "discriminator": {
+                  "mapping": {
+                    "audio": "#/$defs/AguiAudioPart",
+                    "document": "#/$defs/AguiDocumentPart",
+                    "image": "#/$defs/AguiImagePart",
+                    "text": "#/$defs/AguiTextPart",
+                    "video": "#/$defs/AguiVideoPart"
+                  },
+                  "propertyName": "type"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/AguiTextPart"
+                  },
+                  {
+                    "$ref": "#/$defs/AguiImagePart"
+                  },
+                  {
+                    "$ref": "#/$defs/AguiAudioPart"
+                  },
+                  {
+                    "$ref": "#/$defs/AguiVideoPart"
+                  },
+                  {
+                    "$ref": "#/$defs/AguiDocumentPart"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "title": "Content"
+        },
+        "toolCallId": {
+          "title": "Toolcallid",
+          "type": "string"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "encryptedValue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Encryptedvalue"
+        },
+        "metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metadata"
+        }
+      },
+      "required": [
+        "id",
+        "content",
+        "toolCallId"
+      ],
+      "title": "ToolMessage",
+      "type": "object"
+    },
+    "AguiUrlSource": {
+      "additionalProperties": true,
+      "description": "Bytes referenced by URL, fetched by whoever needs them.",
+      "properties": {
+        "type": {
+          "const": "url",
+          "default": "url",
+          "title": "Type",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        },
+        "mimeType": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mimetype"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "UrlSource",
+      "type": "object"
+    },
+    "AguiUserMessage": {
+      "additionalProperties": true,
+      "description": "A message from the person using the application.",
+      "properties": {
+        "subagentRunId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subagentrunid"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "role": {
+          "const": "user",
+          "default": "user",
+          "title": "Role",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "encryptedValue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Encryptedvalue"
+        },
+        "metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metadata"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "discriminator": {
+                  "mapping": {
+                    "audio": "#/$defs/AguiAudioPart",
+                    "document": "#/$defs/AguiDocumentPart",
+                    "image": "#/$defs/AguiImagePart",
+                    "text": "#/$defs/AguiTextPart",
+                    "video": "#/$defs/AguiVideoPart"
+                  },
+                  "propertyName": "type"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/AguiTextPart"
+                  },
+                  {
+                    "$ref": "#/$defs/AguiImagePart"
+                  },
+                  {
+                    "$ref": "#/$defs/AguiAudioPart"
+                  },
+                  {
+                    "$ref": "#/$defs/AguiVideoPart"
+                  },
+                  {
+                    "$ref": "#/$defs/AguiDocumentPart"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "title": "Content"
+        }
+      },
+      "required": [
+        "id",
+        "content"
+      ],
+      "title": "UserMessage",
+      "type": "object"
+    },
+    "AguiVideoPart": {
+      "additionalProperties": true,
+      "description": "A video part.",
+      "properties": {
+        "type": {
+          "const": "video",
+          "default": "video",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "source": {
+          "discriminator": {
+            "mapping": {
+              "data": "#/$defs/AguiDataSource",
+              "file": "#/$defs/AguiFileSource",
+              "url": "#/$defs/AguiUrlSource"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/AguiDataSource"
+            },
+            {
+              "$ref": "#/$defs/AguiUrlSource"
+            },
+            {
+              "$ref": "#/$defs/AguiFileSource"
+            }
+          ],
+          "title": "Source"
+        },
+        "metadata": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metadata"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "title": "VideoPart",
+      "type": "object"
+    },
+    "RunInput": {
+      "additionalProperties": true,
+      "description": "A request to run an agent. Also echoed back as RUN_STARTED.input. Only\nthreadId, runId and messages are required: those are the three the SDKs\nalready agree on, and for tools and context an absent key and an empty\narray mean the same thing, so requiring them would catch nothing a\nproducer could get wrong.",
+      "properties": {
+        "threadId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "runId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "\\S"
+        },
+        "protocolVersion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Protocolversion"
+        },
+        "parentRunId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parentrunid"
+        },
+        "state": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "State"
+        },
+        "messages": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "activity": "#/$defs/AguiActivityMessage",
+                "assistant": "#/$defs/AguiAssistantMessage",
+                "developer": "#/$defs/AguiDeveloperMessage",
+                "reasoning": "#/$defs/AguiReasoningMessage",
+                "system": "#/$defs/AguiSystemMessage",
+                "tool": "#/$defs/AguiToolMessage",
+                "user": "#/$defs/AguiUserMessage"
+              },
+              "propertyName": "role"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/AguiDeveloperMessage"
+              },
+              {
+                "$ref": "#/$defs/AguiSystemMessage"
+              },
+              {
+                "$ref": "#/$defs/AguiAssistantMessage"
+              },
+              {
+                "$ref": "#/$defs/AguiUserMessage"
+              },
+              {
+                "$ref": "#/$defs/AguiToolMessage"
+              },
+              {
+                "$ref": "#/$defs/AguiActivityMessage"
+              },
+              {
+                "$ref": "#/$defs/AguiReasoningMessage"
+              }
+            ]
+          },
+          "title": "Messages",
+          "type": "array"
+        },
+        "tools": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/AguiTool"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tools"
+        },
+        "context": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/AguiContext"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Context"
+        },
+        "forwardedProps": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Forwardedprops"
+        },
+        "resume": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/AguiResumeEntry"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resume"
+        }
+      },
+      "required": [
+        "threadId",
+        "runId",
+        "messages"
+      ],
+      "title": "RunAgentInput",
+      "type": "object"
+    },
+    "ArtifactRef": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "artifact_ref",
+          "title": "Type",
+          "type": "string"
+        },
+        "artifactId": {
+          "minLength": 1,
+          "title": "Artifactid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "version": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "mediaType": {
+          "minLength": 1,
+          "title": "Mediatype",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "ready",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "artifactId",
+        "version",
+        "title",
+        "mediaType",
+        "status"
+      ],
+      "title": "ArtifactRef",
+      "type": "object"
+    },
+    "AuthRequestPart": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "auth_request",
+          "title": "Type",
+          "type": "string"
+        },
+        "intent": {
+          "enum": [
+            "lead",
+            "register",
+            "login"
+          ],
+          "title": "Intent",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "intent"
+      ],
+      "title": "AuthRequestPart",
+      "type": "object"
+    },
+    "ChatMessage": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "role": {
+          "enum": [
+            "user",
+            "assistant"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "createdAt": {
+          "format": "date-time",
+          "title": "Createdat",
+          "type": "string"
+        },
+        "parts": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "artifact_ref": "#/$defs/ArtifactRef",
+                "auth_request": "#/$defs/AuthRequestPart",
+                "choice": "#/$defs/ChoicePart",
+                "input_request": "#/$defs/InputRequestPart",
+                "suggestions": "#/$defs/SuggestionsPart",
+                "system_notice": "#/$defs/SystemNoticePart",
+                "text": "#/$defs/TextPart"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/TextPart"
+              },
+              {
+                "$ref": "#/$defs/ChoicePart"
+              },
+              {
+                "$ref": "#/$defs/SuggestionsPart"
+              },
+              {
+                "$ref": "#/$defs/InputRequestPart"
+              },
+              {
+                "$ref": "#/$defs/AuthRequestPart"
+              },
+              {
+                "$ref": "#/$defs/ArtifactRef"
+              },
+              {
+                "$ref": "#/$defs/SystemNoticePart"
+              }
+            ]
+          },
+          "title": "Parts",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "role",
+        "createdAt",
+        "parts"
+      ],
+      "title": "ChatMessage",
+      "type": "object"
+    },
+    "ChoicePart": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "choice",
+          "title": "Type",
+          "type": "string"
+        },
+        "requestId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Requestid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "prompt": {
+          "title": "Prompt",
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/$defs/Option"
+          },
+          "title": "Options",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "requestId",
+        "prompt",
+        "options"
+      ],
+      "title": "ChoicePart",
+      "type": "object"
+    },
+    "GuestViewer": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "guest",
+          "title": "Kind",
+          "type": "string"
+        },
+        "guestId": {
+          "minLength": 1,
+          "title": "Guestid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "systemId": {
+          "minLength": 1,
+          "title": "Systemid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "tenantId": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Tenantid",
+          "type": "integer"
+        },
+        "messageCount": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Messagecount",
+          "type": "integer"
+        },
+        "messageLimit": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Messagelimit",
+          "type": "integer"
+        },
+        "retentionSeconds": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Retentionseconds",
+          "type": "integer"
+        },
+        "expiresAt": {
+          "format": "date-time",
+          "title": "Expiresat",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "guestId",
+        "systemId",
+        "tenantId",
+        "messageCount",
+        "messageLimit",
+        "retentionSeconds",
+        "expiresAt"
+      ],
+      "title": "GuestViewer",
+      "type": "object"
+    },
+    "InputRequestPart": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "input_request",
+          "title": "Type",
+          "type": "string"
+        },
+        "requestId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Requestid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "prompt": {
+          "title": "Prompt",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "requestId",
+        "prompt"
+      ],
+      "title": "InputRequestPart",
+      "type": "object"
+    },
+    "Option": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "Option",
+      "type": "object"
+    },
+    "RunRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "status": {
+          "enum": [
+            "queued",
+            "running",
+            "waiting_input",
+            "completed",
+            "failed",
+            "cancelled",
+            "expired"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "status"
+      ],
+      "title": "RunRef",
+      "type": "object"
+    },
+    "Suggestion": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "Suggestion",
+      "type": "object"
+    },
+    "SuggestionsPart": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "suggestions",
+          "title": "Type",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/Suggestion"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "items"
+      ],
+      "title": "SuggestionsPart",
+      "type": "object"
+    },
+    "TextPart": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "text",
+          "title": "Type",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "text"
+      ],
+      "title": "TextPart",
+      "type": "object"
+    },
+    "UserViewer": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "user",
+          "title": "Kind",
+          "type": "string"
+        },
+        "userId": {
+          "minLength": 1,
+          "title": "Userid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "systemId": {
+          "minLength": 1,
+          "title": "Systemid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "tenantId": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Tenantid",
+          "type": "integer"
+        },
+        "displayName": {
+          "title": "Displayname",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "userId",
+        "systemId",
+        "tenantId",
+        "displayName"
+      ],
+      "title": "UserViewer",
+      "type": "object"
+    },
+    "ApiError": {
+      "additionalProperties": false,
+      "properties": {
+        "error": {
+          "$ref": "#/$defs/ErrorDetail"
+        },
+        "requestId": {
+          "minLength": 1,
+          "title": "Requestid",
+          "type": "string",
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "error",
+        "requestId"
+      ],
+      "title": "ApiError",
+      "type": "object"
+    },
+    "ArtifactUpdated": {
+      "additionalProperties": false,
+      "properties": {
+        "artifactId": {
+          "minLength": 1,
+          "title": "Artifactid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "version": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "ready",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifactId",
+        "version",
+        "status"
+      ],
+      "title": "ArtifactUpdated",
+      "type": "object"
+    },
+    "ErrorDetail": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "retryable": {
+          "title": "Retryable",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "retryable"
+      ],
+      "title": "ErrorDetail",
+      "type": "object"
+    },
+    "MessageDelta": {
+      "additionalProperties": false,
+      "properties": {
+        "messageId": {
+          "minLength": 1,
+          "title": "Messageid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "delta": {
+          "title": "Delta",
+          "type": "string"
+        }
+      },
+      "required": [
+        "messageId",
+        "delta"
+      ],
+      "title": "MessageDelta",
+      "type": "object"
+    },
+    "MessageUpsert": {
+      "additionalProperties": false,
+      "properties": {
+        "message": {
+          "$ref": "#/$defs/ChatMessage"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "title": "MessageUpsert",
+      "type": "object"
+    },
+    "RunUpdated": {
+      "additionalProperties": false,
+      "properties": {
+        "run": {
+          "$ref": "#/$defs/RunRef"
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "title": "RunUpdated",
+      "type": "object"
+    },
+    "ViewerExpired": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "const": "VISITOR_EXPIRED",
+          "title": "Code",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "title": "ViewerExpired",
+      "type": "object"
+    },
+    "ViewerUpdated": {
+      "additionalProperties": false,
+      "properties": {
+        "viewer": {
+          "discriminator": {
+            "mapping": {
+              "guest": "#/$defs/GuestViewer",
+              "user": "#/$defs/UserViewer"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/GuestViewer"
+            },
+            {
+              "$ref": "#/$defs/UserViewer"
+            }
+          ],
+          "title": "Viewer"
+        }
+      },
+      "required": [
+        "viewer"
+      ],
+      "title": "ViewerUpdated",
+      "type": "object"
+    },
+    "Csrf": {
+      "additionalProperties": false,
+      "properties": {
+        "headerName": {
+          "minLength": 1,
+          "title": "Headername",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "token": {
+          "minLength": 1,
+          "title": "Token",
+          "type": "string",
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "headerName",
+        "token"
+      ],
+      "title": "Csrf",
+      "type": "object"
+    },
+    "MergeState": {
+      "additionalProperties": false,
+      "properties": {
+        "operationId": {
+          "minLength": 1,
+          "title": "Operationid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "status": {
+          "enum": [
+            "MERGE_PENDING",
+            "MERGED",
+            "SKIPPED_EXPIRED"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "operationId",
+        "status"
+      ],
+      "title": "MergeState",
+      "type": "object"
+    },
+    "ConversationInput": {
+      "type": "object",
+      "properties": {
+        "threadId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "attemptId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "threadId"
+      ],
+      "additionalProperties": false
+    },
+    "Accepted": {
+      "additionalProperties": false,
+      "properties": {
+        "message": {
+          "$ref": "#/$defs/ChatMessage"
+        },
+        "run": {
+          "$ref": "#/$defs/RunRef"
+        },
+        "viewer": {
+          "discriminator": {
+            "mapping": {
+              "guest": "#/$defs/GuestViewer",
+              "user": "#/$defs/UserViewer"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/GuestViewer"
+            },
+            {
+              "$ref": "#/$defs/UserViewer"
+            }
+          ],
+          "title": "Viewer"
+        },
+        "attemptId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "\\S"
+        },
+        "businessRunId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "message",
+        "run",
+        "viewer",
+        "attemptId",
+        "businessRunId"
+      ],
+      "title": "MessageAccepted",
+      "type": "object"
+    },
+    "Status": {
+      "type": "object",
+      "properties": {
+        "conversationId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "activeRun": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "run": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attemptId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "\\S"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "businessRunId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "\\S"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "isRunning": {
+          "type": "boolean"
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "\\S"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "conversationId",
+        "activeRun",
+        "run",
+        "attemptId",
+        "businessRunId",
+        "isRunning",
+        "cursor"
+      ],
+      "additionalProperties": false
+    },
+    "Stopped": {
+      "type": "object",
+      "properties": {
+        "stopped": {
+          "type": "boolean"
+        },
+        "run": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "stopped",
+        "run"
+      ],
+      "additionalProperties": false
+    },
+    "RUN_STARTED": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "RUN_STARTED"
+        },
+        "threadId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "\\S"
+        },
+        "runId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "type",
+        "threadId",
+        "runId"
+      ],
+      "additionalProperties": false
+    },
+    "RUN_FINISHED": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "RUN_FINISHED"
+        },
+        "threadId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "\\S"
+        },
+        "runId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "type",
+        "threadId",
+        "runId"
+      ],
+      "additionalProperties": false
+    },
+    "RUN_ERROR": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "RUN_ERROR"
+        },
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "\\S"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "code",
+        "message"
+      ],
+      "additionalProperties": false
+    },
+    "MESSAGES_SNAPSHOT": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "MESSAGES_SNAPSHOT"
+        },
+        "messages": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "activity": "#/$defs/AguiActivityMessage",
+                "assistant": "#/$defs/AguiAssistantMessage",
+                "developer": "#/$defs/AguiDeveloperMessage",
+                "reasoning": "#/$defs/AguiReasoningMessage",
+                "system": "#/$defs/AguiSystemMessage",
+                "tool": "#/$defs/AguiToolMessage",
+                "user": "#/$defs/AguiUserMessage"
+              },
+              "propertyName": "role"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/AguiDeveloperMessage"
+              },
+              {
+                "$ref": "#/$defs/AguiSystemMessage"
+              },
+              {
+                "$ref": "#/$defs/AguiAssistantMessage"
+              },
+              {
+                "$ref": "#/$defs/AguiUserMessage"
+              },
+              {
+                "$ref": "#/$defs/AguiToolMessage"
+              },
+              {
+                "$ref": "#/$defs/AguiActivityMessage"
+              },
+              {
+                "$ref": "#/$defs/AguiReasoningMessage"
+              }
+            ]
+          },
+          "title": "Messages",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "messages"
+      ],
+      "additionalProperties": false
+    },
+    "TEXT_MESSAGE_START": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "TEXT_MESSAGE_START"
+        },
+        "messageId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "\\S"
+        },
+        "role": {
+          "const": "assistant"
+        }
+      },
+      "required": [
+        "type",
+        "messageId",
+        "role"
+      ],
+      "additionalProperties": false
+    },
+    "TEXT_MESSAGE_CONTENT": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "TEXT_MESSAGE_CONTENT"
+        },
+        "messageId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "\\S"
+        },
+        "delta": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "messageId",
+        "delta"
+      ],
+      "additionalProperties": false
+    },
+    "TEXT_MESSAGE_END": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "TEXT_MESSAGE_END"
+        },
+        "messageId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "type",
+        "messageId"
+      ],
+      "additionalProperties": false
+    },
+    "SystemNoticePart": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "system_notice",
+          "title": "Type",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "text"
+      ],
+      "title": "SystemNoticePart",
+      "type": "object"
+    },
+    "ActiveInputV2": {
+      "additionalProperties": false,
+      "properties": {
+        "runId": {
+          "minLength": 1,
+          "title": "Runid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "messageId": {
+          "minLength": 1,
+          "title": "Messageid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "requestId": {
+          "minLength": 1,
+          "title": "Requestid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "kind": {
+          "enum": [
+            "choice",
+            "input_request"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "runId",
+        "messageId",
+        "requestId",
+        "kind"
+      ],
+      "title": "ActiveInputV2",
+      "type": "object"
+    },
+    "HistoryV2": {
+      "additionalProperties": false,
+      "properties": {
+        "pageSize": {
+          "const": 10,
+          "title": "Pagesize",
+          "type": "integer"
+        },
+        "hasMore": {
+          "title": "Hasmore",
+          "type": "boolean"
+        },
+        "olderCursor": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string",
+              "pattern": "\\S"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Oldercursor"
+        },
+        "historyEpoch": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Historyepoch",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "pageSize",
+        "hasMore",
+        "olderCursor",
+        "historyEpoch"
+      ],
+      "title": "HistoryV2",
+      "type": "object",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "hasMore": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "olderCursor": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "olderCursor": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "SyncV2": {
+      "additionalProperties": false,
+      "properties": {
+        "eventCursor": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string",
+              "pattern": "\\S"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Eventcursor"
+        },
+        "watermarkSequence": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Watermarksequence",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "eventCursor",
+        "watermarkSequence"
+      ],
+      "title": "SyncV2",
+      "type": "object",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "watermarkSequence": {
+                "const": 0
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "eventCursor": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "eventCursor": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ChatSnapshotV2": {
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "const": 2,
+          "title": "Version",
+          "type": "integer"
+        },
+        "viewer": {
+          "discriminator": {
+            "mapping": {
+              "guest": "#/$defs/GuestViewer",
+              "user": "#/$defs/UserViewer"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/GuestViewer"
+            },
+            {
+              "$ref": "#/$defs/UserViewer"
+            }
+          ],
+          "title": "Viewer"
+        },
+        "sessionExpiresAt": {
+          "format": "date-time",
+          "title": "Sessionexpiresat",
+          "type": "string"
+        },
+        "conversationId": {
+          "minLength": 1,
+          "title": "Conversationid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "messages": {
+          "items": {
+            "$ref": "#/$defs/ChatMessage"
+          },
+          "maxItems": 10,
+          "title": "Messages",
+          "type": "array"
+        },
+        "activeRun": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "activeInput": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ActiveInputV2"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "merge": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MergeState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "history": {
+          "$ref": "#/$defs/HistoryV2"
+        },
+        "sync": {
+          "$ref": "#/$defs/SyncV2"
+        },
+        "csrf": {
+          "$ref": "#/$defs/Csrf"
+        }
+      },
+      "required": [
+        "version",
+        "viewer",
+        "sessionExpiresAt",
+        "conversationId",
+        "messages",
+        "activeRun",
+        "activeInput",
+        "merge",
+        "history",
+        "sync",
+        "csrf"
+      ],
+      "title": "ChatSnapshotV2",
+      "type": "object"
+    },
+    "HistoryPageV2": {
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "const": 2,
+          "title": "Version",
+          "type": "integer"
+        },
+        "conversationId": {
+          "minLength": 1,
+          "title": "Conversationid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "messages": {
+          "items": {
+            "$ref": "#/$defs/ChatMessage"
+          },
+          "maxItems": 10,
+          "title": "Messages",
+          "type": "array"
+        },
+        "history": {
+          "$ref": "#/$defs/HistoryV2"
+        },
+        "watermarkSequence": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Watermarksequence",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "conversationId",
+        "messages",
+        "history",
+        "watermarkSequence"
+      ],
+      "title": "HistoryPageV2",
+      "type": "object"
+    },
+    "MessageBaselineV2": {
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "const": 2,
+          "title": "Version",
+          "type": "integer"
+        },
+        "conversationId": {
+          "minLength": 1,
+          "title": "Conversationid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "message": {
+          "$ref": "#/$defs/ChatMessage"
+        },
+        "historyEpoch": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Historyepoch",
+          "type": "integer"
+        },
+        "watermarkSequence": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Watermarksequence",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "conversationId",
+        "message",
+        "historyEpoch",
+        "watermarkSequence"
+      ],
+      "title": "MessageBaselineV2",
+      "type": "object"
+    },
+    "PublicSnapshotV2": {
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "const": 2,
+          "title": "Version",
+          "type": "integer"
+        },
+        "viewer": {
+          "discriminator": {
+            "mapping": {
+              "guest": "#/$defs/GuestViewer",
+              "user": "#/$defs/UserViewer"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/GuestViewer"
+            },
+            {
+              "$ref": "#/$defs/UserViewer"
+            }
+          ],
+          "title": "Viewer"
+        },
+        "sessionExpiresAt": {
+          "format": "date-time",
+          "title": "Sessionexpiresat",
+          "type": "string"
+        },
+        "conversationId": {
+          "minLength": 1,
+          "title": "Conversationid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "messages": {
+          "items": {
+            "$ref": "#/$defs/ChatMessage"
+          },
+          "maxItems": 10,
+          "title": "Messages",
+          "type": "array"
+        },
+        "activeRun": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "activeInput": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ActiveInputV2"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "merge": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MergeState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "history": {
+          "$ref": "#/$defs/HistoryV2"
+        },
+        "sync": {
+          "$ref": "#/$defs/SyncV2"
+        },
+        "attemptId": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string",
+              "pattern": "\\S"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Attemptid"
+        },
+        "businessRunId": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string",
+              "pattern": "\\S"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Businessrunid"
+        },
+        "businessRunStatus": {
+          "anyOf": [
+            {
+              "enum": [
+                "queued",
+                "running",
+                "waiting_input",
+                "completed",
+                "failed",
+                "cancelled",
+                "expired"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Businessrunstatus"
+        }
+      },
+      "required": [
+        "version",
+        "viewer",
+        "sessionExpiresAt",
+        "conversationId",
+        "messages",
+        "activeRun",
+        "activeInput",
+        "merge",
+        "history",
+        "sync",
+        "attemptId",
+        "businessRunId",
+        "businessRunStatus"
+      ],
+      "title": "PublicSnapshotV2",
+      "type": "object"
+    },
+    "ExpectedIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "issuer": {
+          "minLength": 1,
+          "title": "Issuer",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "sub": {
+          "minLength": 1,
+          "title": "Sub",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "sourceTenantId": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Sourcetenantid",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "issuer",
+        "sub",
+        "sourceTenantId"
+      ],
+      "title": "ExpectedIdentity",
+      "type": "object"
+    },
+    "BootstrapInputV2": {
+      "additionalProperties": false,
+      "properties": {
+        "expectedIdentity": {
+          "$ref": "#/$defs/ExpectedIdentity"
+        }
+      },
+      "title": "BootstrapInputV2",
+      "type": "object"
+    },
+    "OidcBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "clientId": {
+          "minLength": 1,
+          "title": "Clientid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "redirectUri": {
+          "minLength": 1,
+          "title": "Redirecturi",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "state": {
+          "minLength": 1,
+          "title": "State",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "nonce": {
+          "minLength": 1,
+          "title": "Nonce",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "codeChallenge": {
+          "minLength": 1,
+          "title": "Codechallenge",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "codeChallengeMethod": {
+          "const": "S256",
+          "title": "Codechallengemethod",
+          "type": "string"
+        }
+      },
+      "required": [
+        "clientId",
+        "redirectUri",
+        "state",
+        "nonce",
+        "codeChallenge",
+        "codeChallengeMethod"
+      ],
+      "title": "OidcBinding",
+      "type": "object"
+    },
+    "CreateAuthOperationV2": {
+      "additionalProperties": false,
+      "properties": {
+        "intent": {
+          "enum": [
+            "lead",
+            "register",
+            "login",
+            "restore"
+          ],
+          "title": "Intent",
+          "type": "string"
+        },
+        "oidc": {
+          "$ref": "#/$defs/OidcBinding"
+        },
+        "browserCompletionChallenge": {
+          "minLength": 1,
+          "title": "Browsercompletionchallenge",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "browserCompletionChallengeMethod": {
+          "const": "S256",
+          "title": "Browsercompletionchallengemethod",
+          "type": "string"
+        },
+        "expectedIdentity": {
+          "$ref": "#/$defs/ExpectedIdentity"
+        }
+      },
+      "required": [
+        "intent",
+        "oidc",
+        "browserCompletionChallenge",
+        "browserCompletionChallengeMethod"
+      ],
+      "title": "CreateAuthOperationV2",
+      "type": "object",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "intent": {
+                "const": "restore"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "expectedIdentity"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "expectedIdentity"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "ArtifactEventV2": {
+      "additionalProperties": false,
+      "properties": {
+        "sequence": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "historyEpoch": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Historyepoch",
+          "type": "integer"
+        },
+        "eventId": {
+          "minLength": 1,
+          "title": "Eventid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "conversationId": {
+          "minLength": 1,
+          "title": "Conversationid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "runId": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string",
+              "pattern": "\\S"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Runid"
+        },
+        "type": {
+          "const": "artifact.updated",
+          "title": "Type",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/ArtifactUpdated"
+        }
+      },
+      "required": [
+        "sequence",
+        "historyEpoch",
+        "eventId",
+        "conversationId",
+        "runId",
+        "type",
+        "payload"
+      ],
+      "title": "ArtifactEventV2",
+      "type": "object"
+    },
+    "DeltaEventV2": {
+      "additionalProperties": false,
+      "properties": {
+        "sequence": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "historyEpoch": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Historyepoch",
+          "type": "integer"
+        },
+        "eventId": {
+          "minLength": 1,
+          "title": "Eventid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "conversationId": {
+          "minLength": 1,
+          "title": "Conversationid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "runId": {
+          "minLength": 1,
+          "title": "Runid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "type": {
+          "const": "message.delta",
+          "title": "Type",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/MessageDelta"
+        }
+      },
+      "required": [
+        "sequence",
+        "historyEpoch",
+        "eventId",
+        "conversationId",
+        "runId",
+        "type",
+        "payload"
+      ],
+      "title": "DeltaEventV2",
+      "type": "object"
+    },
+    "ErrorEventV2": {
+      "additionalProperties": false,
+      "properties": {
+        "sequence": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "historyEpoch": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Historyepoch",
+          "type": "integer"
+        },
+        "eventId": {
+          "minLength": 1,
+          "title": "Eventid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "conversationId": {
+          "minLength": 1,
+          "title": "Conversationid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "runId": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string",
+              "pattern": "\\S"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Runid"
+        },
+        "type": {
+          "const": "error",
+          "title": "Type",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/ApiError"
+        }
+      },
+      "required": [
+        "sequence",
+        "historyEpoch",
+        "eventId",
+        "conversationId",
+        "runId",
+        "type",
+        "payload"
+      ],
+      "title": "ErrorEventV2",
+      "type": "object"
+    },
+    "ExpiredEventV2": {
+      "additionalProperties": false,
+      "properties": {
+        "sequence": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "historyEpoch": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Historyepoch",
+          "type": "integer"
+        },
+        "eventId": {
+          "minLength": 1,
+          "title": "Eventid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "conversationId": {
+          "minLength": 1,
+          "title": "Conversationid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "runId": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string",
+              "pattern": "\\S"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Runid"
+        },
+        "type": {
+          "const": "viewer.expired",
+          "title": "Type",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/ViewerExpired"
+        }
+      },
+      "required": [
+        "sequence",
+        "historyEpoch",
+        "eventId",
+        "conversationId",
+        "runId",
+        "type",
+        "payload"
+      ],
+      "title": "ExpiredEventV2",
+      "type": "object"
+    },
+    "MessageEventV2": {
+      "additionalProperties": false,
+      "properties": {
+        "sequence": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "historyEpoch": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Historyepoch",
+          "type": "integer"
+        },
+        "eventId": {
+          "minLength": 1,
+          "title": "Eventid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "conversationId": {
+          "minLength": 1,
+          "title": "Conversationid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "runId": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string",
+              "pattern": "\\S"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Runid"
+        },
+        "type": {
+          "const": "message.upsert",
+          "title": "Type",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/MessageUpsert"
+        }
+      },
+      "required": [
+        "sequence",
+        "historyEpoch",
+        "eventId",
+        "conversationId",
+        "runId",
+        "type",
+        "payload"
+      ],
+      "title": "MessageEventV2",
+      "type": "object"
+    },
+    "RunEventV2": {
+      "additionalProperties": false,
+      "properties": {
+        "sequence": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "historyEpoch": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Historyepoch",
+          "type": "integer"
+        },
+        "eventId": {
+          "minLength": 1,
+          "title": "Eventid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "conversationId": {
+          "minLength": 1,
+          "title": "Conversationid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "runId": {
+          "minLength": 1,
+          "title": "Runid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "type": {
+          "const": "run.updated",
+          "title": "Type",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/RunUpdated"
+        }
+      },
+      "required": [
+        "sequence",
+        "historyEpoch",
+        "eventId",
+        "conversationId",
+        "runId",
+        "type",
+        "payload"
+      ],
+      "title": "RunEventV2",
+      "type": "object"
+    },
+    "ViewerEventV2": {
+      "additionalProperties": false,
+      "properties": {
+        "sequence": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "historyEpoch": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Historyepoch",
+          "type": "integer"
+        },
+        "eventId": {
+          "minLength": 1,
+          "title": "Eventid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "conversationId": {
+          "minLength": 1,
+          "title": "Conversationid",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "runId": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string",
+              "pattern": "\\S"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Runid"
+        },
+        "type": {
+          "const": "viewer.updated",
+          "title": "Type",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/ViewerUpdated"
+        }
+      },
+      "required": [
+        "sequence",
+        "historyEpoch",
+        "eventId",
+        "conversationId",
+        "runId",
+        "type",
+        "payload"
+      ],
+      "title": "ViewerEventV2",
+      "type": "object"
+    },
+    "WireEventV2": {
+      "discriminator": {
+        "mapping": {
+          "artifact.updated": "#/$defs/ArtifactEventV2",
+          "error": "#/$defs/ErrorEventV2",
+          "message.delta": "#/$defs/DeltaEventV2",
+          "message.upsert": "#/$defs/MessageEventV2",
+          "run.updated": "#/$defs/RunEventV2",
+          "viewer.expired": "#/$defs/ExpiredEventV2",
+          "viewer.updated": "#/$defs/ViewerEventV2"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/DeltaEventV2"
+        },
+        {
+          "$ref": "#/$defs/MessageEventV2"
+        },
+        {
+          "$ref": "#/$defs/RunEventV2"
+        },
+        {
+          "$ref": "#/$defs/ArtifactEventV2"
+        },
+        {
+          "$ref": "#/$defs/ViewerEventV2"
+        },
+        {
+          "$ref": "#/$defs/ExpiredEventV2"
+        },
+        {
+          "$ref": "#/$defs/ErrorEventV2"
+        }
+      ]
+    },
+    "ReadyV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "conversationId": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "historyEpoch": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "watermarkSequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "conversationId",
+        "historyEpoch",
+        "watermarkSequence"
+      ]
+    },
+    "CUSTOMV2": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "CUSTOM"
+            },
+            "name": {
+              "const": "xiaohe.v2.event"
+            },
+            "value": {
+              "$ref": "#/$defs/WireEventV2"
+            }
+          },
+          "required": [
+            "type",
+            "name",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "CUSTOM"
+            },
+            "name": {
+              "const": "xiaohe.v2.message-baseline"
+            },
+            "value": {
+              "$ref": "#/$defs/MessageBaselineV2"
+            }
+          },
+          "required": [
+            "type",
+            "name",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "CUSTOM"
+            },
+            "name": {
+              "const": "xiaohe.v2.ready"
+            },
+            "value": {
+              "$ref": "#/$defs/ReadyV2"
+            }
+          },
+          "required": [
+            "type",
+            "name",
+            "value"
+          ]
+        }
+      ]
+    },
+    "STATE_SNAPSHOTV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "STATE_SNAPSHOT"
+        },
+        "snapshot": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "xiaohe": {
+              "$ref": "#/$defs/PublicSnapshotV2"
+            }
+          },
+          "required": [
+            "xiaohe"
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "snapshot"
+      ]
+    },
+    "StreamEventV2": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/RUN_STARTED"
+        },
+        {
+          "$ref": "#/$defs/RUN_FINISHED"
+        },
+        {
+          "$ref": "#/$defs/RUN_ERROR"
+        },
+        {
+          "$ref": "#/$defs/MESSAGES_SNAPSHOT"
+        },
+        {
+          "$ref": "#/$defs/STATE_SNAPSHOTV2"
+        },
+        {
+          "$ref": "#/$defs/TEXT_MESSAGE_START"
+        },
+        {
+          "$ref": "#/$defs/TEXT_MESSAGE_CONTENT"
+        },
+        {
+          "$ref": "#/$defs/TEXT_MESSAGE_END"
+        },
+        {
+          "$ref": "#/$defs/CUSTOMV2"
+        }
+      ]
+    }
+  },
+  "anyOf": [
+    {
+      "$ref": "#/$defs/ChatSnapshotV2"
+    },
+    {
+      "$ref": "#/$defs/HistoryPageV2"
+    },
+    {
+      "$ref": "#/$defs/MessageBaselineV2"
+    },
+    {
+      "$ref": "#/$defs/PublicSnapshotV2"
+    },
+    {
+      "$ref": "#/$defs/BootstrapInputV2"
+    },
+    {
+      "$ref": "#/$defs/CreateAuthOperationV2"
+    },
+    {
+      "$ref": "#/$defs/WireEventV2"
+    },
+    {
+      "$ref": "#/$defs/RunInput"
+    },
+    {
+      "$ref": "#/$defs/ConversationInput"
+    },
+    {
+      "$ref": "#/$defs/Accepted"
+    },
+    {
+      "$ref": "#/$defs/Status"
+    },
+    {
+      "$ref": "#/$defs/Stopped"
+    },
+    {
+      "$ref": "#/$defs/StreamEventV2"
+    }
+  ]
+}
+```
+<!-- xiaohe-agui-v2-schema:end -->
+
 ## 13. 失效会员退出清理补充（2026-11-07，修复实施中，未部署）
 
 修复用户报告的“门户退出后，小鹤被旧会员Cookie锁在AUTH_REQUIRED而不能匿名打开”。本节是原退出接口的受限清理例外，不是V2上线，也不改变§12的分页/预算机器协议。源码/fixture通过不等于用户隔离窗口已验收。

@@ -10,12 +10,12 @@
 
 **Spec:** [用户已批准的共同设计](C:/Users/70367/.codex/worktrees/xiaohe-auth-card/yunhezhiyuan-portal/docs/superpowers/specs/2026-11-06-xiaohe-lifecycle-history-design.md)；唯一 wire 来源为 [共享主契约 §12](D:/Code/yunhezhiyuan-agents/docs/contracts/2026-11-03-xiaohe-integration-v1.md)。此计划不复制另一份 DTO 规范。
 
-状态：2026-11-06，北京时间，**用户已回复“审阅通过”，三工程计划已批准，按各工程原生方式执行**。AI 当前处于 Task 1 基线确认；未完成的勾选和下列命令仍不代表已经执行或通过。真实库迁移、部署、短信、模型及体验窗口操作仍未授权。
+状态：2026-11-07，北京时间，**用户已回复“审阅通过”，三工程计划已批准，按各工程原生方式执行**。稳定基线已交接，AI 继续 Task 1；未完成的勾选和下列命令仍不代表已经执行或通过。用户追加允许按需 WSL 隔离部署；现有真人体验库、正式入口与开关保持不变，不自动短信、不建真实账号、不调用模型。
 
 ## Global Constraints
 
 - 在 `dev-fengfeng` 开发，保护现有修改/未跟踪文件；不自动合并其他工程或工作树，不改 `src/service`、通用 Agent registry/模型工厂和上游 SDK。
-- 正式开关关闭；不启动/替换现有服务、不构建发布镜像、不部署、不自动短信、不建真实账号、不调用模型，不操作体验窗口。
+- 正式开关关闭；不启动/替换现有正式或真人体验服务，不自动短信、不建真实账号、不调用模型。允许按需建立新的专用 WSL 隔离服务、可丢弃数据库和桶；不借此迁移或清空现有体验库。人工步骤另行告知用户。
 - `VISITOR_MESSAGE_LIMIT=100`、`VISITOR_RETENTION_SECONDS=14400`；成功受理的新 guest 用户消息/有效动作计 1 并滑动 4h。免费欢迎、系统 controls、AI 回复、读取、拒绝、幂等重试不计数、不续期。第100条回复可完成，第101条拒绝。
 - 用户 AI 会话仍为 `created_at+28800秒` 绝对截止，不滑动；complete 丢失重读不建立新身份或延长旧截止。可信认证走既有顶层 SSO 往返，错误账号不自动切换或归并。
 - 同浏览器匿名预算跨4h、关闭、隔天、登录认领和退出保留；预算最小元数据不定期清零；正文/文件按原安全点清理。全部凭据丢失后无法匿名识别，不引入指纹/IP合并。
@@ -36,9 +36,9 @@
 
 ## 基线、所有权和文件地图
 
-当前嵌套仓库 HEAD `4f4c690`，分支 `dev-fengfeng`；已有部署文件和验收文档改动不属本任务。主契约在父目录，父目录当前不是 Git 仓库，计划提交不能假装包含它的提交。CodeGraph 现有索引不包含 xiaohe 业务新增部分，已回到源码核对。
+2026-11-07 稳定基线：嵌套仓库 HEAD `41598965d0633924ffcb6ff9cb80a92d58466887`，分支 `dev-fengfeng`，与 origin 同步。收口 Owner 已完成受控快进并交回源码写入权；当前仅 `.codegraph/` 未跟踪，保留。主契约在父目录，父目录不是 Git 仓库；仓库内同名文档是可分发镜像，不能冒称父目录已提交。CodeGraph 索引不包含 xiaohe 新增部分，源码核对使用 rg。
 
-并行接待工程 `.scratch/worktrees/reception-agents` 已有 `0008_reception.py`、reception writers/system_notice/control 实现；本仓库迁移当前仅至0007。**实施前必须由对应 Owner 确认接待基线已整合进 dev-fengfeng；未整合则停在文档阶段，不从另一树拷贝产品源码。** 本计划预留迁移 `0009_guest_budget_history.py`，down_revision=`0008`；若实施前实际head又变化，先修订此计划与revision，禁止制造双head或冒用0008。
+接待、system_notice、controls 与认证修补已由对应 Owner 整合；源树9个产品文件与稳定基线逐字一致。实际迁移唯一 head 为 `0009_workflow_definitions.py`（down_revision=`0008`）。本任务新增 `0010_guest_budget_history.py`，down_revision=`0009`；不改已存在迁移。下段保留此前阻塞记录，不能作为当前未整合状态。
 
 审批后前置核对：主树 `7e0f2f6` 仍至0007；接待树 `e4f8a79` 已含 `0009_workflow_definitions.py`（revision=0009/down_revision=0008），并有正在实施的未提交认证、admission、schema、工作流和接待修改。**因此下文原预留0009文件名不可直接使用**；待 Owner 确认可整合的稳定提交及整合责任后，依据真实 head 修订编号再实现。此次批准不包含自动合并他树或代提交其脏文件，已通知门户协调前置。
 
@@ -48,7 +48,7 @@
 | `src/xiaohe/view_version.py`（新增） | 解析版本头及回显，统一拒绝未知/重复值 |
 | `src/xiaohe/guest_budget.py`（新增） | 持久匿名额度凭据、存量承接、周期建立与幂等最小账本 |
 | `src/xiaohe/history.py`（新增） | 最近10/旧页/按ID定位、cursor签验、epoch和一致水位 |
-| `src/xiaohe/models.py`、`migrations/versions/0009_guest_budget_history.py`（新增迁移） | 预算/凭据/幂等元数据；Session预算关联、Conversation.history_epoch、Message.membership_sequence、AuthOperationRecord.expected_identity及索引 |
+| `src/xiaohe/models.py`、`migrations/versions/0010_guest_budget_history.py`（新增迁移） | 预算/凭据/幂等元数据；Session预算关联、Conversation.history_epoch、Message.membership_sequence、AuthOperationRecord.expected_identity及索引 |
 | `identity.py`、`admission.py`、`expiry.py`、`claim.py` | 原业务接入预算，保留原期限/清理/归并 fence；complete 按视图加载 |
 | `conversations.py`、`events.py`、已有接待消息 writers | 消息加入序号；V1读取不改语义；V2事件含序列，归并使目标历史epoch递增 |
 | `api.py`、`authentication.py` | 现有入口统一选表示，新增只读分页/定位路由、安全错误映射 |
@@ -58,7 +58,7 @@
 | `tests/xiaohe/*`、`copilot-runtime/tests/*` | 各任务列明的安全/并发/表示回归；fixture为虚构身份 |
 | `docs/xiaohe/operations/runbook.md`、`deploy/xiaohe/env.example`、`copilot-runtime/.env.example` | 仅在实施后记录新配置/承接回滚，不改现用环境文件/compose部署 |
 
-具体未读的接待 writers 文件由 Task 1 在统一基线列出：搜索 `Message(`、`record_event`、controls 后将精确文件列表补入计划再实现，不猜测当前另一工作树路径已经属于本仓库。
+统一基线已核对的持久消息创建点：`admission.py`（用户及 system_notice）、`conversations.py`（欢迎）、`worker.py`（assistant）、`events.py`（流式 assistant）。`claim.py` 移动既有消息并重发 upsert；`runs.py`、`artifacts.py`、`expiry.py` 另有状态/产物/到期事件。新增成员序号须覆盖上述入口，不能只修改 REST；LangChain 内部消息不属于业务 Message 持久化。
 
 ## 任务依赖和验证前置
 
@@ -72,16 +72,16 @@ Task 1（统一契约/基线）→ Task 2（数据/身份）→ Task 3（公共a
 
 **Interfaces:** `parse_view_version(request: Request, *, v2_only: bool=False) -> Literal[1,2]`；`set_view_version(response: Response, version: Literal[1,2]) -> None`；导出 `ChatSnapshotV2/HistoryPageV2/MessageBaselineV2/PublicSnapshotV2/EventEnvelopeV2/BootstrapInputV2/CreateAuthOperationV2/ExpectedIdentity`，字段以§12为准。
 
-- [ ] **Step 1:** 用户审阅本计划后，核对已整合接待基线和 migration head，列出所有 Message writers；门户/SSO确认§12消费及恢复边界。未满足不写代码、不真实迁移。
-- [ ] **Step 2:** 写 `test_v2_contract_rejects_unknown_fields_and_invalid_watermarks`：version只能2、messages<=10、pageSize=10、hasMore与olderCursor一致、空流cursor=null/watermark=0；sequence是1..9007199254740991整数，epoch/watermark是0..该上界，字符串/浮点小数/越界拒绝；parts沿现有完整union。`test_view_header_is_explicit` 覆盖无头/1/2/空值/重复/3；V2专属入口无2拒绝。restore必有expectedIdentity，其他intent禁止；V1不放宽。
-- [ ] **Step 3:** 运行 `uv run --no-sync pytest tests/xiaohe/test_view_v2_contracts.py -v`，预期新增实现缺失而FAIL；无外部请求。
-- [ ] **Step 4:** 新增最小DTO/版本辅助；在唯一主契约新增V2机器schema块，生成Runtime副本和固定fixture。原V1块字节及解析边界不放宽。
-- [ ] **Step 5:** 同命令预期PASS；`node copilot-runtime/tests/run.mjs view-v2-contracts` 预期PASS且无网络；核对主契约块与副本一致。
-- [ ] **Step 6:** 仅提交本任务文件，`git commit -m "feat(xiaohe): define opt-in v2 history views"`；父目录契约单独记录内容摘要/文件状态，不冒称已进Git。
+- [x] **Step 1:** 用户审阅本计划后，核对已整合接待基线和 migration head，列出所有 Message writers；门户/SSO确认§12消费及恢复边界。未满足不写代码、不真实迁移。
+- [x] **Step 2:** 写 `test_v2_contract_rejects_unknown_fields_and_invalid_watermarks`：version只能2、messages<=10、pageSize=10、hasMore与olderCursor一致、空流cursor=null/watermark=0；sequence是1..9007199254740991整数，epoch/watermark是0..该上界，字符串/浮点小数/越界拒绝；parts沿现有完整union。`test_view_header_is_explicit` 覆盖无头/1/2/空值/重复/3；V2专属入口无2拒绝。restore必有expectedIdentity，其他intent禁止；V1不放宽。
+- [x] **Step 3:** 运行 `uv run --no-sync pytest tests/xiaohe/test_view_v2_contracts.py -v`，预期新增实现缺失而FAIL；无外部请求。
+- [x] **Step 4:** 新增最小DTO/版本辅助；在唯一主契约新增V2机器schema块，生成Runtime副本和固定fixture。原V1块字节及解析边界不放宽。
+- [x] **Step 5:** 同命令预期PASS；`node copilot-runtime/tests/run.mjs view-v2-contracts` 预期PASS且无网络；核对主契约块与副本一致。
+- [x] **Step 6:** 仅提交本任务文件，`git commit -m "feat(xiaohe): define opt-in v2 history views"`；父目录契约单独记录内容摘要/文件状态，不冒称已进Git。
 
 ### Task 2: 持久预算、可信承接和内容周期
 
-**Files:** 新增 `guest_budget.py`、`0009_guest_budget_history.py`、`test_guest_budget.py`、`test_guest_budget_migration.py`；修改 `models.py`、`identity.py`、`test_identity_sessions.py`、`test_migrations.py`。
+**Files:** 新增 `guest_budget.py`、`0010_guest_budget_history.py`、`test_guest_budget.py`、`test_guest_budget_migration.py`；修改 `models.py`、`identity.py`、`test_identity_sessions.py`、`test_migrations.py`。
 
 **Interfaces:** `bootstrap_guest_episode(db: AsyncSession, request: Request, response: Response, system: TrustedSystem) -> Actor`；`load_guest_budget(db: AsyncSession, session: Session, *, lock: bool) -> GuestBudget`；`adopt_legacy_guest(db: AsyncSession, session: Session) -> GuestBudget`。预算只承载额度，不输出预算ID或cookie摘要。
 

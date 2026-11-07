@@ -1,0 +1,392 @@
+{
+  "snapshot": {
+    "viewer": {
+      "kind": "guest",
+      "guestId": "fixture-guest",
+      "systemId": "portal",
+      "tenantId": 1,
+      "messageCount": 0,
+      "messageLimit": 100,
+      "retentionSeconds": 14400,
+      "expiresAt": "2026-11-03T04:00:00Z"
+    },
+    "csrf": {
+      "headerName": "X-Xiaohe-CSRF",
+      "token": "fixture-csrf"
+    },
+    "conversationId": "fixture-C1",
+    "messages": [
+      {
+        "id": "fixture-M1",
+        "role": "assistant",
+        "createdAt": "2026-11-07T00:00:00Z",
+        "parts": [
+          {
+            "type": "text",
+            "text": "模拟答复"
+          },
+          {
+            "type": "choice",
+            "requestId": "fixture-Q1",
+            "prompt": "模拟方向？",
+            "options": [
+              {
+                "id": "supplier",
+                "label": "供应商"
+              }
+            ]
+          },
+          {
+            "type": "suggestions",
+            "items": [
+              {
+                "id": "intro",
+                "text": "介绍服务"
+              }
+            ]
+          },
+          {
+            "type": "input_request",
+            "requestId": "fixture-Q2",
+            "prompt": "模拟补充说明"
+          },
+          {
+            "type": "auth_request",
+            "intent": "login"
+          },
+          {
+            "type": "artifact_ref",
+            "artifactId": "fixture-A1",
+            "version": 1,
+            "title": "模拟产出物",
+            "mediaType": "text/plain",
+            "status": "ready"
+          },
+          {
+            "type": "system_notice",
+            "text": "系统进展通知"
+          }
+        ]
+      }
+    ],
+    "activeRun": null,
+    "merge": null,
+    "version": 2,
+    "sessionExpiresAt": "2026-11-03T04:00:00Z",
+    "activeInput": null,
+    "history": {
+      "pageSize": 10,
+      "hasMore": false,
+      "olderCursor": null,
+      "historyEpoch": 0
+    },
+    "sync": {
+      "eventCursor": null,
+      "watermarkSequence": 0
+    }
+  },
+  "page": {
+    "version": 2,
+    "conversationId": "fixture-C1",
+    "messages": [
+      {
+        "id": "fixture-M1",
+        "role": "assistant",
+        "createdAt": "2026-11-07T00:00:00Z",
+        "parts": [
+          {
+            "type": "text",
+            "text": "模拟答复"
+          },
+          {
+            "type": "choice",
+            "requestId": "fixture-Q1",
+            "prompt": "模拟方向？",
+            "options": [
+              {
+                "id": "supplier",
+                "label": "供应商"
+              }
+            ]
+          },
+          {
+            "type": "suggestions",
+            "items": [
+              {
+                "id": "intro",
+                "text": "介绍服务"
+              }
+            ]
+          },
+          {
+            "type": "input_request",
+            "requestId": "fixture-Q2",
+            "prompt": "模拟补充说明"
+          },
+          {
+            "type": "auth_request",
+            "intent": "login"
+          },
+          {
+            "type": "artifact_ref",
+            "artifactId": "fixture-A1",
+            "version": 1,
+            "title": "模拟产出物",
+            "mediaType": "text/plain",
+            "status": "ready"
+          },
+          {
+            "type": "system_notice",
+            "text": "系统进展通知"
+          }
+        ]
+      }
+    ],
+    "history": {
+      "pageSize": 10,
+      "hasMore": false,
+      "olderCursor": null,
+      "historyEpoch": 0
+    },
+    "watermarkSequence": 1
+  },
+  "baseline": {
+    "version": 2,
+    "conversationId": "fixture-C1",
+    "message": {
+      "id": "fixture-M1",
+      "role": "assistant",
+      "createdAt": "2026-11-07T00:00:00Z",
+      "parts": [
+        {
+          "type": "text",
+          "text": "模拟答复"
+        },
+        {
+          "type": "choice",
+          "requestId": "fixture-Q1",
+          "prompt": "模拟方向？",
+          "options": [
+            {
+              "id": "supplier",
+              "label": "供应商"
+            }
+          ]
+        },
+        {
+          "type": "suggestions",
+          "items": [
+            {
+              "id": "intro",
+              "text": "介绍服务"
+            }
+          ]
+        },
+        {
+          "type": "input_request",
+          "requestId": "fixture-Q2",
+          "prompt": "模拟补充说明"
+        },
+        {
+          "type": "auth_request",
+          "intent": "login"
+        },
+        {
+          "type": "artifact_ref",
+          "artifactId": "fixture-A1",
+          "version": 1,
+          "title": "模拟产出物",
+          "mediaType": "text/plain",
+          "status": "ready"
+        },
+        {
+          "type": "system_notice",
+          "text": "系统进展通知"
+        }
+      ]
+    },
+    "historyEpoch": 0,
+    "watermarkSequence": 1
+  },
+  "public": {
+    "viewer": {
+      "kind": "guest",
+      "guestId": "fixture-guest",
+      "systemId": "portal",
+      "tenantId": 1,
+      "messageCount": 0,
+      "messageLimit": 100,
+      "retentionSeconds": 14400,
+      "expiresAt": "2026-11-03T04:00:00Z"
+    },
+    "conversationId": "fixture-C1",
+    "messages": [
+      {
+        "id": "fixture-M1",
+        "role": "assistant",
+        "createdAt": "2026-11-07T00:00:00Z",
+        "parts": [
+          {
+            "type": "text",
+            "text": "模拟答复"
+          },
+          {
+            "type": "choice",
+            "requestId": "fixture-Q1",
+            "prompt": "模拟方向？",
+            "options": [
+              {
+                "id": "supplier",
+                "label": "供应商"
+              }
+            ]
+          },
+          {
+            "type": "suggestions",
+            "items": [
+              {
+                "id": "intro",
+                "text": "介绍服务"
+              }
+            ]
+          },
+          {
+            "type": "input_request",
+            "requestId": "fixture-Q2",
+            "prompt": "模拟补充说明"
+          },
+          {
+            "type": "auth_request",
+            "intent": "login"
+          },
+          {
+            "type": "artifact_ref",
+            "artifactId": "fixture-A1",
+            "version": 1,
+            "title": "模拟产出物",
+            "mediaType": "text/plain",
+            "status": "ready"
+          },
+          {
+            "type": "system_notice",
+            "text": "系统进展通知"
+          }
+        ]
+      }
+    ],
+    "activeRun": null,
+    "merge": null,
+    "version": 2,
+    "sessionExpiresAt": "2026-11-03T04:00:00Z",
+    "activeInput": null,
+    "history": {
+      "pageSize": 10,
+      "hasMore": false,
+      "olderCursor": null,
+      "historyEpoch": 0
+    },
+    "sync": {
+      "eventCursor": null,
+      "watermarkSequence": 0
+    },
+    "attemptId": null,
+    "businessRunId": null,
+    "businessRunStatus": null
+  },
+  "bootstrap": {
+    "expectedIdentity": {
+      "issuer": "https://sso.example",
+      "sub": "fixture-user",
+      "sourceTenantId": 165
+    }
+  },
+  "restore": {
+    "intent": "restore",
+    "expectedIdentity": {
+      "issuer": "https://sso.example",
+      "sub": "fixture-user",
+      "sourceTenantId": 165
+    },
+    "oidc": {
+      "clientId": "portal",
+      "redirectUri": "https://portal.example/callback",
+      "state": "fixture-state",
+      "nonce": "fixture-nonce",
+      "codeChallenge": "fixture-challenge",
+      "codeChallengeMethod": "S256"
+    },
+    "browserCompletionChallenge": "fixture-challenge",
+    "browserCompletionChallengeMethod": "S256"
+  },
+  "event": {
+    "eventId": "fixture-E1",
+    "conversationId": "fixture-C1",
+    "runId": null,
+    "type": "message.upsert",
+    "payload": {
+      "message": {
+        "id": "fixture-M1",
+        "role": "assistant",
+        "createdAt": "2026-11-07T00:00:00Z",
+        "parts": [
+          {
+            "type": "text",
+            "text": "模拟答复"
+          },
+          {
+            "type": "choice",
+            "requestId": "fixture-Q1",
+            "prompt": "模拟方向？",
+            "options": [
+              {
+                "id": "supplier",
+                "label": "供应商"
+              }
+            ]
+          },
+          {
+            "type": "suggestions",
+            "items": [
+              {
+                "id": "intro",
+                "text": "介绍服务"
+              }
+            ]
+          },
+          {
+            "type": "input_request",
+            "requestId": "fixture-Q2",
+            "prompt": "模拟补充说明"
+          },
+          {
+            "type": "auth_request",
+            "intent": "login"
+          },
+          {
+            "type": "artifact_ref",
+            "artifactId": "fixture-A1",
+            "version": 1,
+            "title": "模拟产出物",
+            "mediaType": "text/plain",
+            "status": "ready"
+          },
+          {
+            "type": "system_notice",
+            "text": "系统进展通知"
+          }
+        ]
+      }
+    },
+    "sequence": 1,
+    "historyEpoch": 0
+  },
+  "ready": {
+    "type": "CUSTOM",
+    "name": "xiaohe.v2.ready",
+    "value": {
+      "conversationId": "fixture-C1",
+      "historyEpoch": 0,
+      "watermarkSequence": 0
+    }
+  }
+}

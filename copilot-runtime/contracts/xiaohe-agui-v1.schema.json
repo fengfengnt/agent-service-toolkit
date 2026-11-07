@@ -2919,5 +2919,5 @@
       "$ref": "#/$defs/StreamEvent"
     }
   ],
-  "$comment": "由唯一主合同§10提取；文档v1.0.11；SHA256 55860ca987bd2bd967b473cf8d1138ce433651945c226734055cb957a182ada5；源 docs/contracts/2026-11-03-xiaohe-integration-v1.md"
+  "$comment": "由唯一主合同机器块提取；SHA256 6446fd9131deb740d2e0275b2ef4b299e58e16b5ed7786ed5c945ab5940efa81；源 docs/contracts/2026-11-03-xiaohe-integration-v1.md"
 }
