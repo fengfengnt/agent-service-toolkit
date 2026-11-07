@@ -1,0 +1,153 @@
+{
+  "date": "2026-11-07",
+  "branch": "dev-fengfeng",
+  "base": "41598965d0633924ffcb6ff9cb80a92d58466887",
+  "businessSourceCommit": "f7b36e7abf04ef94482e4b03166dd8f4b0c27ac8",
+  "task7Status": "source_and_isolated_verification_complete_pending_fresh_review",
+  "contract": {
+    "rawSha256": "3435d508e3401ba42359e191ff0b90a96f18c05102274a78e9dcce1fa45d6ca9",
+    "fixtureSha256": "c5287adfad6bb5318a0a67c2b6ee745728c4daab33b67ec063a2c402715efb6e",
+    "v1MachineBlockUnchanged": true
+  },
+  "tests": {
+    "journey": {
+      "passed": 3,
+      "logSha256": "e80e5d2cd6dc9a5bb727d52f2fff4f4a4b4c7374cb8ad71705556bc6701803ac"
+    },
+    "runtime": {
+      "passed": 71,
+      "typecheck": true,
+      "build": true,
+      "logSha256": "0bee7fa5ef160a30fa2a127c0f10483ee8ba5c33525c649d25932a0477907488"
+    },
+    "pythonRegression": {
+      "status": "704 passed; remaining launcher passed targeted after test-only timeout adjustment",
+      "database": "test_xiaohe_lifecycle_20261107",
+      "excludes": [
+        "integration",
+        "10 minio cases",
+        "8 guarded SQL migration cases verified separately",
+        "6 WSL Compose cases environment blocked"
+      ],
+      "passed": 704,
+      "failedBeforeRecovery": 1,
+      "logSha256": "5e30d0445bcd0076312c1797deb6d5411abc6c35fdf8dbcfa5e54b6f5020d057"
+    },
+    "initialBroadRegression": {
+      "passed": 707,
+      "failed": 6,
+      "errors": 6,
+      "deselected": 10,
+      "logSha256": "c6a8d5f3fc6b30bb87c8c53b75e6d8f2641bd998dd53489f8a6635cd75cc7ab9"
+    },
+    "targetedRecovery": {
+      "passed": 9,
+      "logSha256": "3d4d4e87149341b829792d0b084f6a18bc26dd8ea1a98ecb93f9679c8282ad68",
+      "change": "Only legacy fixture seeds authoritative budget, launcher unchanged"
+    },
+    "guardedMigrations": {
+      "passed": 8,
+      "database": "test_xiaohe_agent on new35547 disposable PG only",
+      "logSha256": "056fb72511448f22751414c9f2976470a2e26394e49eab51062b1294b82fe11b",
+      "sqlGuardChanged": false
+    },
+    "blocked": {
+      "composeCases": 6,
+      "reason": "WSL wslpath UTF-8 decode error; separate read-only WSL resource gate timed out",
+      "existingServiceRestarted": false
+    },
+    "launcherRecovery": {
+      "passed": 1,
+      "seconds": 11.27,
+      "testTimeoutSeconds": 45,
+      "privacyAssertionsChanged": false,
+      "logSha256": "4e1a8e4443d110c8229dac273d83a6f5f09a33bbf8bd69c23277ad83cfed7429"
+    }
+  },
+  "preview": {
+    "origin": "https://portal.lvh.me:18593",
+    "tlsVerified": true,
+    "apiLive": true,
+    "runtimeLive": true,
+    "workerTurn": true,
+    "version": 2,
+    "guestMessageCount": 1,
+    "messageCount": 3,
+    "frameTypes": [
+      "RUN_STARTED",
+      "MESSAGES_SNAPSHOT",
+      "STATE_SNAPSHOT",
+      "xiaohe.v2.ready",
+      "xiaohe.v2.event",
+      "STATE_SNAPSHOT",
+      "xiaohe.v2.event",
+      "MESSAGES_SNAPSHOT",
+      "STATE_SNAPSHOT",
+      "xiaohe.v2.event",
+      "STATE_SNAPSHOT",
+      "RUN_FINISHED"
+    ],
+    "networkMode": "loopback HTTP + verified dedicated TLS only; fake model/bridge",
+    "objectStorage": "unconfigured",
+    "realSso": false,
+    "browser": false
+  },
+  "previewDatabase": "test_xiaohe_reception_v2_preview_20261107",
+  "previewProcesses": [
+    {
+      "name": "api",
+      "pid": 38028
+    },
+    {
+      "name": "worker",
+      "pid": 2196
+    },
+    {
+      "name": "runtime",
+      "pid": 69272
+    },
+    {
+      "name": "gateway",
+      "pid": 65608
+    }
+  ],
+  "runtimeBuildSha256": {
+    "business-client.js": "e259a1ab2d0744965a2e54f4f008d727a9dea917107a496dfa18ac109475c689",
+    "config.js": "3e22e3683e83d668dabefaba7858d1935c68198ba2ab3b8acc67527429c7da1b",
+    "context.js": "b6f0561cf4181368adcff126692a54bb2d8b65e52c83014c2c425391a1e09f30",
+    "index.js": "191bc869826e795ceb83429636630de76022b1527145b5a527eb5e9c7fade1b2",
+    "runner.js": "0001cb28bf21ab257ca42daa8253f18100d33bf272011c3bed8f1f132b670745",
+    "server.js": "9f44c4077f1a38afcb688b01867deacc4d641b94f5d07e83eb6e25996a332c69",
+    "zod-v4-resolution.js": "ddad39ccedcca1835a19e01114264a2587007fffc6a09ebd39bfeca9b54cfad0"
+  },
+  "independentReadonlyProbe": {
+    "owner": "consolidation",
+    "status": "reported_pass",
+    "requests": [
+      "API fixture health",
+      "Runtime healthz",
+      "TLS SDK info"
+    ],
+    "record": "D:/Code/yunhezhiyuan-agents/.scratch/consolidate-20261107/v2-preview-readonly-health.json"
+  },
+  "notPerformed": [
+    "real SSO/callback/code exchange",
+    "real member browser session",
+    "physical object storage validation",
+    "real model",
+    "SMS",
+    "real account creation",
+    "business database migration",
+    "existing deployment switch"
+  ],
+  "formalDeploymentChanged": false,
+  "formalSwitchChanged": false,
+  "realBusinessDataChanged": false,
+  "limitations": [
+    "This is 704 broad passes plus one targeted recovery, not a single all-green 705-case invocation",
+    "Six WSL Compose cases blocked",
+    "Ten physical MinIO cases not selected",
+    "Native Portal browser against new18593 build pending",
+    "No real SSO or deployment"
+  ]
+}

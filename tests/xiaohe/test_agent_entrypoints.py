@@ -5,7 +5,7 @@ from sqlalchemy import func, select, update
 from test_agent_handoff import install_agents
 from test_http_api import client_for, session
 
-from xiaohe.models import Command, Run, Session
+from xiaohe.models import Command, GuestBudget, Run, Session
 
 pytestmark = [pytest.mark.pg, pytest.mark.asyncio]
 
@@ -103,6 +103,8 @@ async def test_direct_entry_preserves_guest_quota_and_expiry(
         async with pg_factory.begin() as db:
             values = {"expires_at": func.clock_timestamp()} if expired else {"message_count": 100}
             await db.execute(update(Session).values(**values))
+            if not expired:
+                await db.execute(update(GuestBudget).values(message_count=100))
         path = f"/ai-api/v1/agents/xiaohe-organization/conversations/{snapshot['conversationId']}/messages"
         response = await client.post(path, json={"clientMessageId": "blocked", "text": "咨询合作"})
         assert response.status_code == (410 if expired else 429)

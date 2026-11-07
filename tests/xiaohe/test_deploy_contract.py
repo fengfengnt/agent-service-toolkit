@@ -155,7 +155,7 @@ def test_launcher_configuration_failure_does_not_echo_private_values():
         env=os.environ | {"PYTHONPATH": str(ROOT / "src"), "DEFAULT_MODEL": sentinel},
         capture_output=True,
         text=True,
-        timeout=15,
+        timeout=45,
     )
     assert result.returncode != 0
     assert sentinel not in result.stderr + result.stdout

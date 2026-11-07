@@ -10,7 +10,7 @@
 
 **Spec:** [用户已批准的共同设计](C:/Users/70367/.codex/worktrees/xiaohe-auth-card/yunhezhiyuan-portal/docs/superpowers/specs/2026-11-06-xiaohe-lifecycle-history-design.md)；唯一 wire 来源为 [共享主契约 §12](D:/Code/yunhezhiyuan-agents/docs/contracts/2026-11-03-xiaohe-integration-v1.md)。此计划不复制另一份 DTO 规范。
 
-状态：2026-11-07，北京时间，**用户已回复“审阅通过”，三工程计划已批准，按各工程原生方式执行**。稳定基线已交接，AI 已完成 Task 1–6，继续 Task 7；未完成的勾选和下列命令仍不代表已经执行或通过。用户追加允许按需 WSL 隔离部署；现有真人体验库、正式入口与开关保持不变，不自动短信、不建真实账号、不调用模型。
+状态：2026-11-07，北京时间，**用户已回复“审阅通过”，三工程计划已批准，按各工程原生方式执行**。稳定基线已交接，AI 已完成 Task 1–7 本工程实现与隔离验证，最终独立审查进行中；新入口门户浏览器、物理文件及真实 SSO 单列待验证；未完成的勾选和下列命令仍不代表已经执行或通过。用户追加允许按需 WSL 隔离部署；现有真人体验库、正式入口与开关保持不变，不自动短信、不建真实账号、不调用模型。
 
 ## Global Constraints
 
@@ -160,15 +160,19 @@ Task 1（统一契约/基线）→ Task 2（数据/身份）→ Task 3（公共a
 
 **Interfaces:** 只组合前述公共REST/AGUI DTO；证据分别记录 source/test/fixture、真实服务/浏览器/模型/部署及人工验收，后几项没有执行则明确未验证。
 
-- [ ] **Step 1:** 写 `test_offline_lifecycle_history_journey`：匿名20→模拟4h→余80→mock可信登录/claim→35条10/10/10/5→旧card授权定位→同8hcomplete重试；所有身份/文件为隔离fixture，无真实手机号。另覆盖第100回复/第101、claim/清理并发、V1/V2共预算和迟到页，任何自动外网调用立即fail。协议fixture另覆盖缓存旧窗口后离线新增25条再重连：新olderCursor能补齐间隔，不能从本地最老ID跳过；CUSTOM delta与标准TEXT事件只记一次。
-- [ ] **Step 2:** 隔离库运行 `uv run --no-sync pytest tests/xiaohe/test_lifecycle_history_journey.py -v`，预期FAIL后仅补组合缺口，不扩大业务功能；同命令预期PASS。
-- [ ] **Step 3:** 运行本计划所列新测试与已有受影响身份/admission/expiry/claim/event/AGUI/文件授权回归及Runtime类型/测试一次；只在新失败或新改动时重跑相关项。物理对象清理如需MinIO，另用批准的可丢弃实例，未有则列为待验收，不偷用当前服务。
-- [ ] **Step 4:** 与门户Owner交换生成fixture/契约版本、历史/事件水位序列和activeInput定位例子，待其在批准隔离环境完成滚动锚点/账号错配/顶层SSO/重开浏览器验证。SSO只复用现有框架；AI不代部署三工程，不把旧G2算作新分页通过。
-- [ ] **Step 5:** 写证据及runbook：Cookie有限期限、预算与正文的分离、识别边界、旧计数承接筛选、混合版本风险、回滚限制。**真实库承接/部署为独立后续动作，不在本计划自动执行**；新运行时回退也必须保留公共预算控制，不能退回发新100的老admission。
-- [ ] **Step 6:** 仅提交本任务文件，`git commit -m "test(xiaohe): verify isolated lifecycle and history flows"`；依据用户追加授权普通推送 `origin/dev-fengfeng` 并核对远端 SHA，不 merge/release 或切换现有服务。报告准确通过项/待验证项并交用户审阅，部署开关仍关闭。
+- [x] **Step 1:** 写 `test_offline_lifecycle_history_journey`：匿名20→模拟4h→余80→mock可信登录/claim→35条10/10/10/5→旧card授权定位→同8hcomplete重试；所有身份/文件为隔离fixture，无真实手机号。另覆盖第100回复/第101、claim/清理并发、V1/V2共预算和迟到页，任何自动外网调用立即fail。协议fixture另覆盖缓存旧窗口后离线新增25条再重连：新olderCursor能补齐间隔，不能从本地最老ID跳过；CUSTOM delta与标准TEXT事件只记一次。
+- [x] **Step 2:** 隔离库运行 `uv run --no-sync pytest tests/xiaohe/test_lifecycle_history_journey.py -v`，预期FAIL后仅补组合缺口，不扩大业务功能；同命令预期PASS。
+- [x] **Step 3:** 运行本计划所列新测试与已有受影响身份/admission/expiry/claim/event/AGUI/文件授权回归及Runtime类型/测试一次；只在新失败或新改动时重跑相关项。物理对象清理如需MinIO，另用批准的可丢弃实例，未有则列为待验收，不偷用当前服务。
+- [x] **Step 4:** 与门户Owner交换生成fixture/契约版本、历史/事件水位序列和activeInput定位例子，待其在批准隔离环境完成滚动锚点/账号错配/顶层SSO/重开浏览器验证。SSO只复用现有框架；AI不代部署三工程，不把旧G2算作新分页通过。
+- [x] **Step 5:** 写证据及runbook：Cookie有限期限、预算与正文的分离、识别边界、旧计数承接筛选、混合版本风险、回滚限制。**真实库承接/部署为独立后续动作，不在本计划自动执行**；新运行时回退也必须保留公共预算控制，不能退回发新100的老admission。
+- [x] **Step 6:** 仅提交本任务文件，`git commit -m "test(xiaohe): verify isolated lifecycle and history flows"`；依据用户追加授权普通推送 `origin/dev-fengfeng` 并核对远端 SHA，不 merge/release 或切换现有服务。报告准确通过项/待验证项并交用户审阅，部署开关仍关闭。
 
 ## 计划自查与执行门
 
 已按共同设计§4/§5/§6/§7逐项映射：通道ready/EOF→Task6；SSO恢复/原8h→Task5及SSO依赖；长期预算/存量/过期→Task2/3；真分页/卡片/水位→Task4/6；V1兼容→Task1/5/6；组合证据→Task7。五项Review Focus各有具名测试；未把门户滚动、打开意图、前端发送守卫或中心认证实现算成AI代码任务。
 
 用户已批准三工程计划，原生执行方式不再重新询问，使用 `superpowers:executing-plans`。2026-11-07 接待稳定基线41598965已交回且开工门满足，Task 1–6已逐项按RED/GREEN执行；迁移0010及全部PG验证只在新专用可丢弃库进行，未升级现有真人库或切换服务。后续继续Task 7。每项结果写入本计划专属 ledger，不把审批记录视为 Task 1 或新增功能已完成。
+
+## Task 7 执行结果（2026-11-07）
+
+新组合3项通过；整批可移植回归704项通过、启动隐私子进程一项在原15s上限下超时，测试上限调整45s后单项11.27s通过（隐私断言与产品代码未改），不是一次705项整批全绿。原issuer/Origin脚本8项在独占PG内另建原允许测试库名后通过，未放宽SQL保护；6项WSL路径解码/Compose检查环境阻塞，10项物理MinIO未选。Runtime71项、类型和构建通过。新18593 HTTPS实际API/PG/worker/Runtime文字链路通过，模型/中心均替身，物理对象未配置；门户新入口浏览器待原生固定构建。详见验证记录和机器证据，未切换现有服务/真实库/正式开关。
