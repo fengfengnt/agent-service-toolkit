@@ -10,7 +10,7 @@
 
 **Spec:** [用户已批准的共同设计](C:/Users/70367/.codex/worktrees/xiaohe-auth-card/yunhezhiyuan-portal/docs/superpowers/specs/2026-11-06-xiaohe-lifecycle-history-design.md)；唯一 wire 来源为 [共享主契约 §12](D:/Code/yunhezhiyuan-agents/docs/contracts/2026-11-03-xiaohe-integration-v1.md)。此计划不复制另一份 DTO 规范。
 
-状态：2026-11-07，北京时间，**用户已回复“审阅通过”，三工程计划已批准，按各工程原生方式执行**。稳定基线已交接，AI 已完成 Task 1–7 本工程实现与隔离验证，最终独立审查通过（无 Critical/Important/Minor）；新入口专用 Chrome 匿名生命周期已验；物理文件、真实会员 SSO 和目标部署仍待验证；未完成的勾选和下列命令仍不代表已经执行或通过。用户追加允许按需 WSL 隔离部署；现有真人体验库、正式入口与开关保持不变，不自动短信、不建真实账号、不调用模型。
+状态：2026-11-07，北京时间，**用户已回复“审阅通过”，三工程计划已批准，按各工程原生方式执行**。稳定基线已交接，AI 已完成 Task 1–7 本工程实现与隔离验证，最终独立审查通过（无 Critical/Important/Minor）；新入口专用 Chrome 匿名生命周期已验；原 10 项物理接待文件与 6 项 Compose 已补测通过；真人会员/浏览器文件整链及目标部署仍待验证；未完成的勾选和下列命令仍不代表已经执行或通过。用户追加允许按需 WSL 隔离部署；现有真人体验库、正式入口与开关保持不变，不自动短信、不建真实账号、不调用模型。
 
 ## Global Constraints
 
@@ -180,3 +180,7 @@ Task 1（统一契约/基线）→ Task 2（数据/身份）→ Task 3（公共a
 ## 匿名 Chrome 生命周期补充（2026-11-07）
 
 门户固定候选在新18593完成41条真实分页、同profile实际进程关闭重开，20/100余80保持；收到明确通知后只在本轮精确preview库模拟指定guest截止，原expire/purge将waiting_input→expired、41条正文清理、预算与20回执保留。浏览器最终Node exit0确认新CID/欢迎1/输入可用/无第21条；Root另只读核对新周期和同Budget。历史旧CID请求错误码没有保存，明确不声称已观测410。实际宿主为Windows原生API/worker/Runtime/gateway＋WSL Docker独占PG，不是容器全栈发布；真实24h、running取消、本轮会员SSO、物理存储与6项WSL Compose仍列边界。见最新操作和机器证据，未重跑已过单测或切换现有服务。
+
+## 资源门恢复后的补测（2026-11-07）
+
+SSO runner退出后Root复核当前头寸/端口/容器名，另建限资源、tmpfs、无真实卷的独占MinIO，仅用本轮测试库/新bucket/限定app凭据。原10物理接待文件用例10PASS12.68s，原6WSL阻塞Compose解析6PASS5.58s，无产品/测试源码改动、不改preview或正式配置；私有桶/跨桶403与服务保护只读检查通过。原729项主目录用例均有分批绿证据（704+1+8+6+10），不是一次729整批全绿。运行资源/日志/哈希详见最新操作和机器证据；真实会员/浏览器文件/Java整链、真实24h与正式发布仍不在本轮结论内。

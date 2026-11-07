@@ -11,7 +11,8 @@
 | Runtime | 类型检查、71 项 Node 测试及构建通过；未更换依赖 | 浏览器交互验收 |
 | 新进程网络 | 新 HTTPS → Runtime → API → PG → worker → 受控图 → `RUN_FINISHED`；验证 CA、主机名和 V2 回显 | 真实模型/短信/SSO、正式 readiness 或业务受理 |
 | 浏览器 | 门户专用 Chrome 匿名分页、真关开、模拟到期后恢复通过，Root 只读核对新周期与原预算 | 真实会员 SSO、真实 24h 流逝、旧 CID 原错误状态或物理文件验收 |
-| 对象存储 | 本轮预览尚未配置；文件版本引用为合成 fixture | 已验证物理上传、下载、归并或删除 |
+| 对象存储 | 独占 MinIO 的原 10 项接待文件物理回归通过；真实对象存储＋产品领域/ASGI API，身份/中心为替身 | 真人浏览器上传、真实会员/Java 文件整链；18593 预览仍未接入存储 |
+| Compose | 先前受 WSL 阻塞的 6 项解析检查已补跑通过 | 该 Compose 已 up、镜像发布或正式目标已切换 |
 | 正式环境 | 未变更 | 已上线 |
 
 机器可读摘要见 [验收证据](../evidence/2026-11-06-lifecycle-history.json)。原始日志在本计划独有、Git 忽略的 `.superpowers/sdd/2026-11-06-xiaohe-lifecycle-history-ai-runtime/`；不提交配置、Cookie、认证响应或密钥。
@@ -43,6 +44,31 @@ npm --prefix copilot-runtime run build
 
 复跑结果为 **704 项通过、1 项启动隐私测试超时**；后者在整批高负载下再次超过原 15s，故仅将测试子进程上限改为 45s，原断言和产品启动器不变，随后该项 11.27s 通过。这是「704 项整批通过 + 1 项定向恢复」，不是一次 705 项整批全绿。未因测试环境问题改动真实 Compose、WSL 或运行服务。
 
+### 2026-11-07 资源恢复后的原范围补测
+
+中心 runner 正常退出后，Root 再检查当前内存、缓存镜像、端口及容器名：可用 2854932 KiB，创建前复核 2843288 KiB；Windows/WSL 的 35548 均空，`xiaohe-agent-test-minio` 在本轮创建前不存在。仅新增该独占容器（ID `aee79bf7a4fd4267c6ca85f550b6a0f536b225c7e840ca76247552016738ac7c`，scope `xiaohe-lifecycle-v2-20261107`），复用缓存镜像 digest `69b55a1c…`，不拉取镜像、不借旧容器或真实卷。限制 512 MiB、1 CPU、128 PID，数据使用 256 MiB tmpfs、无命名卷，仅绑定回环 35548。
+
+新建私有 bucket `test-xiaohe-lifecycle-20261107` 和仅可读写该 bucket `xiaohe/*` 的 app 凭据；匿名列桶返回 403，app 访问另一个桶返回 403。首次命令因 WSL 拒绝 `/dev/stdin` 环境文件而在创建容器前失败，确认无资源后，使用同一组本轮私有凭据文件修正一次成功，没有旋转凭据或输出密钥。私有配置不纳入 Git 或交接正文。
+
+原 10 项物理文件用例 **10 passed / 4 非目标 deselected，12.68s**；原 6 项受阻 Compose 解析检查 **6 passed / 6 非目标 deselected，5.58s**。无产品或测试源码修补。前者覆盖真实 32 MiB 上传/下载、越权、并发写入不覆盖、上传中到期、到期对象及行清理、合成 claim 文件归并和独立运营读取授权；后者只解析临时 Compose 配置，没有 `up` 或部署。
+
+这批物理测试只用 `test_xiaohe_lifecycle_20261107`，绝不使用浏览器预览库。18593 的配置和存储连接未改；补测后只读核对预览仍是 20 次、欢迎 1 条。新 MinIO running、无 OOM，可用内存 2715040 KiB。四共享服务均 running、restart_count 为 0、启动时间早于新 MinIO；Root 本次只读核对，没有冒称自行比较前一批 ID。原始日志为 `minio-physical-tests.log`、`compose-recovered-tests.log`，公开资源/权限/保护检查在 `preview/minio/`，保留资源与证据，未清理现有数据。
+
+按原主目录收集范围（不含 `integration/`），**729 个不同用例现在都有分批通过证据**：704＋启动隐私定向 1＋受保护 SQL 8＋Compose 补测 6＋物理文件 10。已核对用例集合无重复计数；不能写为一次 729 项整批全绿。Runtime 的 71 项及 task-done 12 项是另外的运行/重叠证据，不再加进 729。
+
+```powershell
+# 两个变量只指本轮测试资源；MinIO 配置文件为本机私有，不提交内容。
+$env:XIAOHE_TEST_MINIO_CONFIG = Join-Path (Get-Location) '.superpowers/sdd/2026-11-06-xiaohe-lifecycle-history-ai-runtime/preview/minio/test-config.json'
+uv run --no-sync pytest tests/xiaohe/test_reception_files.py tests/xiaohe/test_reception_file_access.py tests/xiaohe/test_reception_file_lifecycle.py -m minio -v --disable-warnings
+uv run --no-sync pytest tests/xiaohe/test_deploy_contract.py -k 'test_images_are_pinned_and_processes_separate or test_deployment_names or test_secrets_not_in_browser_or_logs' -v --disable-warnings
+```
+
+以上关闭了先前 6 项环境阻塞和 10 项未选物理用例的本轮缺口，保留前述首次失败历史；不扩大为真人文件整链、预览浏览器上传或正式发布通过。
+
+补测结束后，门户明确确认没有正在运行或已排定的 35548 依赖，Root 两个测试进程均已退出、无已建立的测试连接，预览仍未配置存储。再次核对完整容器 ID、scope label、镜像、仅回环 35548、`Mounts=[]`、`Binds=null` 及精确 `HostConfig.Tmpfs` 两项后，仅按该完整 ID 停止并移除这个新临时 MinIO；没有 `-f`、`-v`、全局 prune 或其他资源清理。首次挂载检查因 Docker 将 tmpfs 放在 `HostConfig.Tmpfs` 而非 `Mounts` 中拒绝执行，核明实际表示后保持真实卷禁止条件；停机返回 0 后又回读 `exited`，不依赖 CLI 文本作为停机证明。
+
+移除证据位于 `preview/minio/teardown.json`。日志、私有凭据配置、公开资源快照及 `preview/provision_minio.py` 保留，四个新预览进程 PID/启动时间保持，PG/profile/冻结静态根与旧 Runtime 树均未动。若需复现，先重新核资源和端口，在本计划新的空子目录复制同一 provisioning 脚本，让其在新的 `minio/` 目录生成配置，再指向该新配置运行上面的同一批用例；旧证据/私有配置目录不得覆盖或删除。
+
 ## 新隔离网络入口
 
 - 公开 Origin：`https://portal.lvh.me:18593`；API `127.0.0.1:18091`，Runtime `127.0.0.1:18092`，新 TLS gateway `127.0.0.1:18593`。
@@ -59,6 +85,8 @@ npm --prefix copilot-runtime run build
 ### 2026-11-07 冻结门户静态候选
 
 门户交付 `d264fcc610b6afa478604d9f2ddcbc5706553eae` 加候选 working diff `34e1b80a96febd2f12473beb61b6302a6ee4280227d623b68920c5f852fe7e19` 的冻结构建，不能标成已推送的 Git 版本。静态根为门户本计划 `.superpowers/sdd/2026-11-06-xiaohe-lifecycle-history-portal/preview-dist`，已被新网关引用，清理前必须保留。
+
+后续门户已普通推送产品提交 `bfa1dda6070eb5c24baca847cb115144ec4783d6` 和文档提交 `a30adb0d4025e08494981a33b6778b43ad79a92a`，Owner 核对冻结构建产品树与最终产品提交相同，树 SHA256 为 `da005ef51339c30ef9dae7524afa101c2a64277f8fbb29ef111c7337bae871af`。保留原挂载时的候选身份记录，不倒改历史；本工程另核固定 V2 schema Git LF SHA256 `3e6d17c61b0d682987931dce12a6379cc126dd74277f60a9a454dbac0a5dfacf` 与门户消费一致。
 
 只修改本次新网关配置的 `portal_root` 并重启该网关，未重启 API/worker/Runtime。精确核验旧 listener PID 31696 的来源后停止，新 listener PID 16520、launcher PID 44744；其他三个进程及启动时间保持。原 443/18110/18111、真人窗口、共享配置与正式开关未变。
 

@@ -3,7 +3,7 @@
   "branch": "dev-fengfeng",
   "base": "41598965d0633924ffcb6ff9cb80a92d58466887",
   "businessSourceCommit": "f7b36e7abf04ef94482e4b03166dd8f4b0c27ac8",
-  "task7Status": "engineering_complete_environment_acceptance_partial",
+  "task7Status": "engineering_and_isolated_scope_complete_real_deployment_and_member_acceptance_not_performed",
   "contract": {
     "rawSha256": "3435d508e3401ba42359e191ff0b90a96f18c05102274a78e9dcce1fa45d6ca9",
     "fixtureSha256": "c5287adfad6bb5318a0a67c2b6ee745728c4daab33b67ec063a2c402715efb6e",
@@ -64,7 +64,12 @@
         "tests/xiaohe/test_deploy_contract.py::test_secrets_not_in_browser_or_logs[9.8.7]"
       ],
       "minimalError": "UnicodeDecodeError: utf-8 byte0x8e atposition2 in wslpath stdout; separate read-only wslpath timeout20s",
-      "composeAndProtectedSqlUnchangedFromBase": true
+      "composeAndProtectedSqlUnchangedFromBase": true,
+      "status": "recovered: six selected cases passed after WSL path bridge recovered",
+      "recoveryLogSha256": "d0418738ca1fe2abbc156534801458c3eba0379477a298fb88c2764e015283ed",
+      "recoveryPassed": 6,
+      "recoverySeconds": 5.58,
+      "sourceFixRequired": false
     },
     "launcherRecovery": {
       "passed": 1,
@@ -77,6 +82,56 @@
       "passed": 12,
       "seconds": 38.71,
       "logSha256": "ad43af34836d4414dcd57e555561d4469f055b9418224d0a715b3ff52f50c1e7"
+    },
+    "physicalReceptionFiles": {
+      "passed": 10,
+      "deselectedNonTarget": 4,
+      "seconds": 12.68,
+      "logSha256": "c3c6a65fa8423441fc574ea5a67d02068bf1751c484c59d8ccaff800f61b61e7",
+      "nodeids": [
+        "tests/xiaohe/test_reception_file_access.py::test_corrupt_application_reference_cannot_expose_another_owners_file",
+        "tests/xiaohe/test_reception_file_access.py::test_failed_optional_upload_does_not_block_minimum_submission",
+        "tests/xiaohe/test_reception_file_access.py::test_historic_file_survives_edit_detach_and_wrong_operational_binding_is_denied",
+        "tests/xiaohe/test_reception_file_access.py::test_http_file_access_uses_cookie_or_independent_operational_credential",
+        "tests/xiaohe/test_reception_file_lifecycle.py::test_expired_guest_cleans_reception_objects_and_private_rows",
+        "tests/xiaohe/test_reception_file_lifecycle.py::test_login_claim_preserves_draft_and_private_file_in_target_conversation[False]",
+        "tests/xiaohe/test_reception_file_lifecycle.py::test_login_claim_preserves_draft_and_private_file_in_target_conversation[True]",
+        "tests/xiaohe/test_reception_files.py::test_expired_owner_during_upload_cannot_become_ready",
+        "tests/xiaohe/test_reception_files.py::test_parallel_upload_does_not_overwrite_first_ready_object",
+        "tests/xiaohe/test_reception_files.py::test_real_private_upload_download_boundaries_and_detach"
+      ],
+      "pgDatabase": "test_xiaohe_lifecycle_20261107",
+      "previewDbUsed": false,
+      "objectStore": "real dedicated WSL Docker MinIO",
+      "apiLayer": "product domain and ASGI HTTP in-process with synthetic identities/MockBridge",
+      "realMemberOrBrowserFileChain": false
+    },
+    "composeRecovery": {
+      "passed": 6,
+      "deselectedNonTarget": 6,
+      "seconds": 5.58,
+      "logSha256": "d0418738ca1fe2abbc156534801458c3eba0379477a298fb88c2764e015283ed",
+      "nodeids": [
+        "tests/xiaohe/test_deploy_contract.py::test_deployment_names[9.8.7]",
+        "tests/xiaohe/test_deploy_contract.py::test_deployment_names[None]",
+        "tests/xiaohe/test_deploy_contract.py::test_images_are_pinned_and_processes_separate[9.8.7]",
+        "tests/xiaohe/test_deploy_contract.py::test_images_are_pinned_and_processes_separate[None]",
+        "tests/xiaohe/test_deploy_contract.py::test_secrets_not_in_browser_or_logs[9.8.7]",
+        "tests/xiaohe/test_deploy_contract.py::test_secrets_not_in_browser_or_logs[None]"
+      ],
+      "composeUpExecuted": false
+    },
+    "mainDirectorySplitCoverage": {
+      "scope": "tests/xiaohe main directory, excluding integration directory",
+      "originalCollected": 729,
+      "broadPortablePassed": 704,
+      "launcherTargetedPassed": 1,
+      "guardedSqlPassed": 8,
+      "composeRecoveredPassed": 6,
+      "physicalPassed": 10,
+      "totalDistinctCasesWithPassingEvidence": 729,
+      "singleMonolithicRun": false,
+      "noProductOrTestSourceChangesInStorageFollowup": true
     }
   },
   "preview": {
@@ -165,6 +220,15 @@
       "runtime18092": "Windows native Node",
       "pg35547": "WSL Ubuntu Docker: xiaohe-v2-pg-20261107",
       "dockerStackDeployed": false
+    },
+    "frontendSourceDelivery": {
+      "productCommit": "bfa1dda6070eb5c24baca847cb115144ec4783d6",
+      "deliveryDocsCommit": "a30adb0d4025e08494981a33b6778b43ad79a92a",
+      "reportedRemoteMatches": true,
+      "reportedProductTreeSha256": "da005ef51339c30ef9dae7524afa101c2a64277f8fbb29ef111c7337bae871af",
+      "sameFrozenBuildProductTreeVerifiedBy": "Portal Owner; original mount manifest retained as historical candidate identity",
+      "rawContractSha256": "3435d508e3401ba42359e191ff0b90a96f18c05102274a78e9dcce1fa45d6ca9",
+      "schemaGitLfSha256": "3e6d17c61b0d682987931dce12a6379cc126dd74277f60a9a454dbac0a5dfacf"
     }
   },
   "previewDatabase": "test_xiaohe_reception_v2_preview_20261107",
@@ -208,7 +272,7 @@
   "notPerformed": [
     "real SSO/callback/code exchange",
     "real member browser session",
-    "physical object storage validation",
+    "real-member/browser physical file end-to-end validation",
     "real model",
     "SMS",
     "real account creation",
@@ -220,10 +284,11 @@
   "realBusinessDataChanged": false,
   "limitations": [
     "This is 704 broad passes plus one targeted recovery, not a single all-green 705-case invocation",
-    "Six WSL Compose cases blocked",
-    "Ten physical MinIO cases not selected",
     "Anonymous Chrome lifecycle PASS; historical old-CID failure status not retained (access logs disabled), no claimed410 sequence",
-    "No real SSO or deployment"
+    "No real SSO or deployment",
+    "729 main-directory cases have distinct split passing evidence, not one729-case invocation",
+    "10 physical reception-file tests cover real storage with product domain/ASGI; no browser real-member/Java full file chain",
+    "Preview API still has no storage configured; no existing or preview configuration changed to make tests pass"
   ],
   "previewListeners": [
     {
@@ -444,5 +509,110 @@
       "notASecondBrowserRun": true
     }
   },
-  "anonymousLifecycleAcceptance": "PASS within dedicated synthetic Windows-native+WSL-PG preview; real24h/running cancellation/memberSSO/physical files/deployment not implied"
+  "anonymousLifecycleAcceptance": "PASS within dedicated synthetic Windows-native+WSL-PG preview; real24h/running cancellation/memberSSO/physical files/deployment not implied",
+  "isolatedPhysicalStorage": {
+    "resource": {
+      "containerId": "aee79bf7a4fd4267c6ca85f550b6a0f536b225c7e840ca76247552016738ac7c",
+      "name": "xiaohe-agent-test-minio",
+      "image": "ghcr.io/coollabsio/minio@sha256:69b55a1c1c5dc285ce04db96689f5b2102317fc77a50680a1874ca6efd1c87f9",
+      "port": 35548,
+      "memoryMiB": 512,
+      "tmpfsMiB": 256,
+      "namedVolumes": false,
+      "freshMemAvailableKiB": 2843288,
+      "scope": "xiaohe-lifecycle-v2-20261107"
+    },
+    "postHealth": {
+      "memAvailableKiB": 2715040,
+      "running": true,
+      "oomKilled": false,
+      "startedAt": "2026-11-07T12:04:06.654656536Z"
+    },
+    "privacyChecks": {
+      "anonymousBucketListing": 403,
+      "appForeignBucket": 403,
+      "credentialsPrinted": false
+    },
+    "previewPreserved": {
+      "previewStorageStillUnconfigured": true,
+      "previewDbStillIndependent": true,
+      "messageCount": 20,
+      "budgetCount": 20,
+      "newWelcomeMessages": 1,
+      "readOnly": true
+    },
+    "protectedServicesAfter": {
+      "services": [
+        {
+          "name": "/yunhezhiyuan-serverbackend-0.1.6",
+          "id": "db804e5517ce15dd7faa1a78e774f7e9b2445605270b3baac7aa84ae72469672",
+          "image": "yunhezhiyuan-serverbackend:0.1.6",
+          "status": "running",
+          "startedAt": "2026-11-06T15:50:42.485056482Z",
+          "restartCount": 0
+        },
+        {
+          "name": "/yunhezhiyuan-serverbackend-mysql",
+          "id": "d22d19b53087f21c0a09d78d5d896d7e35dc76f974e78e7adc8a33826c055b5e",
+          "image": "mysql@sha256:76f0358884cb92d9a086d24e5671c38048d3fef40f2588703d73eb55392d6b69",
+          "status": "running",
+          "startedAt": "2026-11-05T03:47:20.965442384Z",
+          "restartCount": 0
+        },
+        {
+          "name": "/yunhezhiyuan-serverbackend-redis",
+          "id": "1d1bfa48c3bf0fc957cd4c8168dab3f61087c80c06bb8cfc5471ee2b4348aad8",
+          "image": "redis@sha256:592b215e9287182f11ba9d7c229dc0ba312bb900a016ea65ae378b0127567319",
+          "status": "running",
+          "startedAt": "2026-11-05T03:47:21.052393113Z",
+          "restartCount": 0
+        },
+        {
+          "name": "/yunhezhiyuan-nginx",
+          "id": "5c2b88cf5a331f2be3ac08e02f1a355d58e78401faf3233025744387a8811445",
+          "image": "nginx@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2",
+          "status": "running",
+          "startedAt": "2026-11-05T03:47:21.023929945Z",
+          "restartCount": 0
+        }
+      ],
+      "allStartedBeforeNewMinio": true,
+      "allRestartCount0": true,
+      "baselineIdComparisonByRoot": false
+    },
+    "testBucket": "test-xiaohe-lifecycle-20261107",
+    "previewStorageConfigured": false,
+    "privateCredentialsCommittedOrPrinted": false,
+    "privateSetupConfigNotIncluded": true,
+    "provisioningFirstAttempt": "WSL denied /dev/stdin env-file before container creation; reused same private fixture credentials via private env file on single retry",
+    "existingContainerOrVolumeReused": false,
+    "dockerImagePulled": false,
+    "productionRelease": false,
+    "teardown": {
+      "removed": true,
+      "containerId": "aee79bf7a4fd4267c6ca85f550b6a0f536b225c7e840ca76247552016738ac7c",
+      "checkedName": "/xiaohe-agent-test-minio",
+      "checkedScope": "xiaohe-lifecycle-v2-20261107",
+      "checkedImage": "sha256:69b55a1c1c5dc285ce04db96689f5b2102317fc77a50680a1874ca6efd1c87f9",
+      "checkedPort": 35548,
+      "checkedMounts": [],
+      "checkedHostTmpfs": {
+        "/data": "rw,size=256m",
+        "/tmp": "rw,size=64m"
+      },
+      "checkedBinds": null,
+      "statusBeforeRm": "exited",
+      "noNamedOrRealVolumes": true,
+      "stopAndRemoveByFullId": true,
+      "forceOrVolumeRemoveUsed": false,
+      "portalNoConsumersConfirmed": true,
+      "rootTestsComplete": true,
+      "noPreviewStorageConfigured": true,
+      "logsPrivateConfigAndScriptPreserved": true,
+      "removedAtUtc": "2026-11-07T12:26:56.335084+00:00",
+      "cleanupGuardNotes": "First guard rejected assumed tmpfs representation; actual Mounts empty with exact HostConfig.Tmpfs and no Binds verified. Stop returned0; actual exited state confirmed instead of relying on CLI text."
+    },
+    "currentResourceState": "removed after confirmed no consumers; evidence/private config/provision script retained",
+    "portalDependencyAcknowledgement": "Portal Owner confirmed no running or scheduled35548 tests; driver count0 and preview unconfigured"
+  }
 }
