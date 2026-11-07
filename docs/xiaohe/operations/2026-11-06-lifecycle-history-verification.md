@@ -54,6 +54,8 @@ npm --prefix copilot-runtime run build
 
 门户只在全新 context 访问该入口。无 Cookie 时 `POST /ai-api/v1/session`，带新 Origin 和 `X-Xiaohe-View-Version: 2`；随后按响应 `csrf.headerName/token` 发送受保护请求。不复用旧窗口的真人 Cookie，不访问真实短信/中心端点，不重复提交原申请。
 
+**换端口不隔离同主机 Cookie。** 本次仍用 `portal.lvh.me`，因此必须用本计划独占的新 Chrome profile/context；不能在真人 profile 打开 18593，也不能混入原 443 Cookie。Root 网络探针均用新建空 Cookie jar，门户计划用独占 persistent profile 验证真实浏览器进程关闭/重开，仅记录 Cookie 属性和计数，不导出 Cookie 或 storageState。浏览器证据以门户固定回执为准。
+
 ## 契约、事件与分页交接
 
 唯一主契约为父目录 `docs/contracts/2026-11-03-xiaohe-integration-v1.md`，仓库同名文件是逐字镜像；当前 raw SHA256：`3435d508e3401ba42359e191ff0b90a96f18c05102274a78e9dcce1fa45d6ca9`。原 V1 机器块 SHA256 仍为 `a1f5b073149da2d9fa33f5174f9c11821ef0f47a4b239377bb869b6252a14aaa`。旧 raw `6446…` 只保留为早期记录。

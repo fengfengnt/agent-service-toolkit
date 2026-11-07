@@ -3,7 +3,7 @@
   "branch": "dev-fengfeng",
   "base": "41598965d0633924ffcb6ff9cb80a92d58466887",
   "businessSourceCommit": "f7b36e7abf04ef94482e4b03166dd8f4b0c27ac8",
-  "task7Status": "source_and_isolated_verification_complete_pending_fresh_review",
+  "task7Status": "engineering_complete_environment_acceptance_partial",
   "contract": {
     "rawSha256": "3435d508e3401ba42359e191ff0b90a96f18c05102274a78e9dcce1fa45d6ca9",
     "fixtureSha256": "c5287adfad6bb5318a0a67c2b6ee745728c4daab33b67ec063a2c402715efb6e",
@@ -54,7 +54,17 @@
     "blocked": {
       "composeCases": 6,
       "reason": "WSL wslpath UTF-8 decode error; separate read-only WSL resource gate timed out",
-      "existingServiceRestarted": false
+      "existingServiceRestarted": false,
+      "nodeids": [
+        "tests/xiaohe/test_deploy_contract.py::test_images_are_pinned_and_processes_separate[None]",
+        "tests/xiaohe/test_deploy_contract.py::test_deployment_names[None]",
+        "tests/xiaohe/test_deploy_contract.py::test_secrets_not_in_browser_or_logs[None]",
+        "tests/xiaohe/test_deploy_contract.py::test_images_are_pinned_and_processes_separate[9.8.7]",
+        "tests/xiaohe/test_deploy_contract.py::test_deployment_names[9.8.7]",
+        "tests/xiaohe/test_deploy_contract.py::test_secrets_not_in_browser_or_logs[9.8.7]"
+      ],
+      "minimalError": "UnicodeDecodeError: utf-8 byte0x8e atposition2 in wslpath stdout; separate read-only wslpath timeout20s",
+      "composeAndProtectedSqlUnchangedFromBase": true
     },
     "launcherRecovery": {
       "passed": 1,
@@ -62,6 +72,11 @@
       "testTimeoutSeconds": 45,
       "privacyAssertionsChanged": false,
       "logSha256": "4e1a8e4443d110c8229dac273d83a6f5f09a33bbf8bd69c23277ad83cfed7429"
+    },
+    "taskDone": {
+      "passed": 12,
+      "seconds": 38.71,
+      "logSha256": "ad43af34836d4414dcd57e555561d4469f055b9418224d0a715b3ff52f50c1e7"
     }
   },
   "preview": {
@@ -90,7 +105,23 @@
     "networkMode": "loopback HTTP + verified dedicated TLS only; fake model/bridge",
     "objectStorage": "unconfigured",
     "realSso": false,
-    "browser": false
+    "browser": false,
+    "cookieIsolation": "Same hostname: port does not isolate cookies; new dedicated Chrome profile/context required. Root probes used empty independent jars; no old cookie imported.",
+    "welcomeStructure": {
+      "activeRun": null,
+      "activeInput": null,
+      "guestCount": 0,
+      "partTypes": [
+        "text",
+        "suggestions"
+      ],
+      "suggestionIds": [
+        "buyer",
+        "organization",
+        "supplier"
+      ],
+      "normalSuggestionSendCharged": 1
+    }
   },
   "previewDatabase": "test_xiaohe_reception_v2_preview_20261107",
   "previewProcesses": [
@@ -149,5 +180,55 @@
     "Ten physical MinIO cases not selected",
     "Native Portal browser against new18593 build pending",
     "No real SSO or deployment"
-  ]
+  ],
+  "previewListeners": [
+    {
+      "kind": "gateway",
+      "host": "127.0.0.1",
+      "port": 18593,
+      "pid": 31696,
+      "parentPid": 65608,
+      "created": "2026-11-07T18:33:35.4154090+08:00"
+    },
+    {
+      "kind": "runtime",
+      "host": "127.0.0.1",
+      "port": 18092,
+      "pid": 69272,
+      "parentPid": 77160,
+      "created": "2026-11-07T18:33:35.2346960+08:00"
+    },
+    {
+      "kind": "api",
+      "host": "127.0.0.1",
+      "port": 18091,
+      "pid": 67888,
+      "parentPid": 38028,
+      "created": "2026-11-07T18:33:35.2741150+08:00"
+    },
+    {
+      "kind": "worker",
+      "pid": 41784,
+      "parentPid": 2196,
+      "created": "2026-11-07T18:33:35.3195620+08:00"
+    }
+  ],
+  "finalReview": {
+    "base": "41598965d0633924ffcb6ff9cb80a92d58466887",
+    "head": "9825c879939f0f2fbd669824508f62dfa90d2f16",
+    "freshContext": true,
+    "readOnly": true,
+    "critical": 0,
+    "important": 0,
+    "minor": 0,
+    "testsRerunByReviewer": false,
+    "record": "2026-11-06-lifecycle-history-review.md"
+  },
+  "deliveryChecks": {
+    "businessCodeUnchangedSinceF7": true,
+    "masterMirrorEqual": true,
+    "jsonValid": true,
+    "retainedUntrackedCodegraph": true,
+    "formalAcceptance": false
+  }
 }
