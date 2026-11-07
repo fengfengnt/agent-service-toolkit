@@ -66,6 +66,16 @@ npm --prefix copilot-runtime run build
 
 此时仅证明冻结静态包已由新网关正确提供，专用 profile 的真实分页、20 次发送、彻底关闭重开及指定合成访客的模拟到期仍由后续证据判定。
 
+### 2026-11-07 专用 Chrome 与模拟到期
+
+实际宿主分层：API 18091、worker、TLS gateway 18593 均为 Windows 原生 Python 进程，Runtime 18092 为 Windows 原生 Node；只有 PG 35547 是本轮独占的 WSL Ubuntu Docker 容器。它是 Windows＋WSL 组合预览，不是整套 Docker 镜像部署通过。新物理 MinIO 仍未启动或配置。
+
+门户专用 persistent profile 的公开证据 `preview-before-expiry.json` 记录首次空 Cookie、严格 TLS、外站请求 0、受控发送恰 20 次；41 条消息通过真实 UI 分页补齐（10/10/10/10/1），ID/正文匹配，真实关闭 Chrome 后用同 profile 重开，仍是原 CID、20/100、余 80，首屏最近 10 条。首次驱动误将 loading 按钮当作分页结束，修正等待条件后复用原数据继续，未改产品或为测试重发消息；不隐去该次驱动失败。
+
+该合成访客的 Run 实际处于 `waiting_input`，不是 null 或全已完成。收到门户“重开已完成、可模拟到期”的明确通知后，Root 在精确 preview 库/host/port、guest scope、无认领、20/100、无 queued/running、无文件及恰 41 条的检查下，只把指定 Session 截止设为数据库当前时间前 1 秒，调用原 `expire_guests`。原函数将等待 Run 从 `waiting_input` 转成 `expired`、释放 slot 并写入到期事件，已在提交的事务内查询确认；随后原 `purge_expired_guest` 清理正文及 Run body。没有硬改 Run 状态或修改主机时钟。
+
+Root 清理后只读核对：旧 Session 有 `purged_at`、旧消息为 0，原预算仍为 20/100，20 条最小幂等回执保留。原始证据为本计划 `preview/synthetic-expiry-result.json`、`synthetic-expiry.log`、`expiry-readonly-after.json`；消息与 Run ID 均来自合成数据。此步骤不证明 running 执行停止，也不是真实 24h 流逝。浏览器旧 CID 到期后重新接待的最终表现仍等待门户追加证据。
+
 ## 契约、事件与分页交接
 
 唯一主契约为父目录 `docs/contracts/2026-11-03-xiaohe-integration-v1.md`，仓库同名文件是逐字镜像；当前 raw SHA256：`3435d508e3401ba42359e191ff0b90a96f18c05102274a78e9dcce1fa45d6ca9`。原 V1 机器块 SHA256 仍为 `a1f5b073149da2d9fa33f5174f9c11821ef0f47a4b239377bb869b6252a14aaa`。旧 raw `6446…` 只保留为早期记录。

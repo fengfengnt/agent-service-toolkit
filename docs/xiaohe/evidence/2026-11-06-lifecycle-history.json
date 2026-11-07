@@ -157,7 +157,15 @@
       "modelsCalled": false,
       "formalEntryChanged": false
     },
-    "protectedStaticRoot": "C:\\Users\\70367\\.codex\\worktrees\\xiaohe-auth-card\\yunhezhiyuan-portal\\.superpowers\\sdd\\2026-11-06-xiaohe-lifecycle-history-portal\\preview-dist"
+    "protectedStaticRoot": "C:\\Users\\70367\\.codex\\worktrees\\xiaohe-auth-card\\yunhezhiyuan-portal\\.superpowers\\sdd\\2026-11-06-xiaohe-lifecycle-history-portal\\preview-dist",
+    "hostPlatforms": {
+      "gateway18593": "Windows native Python",
+      "api18091": "Windows native Python",
+      "worker": "Windows native Python",
+      "runtime18092": "Windows native Node",
+      "pg35547": "WSL Ubuntu Docker: xiaohe-v2-pg-20261107",
+      "dockerStackDeployed": false
+    }
   },
   "previewDatabase": "test_xiaohe_reception_v2_preview_20261107",
   "previewProcesses": [
@@ -214,7 +222,7 @@
     "This is 704 broad passes plus one targeted recovery, not a single all-green 705-case invocation",
     "Six WSL Compose cases blocked",
     "Ten physical MinIO cases not selected",
-    "New18593 frozen frontend static verified; native Portal persistent-profile browser pending",
+    "Chrome paging/restart and reported expiry recovery evidenced; final driver/network/input-ready acknowledgement pending",
     "No real SSO or deployment"
   ],
   "previewListeners": [
@@ -266,5 +274,134 @@
     "jsonValid": true,
     "retainedUntrackedCodegraph": true,
     "formalAcceptance": false
+  },
+  "browserLifecycleValidation": {
+    "owner": "Portal Agent",
+    "sourceBeforeExpiry": "C:\\Users\\70367\\.codex\\worktrees\\xiaohe-auth-card\\yunhezhiyuan-portal\\.superpowers\\sdd\\2026-11-06-xiaohe-lifecycle-history-portal\\preview-before-expiry.json",
+    "sourceBeforeExpirySha256": "32da1ff1edfaccbe0780159c956c3f975ac4156f034d8fbab5e3217e313e8e13",
+    "origin": "https://portal.lvh.me:18593",
+    "httpsErrorsIgnored": false,
+    "profileInitiallyEmpty": true,
+    "profilePath": "C:\\Users\\70367\\.codex\\worktrees\\xiaohe-auth-card\\yunhezhiyuan-portal\\.superpowers\\sdd\\2026-11-06-xiaohe-lifecycle-history-portal\\preview-browser-profile-1794050458993",
+    "phasesBeforeExpiry": [
+      {
+        "name": "welcome",
+        "free": true,
+        "messageCount": 0,
+        "directions": [
+          "采购商",
+          "社群组织",
+          "供应商"
+        ]
+      },
+      {
+        "name": "paged-history",
+        "conversationId": "64b0e523-f30b-419c-b77c-6410164973e0",
+        "messageCount": 20,
+        "visible": 41,
+        "immutableTextMatched": true
+      },
+      {
+        "name": "actual-browser-restart",
+        "closedAndRelaunched": true,
+        "persistentProfile": true,
+        "conversationId": "64b0e523-f30b-419c-b77c-6410164973e0",
+        "messageCount": 20,
+        "remaining": 80,
+        "cookieStateExported": false
+      }
+    ],
+    "runtimeWritesBeforeExpiry": 20,
+    "externalRequests": [],
+    "cookiesExported": false,
+    "cookieAttributesOnly": true,
+    "historyPages": [
+      {
+        "conversationId": "64b0e523-f30b-419c-b77c-6410164973e0",
+        "count": 10,
+        "hasMore": true
+      },
+      {
+        "conversationId": "64b0e523-f30b-419c-b77c-6410164973e0",
+        "count": 10,
+        "hasMore": true
+      },
+      {
+        "conversationId": "64b0e523-f30b-419c-b77c-6410164973e0",
+        "count": 10,
+        "hasMore": true
+      },
+      {
+        "conversationId": "64b0e523-f30b-419c-b77c-6410164973e0",
+        "count": 10,
+        "hasMore": true
+      },
+      {
+        "conversationId": "64b0e523-f30b-419c-b77c-6410164973e0",
+        "count": 1,
+        "hasMore": false
+      }
+    ],
+    "waitingRunBeforeExpiry": {
+      "id": "70c2d9c5-72ff-456d-b233-0727af81c030",
+      "status": "waiting_input"
+    },
+    "simulatedExpiry": {
+      "simulatedExpiry": true,
+      "realClockChanged": false,
+      "budget": 20,
+      "limit": 100,
+      "database": "test_xiaohe_reception_v2_preview_20261107",
+      "syntheticConversation": "64b0e523-f30b-419c-b77c-6410164973e0",
+      "waitingRun": {
+        "id": "70c2d9c5-72ff-456d-b233-0727af81c030",
+        "before": "waiting_input",
+        "after": "expired",
+        "holdsSlotAfter": false,
+        "observedInCommittedExpiryTransaction": true
+      },
+      "messagesBeforePurge": 41,
+      "activeExecutionTested": false,
+      "expiryTransactionCommitted": true,
+      "purgeCompleted": true,
+      "messagesAfterPurge": 0,
+      "waitingRunBodyRemoved": true,
+      "purgedAt": "2026-11-07T11:35:07.692165+00:00"
+    },
+    "readonlyAfterExpiry": {
+      "oldSessionPurged": true,
+      "budgetCount": 20,
+      "budgetLimit": 100,
+      "retainedReceipts": 20,
+      "oldMessages": 0
+    },
+    "browserAfterExpiry": "Recovery phase reported and DB independently verified; driver exit/network sequence/input-ready final acknowledgement pending",
+    "realClockChanged": false,
+    "real24HourElapsed": false,
+    "sourceAfterExpiry": "C:\\Users\\70367\\.codex\\worktrees\\xiaohe-auth-card\\yunhezhiyuan-portal\\.superpowers\\sdd\\2026-11-06-xiaohe-lifecycle-history-portal\\preview-result.json",
+    "sourceAfterExpirySha256": "a8eb7c4619a5a54cb2653a66f464c0202be13c94525d57f5a9c831b5eb5c0180",
+    "reportedBrowserRecoveryPhase": {
+      "name": "server-synthetic-content-expiry",
+      "conversationChanged": true,
+      "remaining": 80,
+      "messageCount": 20,
+      "newWelcomeMessages": 1,
+      "real24HoursElapsed": false
+    },
+    "browserRecoveryDbAudit": {
+      "newConversationId": "1ba7a53e-477c-4526-b5be-431ee724a048",
+      "sameBudget": true,
+      "newContentSession": true,
+      "guestChanged": true,
+      "budgetCount": 20,
+      "remaining": 80,
+      "messages": 1,
+      "welcomeOnly": true,
+      "runs": 0,
+      "retainedReceipts": 20,
+      "oldSessionStillPurged": true,
+      "readOnly": true
+    },
+    "runtimeWritesAfterExpiry": 20
   }
 }
