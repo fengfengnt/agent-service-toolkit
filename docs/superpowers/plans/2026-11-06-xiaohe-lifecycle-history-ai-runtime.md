@@ -10,7 +10,7 @@
 
 **Spec:** [用户已批准的共同设计](C:/Users/70367/.codex/worktrees/xiaohe-auth-card/yunhezhiyuan-portal/docs/superpowers/specs/2026-11-06-xiaohe-lifecycle-history-design.md)；唯一 wire 来源为 [共享主契约 §12](D:/Code/yunhezhiyuan-agents/docs/contracts/2026-11-03-xiaohe-integration-v1.md)。此计划不复制另一份 DTO 规范。
 
-状态：2026-11-07，北京时间，**用户已回复“审阅通过”，三工程计划已批准，按各工程原生方式执行**。稳定基线已交接，AI 已完成 Task 1–7 本工程实现与隔离验证，最终独立审查通过（无 Critical/Important/Minor）；新入口门户浏览器、物理文件及真实 SSO 单列待验证；未完成的勾选和下列命令仍不代表已经执行或通过。用户追加允许按需 WSL 隔离部署；现有真人体验库、正式入口与开关保持不变，不自动短信、不建真实账号、不调用模型。
+状态：2026-11-07，北京时间，**用户已回复“审阅通过”，三工程计划已批准，按各工程原生方式执行**。稳定基线已交接，AI 已完成 Task 1–7 本工程实现与隔离验证，最终独立审查通过（无 Critical/Important/Minor）；新入口专用 Chrome 匿名生命周期已验；物理文件、真实会员 SSO 和目标部署仍待验证；未完成的勾选和下列命令仍不代表已经执行或通过。用户追加允许按需 WSL 隔离部署；现有真人体验库、正式入口与开关保持不变，不自动短信、不建真实账号、不调用模型。
 
 ## Global Constraints
 
@@ -176,3 +176,7 @@ Task 1（统一契约/基线）→ Task 2（数据/身份）→ Task 3（公共a
 ## Task 7 执行结果（2026-11-07）
 
 新组合3项通过；整批可移植回归704项通过、启动隐私子进程一项在原15s上限下超时，测试上限调整45s后单项11.27s通过（隐私断言与产品代码未改），不是一次705项整批全绿。原issuer/Origin脚本8项在独占PG内另建原允许测试库名后通过，未放宽SQL保护；6项WSL路径解码/Compose检查环境阻塞，10项物理MinIO未选。Runtime71项、类型和构建通过。新18593 HTTPS实际API/PG/worker/Runtime文字链路通过，模型/中心均替身，物理对象未配置；门户新入口浏览器待原生固定构建。详见验证记录和机器证据，未切换现有服务/真实库/正式开关。
+
+## 匿名 Chrome 生命周期补充（2026-11-07）
+
+门户固定候选在新18593完成41条真实分页、同profile实际进程关闭重开，20/100余80保持；收到明确通知后只在本轮精确preview库模拟指定guest截止，原expire/purge将waiting_input→expired、41条正文清理、预算与20回执保留。浏览器最终Node exit0确认新CID/欢迎1/输入可用/无第21条；Root另只读核对新周期和同Budget。历史旧CID请求错误码没有保存，明确不声称已观测410。实际宿主为Windows原生API/worker/Runtime/gateway＋WSL Docker独占PG，不是容器全栈发布；真实24h、running取消、本轮会员SSO、物理存储与6项WSL Compose仍列边界。见最新操作和机器证据，未重跑已过单测或切换现有服务。

@@ -10,7 +10,7 @@
 | 组合测试 | `test_lifecycle_history_journey.py` 三项通过，使用独立 PG、ASGI、MockTransport 中心和受控图 | 真实会员认证或真实对象文件可下载 |
 | Runtime | 类型检查、71 项 Node 测试及构建通过；未更换依赖 | 浏览器交互验收 |
 | 新进程网络 | 新 HTTPS → Runtime → API → PG → worker → 受控图 → `RUN_FINISHED`；验证 CA、主机名和 V2 回显 | 真实模型/短信/SSO、正式 readiness 或业务受理 |
-| 浏览器 | 由门户原生工程在新隔离 context 验证，待固定回执 | 旧 G2 或用户既有“我的进展”证据可替代新 V2 |
+| 浏览器 | 门户专用 Chrome 匿名分页、真关开、模拟到期后恢复通过，Root 只读核对新周期与原预算 | 真实会员 SSO、真实 24h 流逝、旧 CID 原错误状态或物理文件验收 |
 | 对象存储 | 本轮预览尚未配置；文件版本引用为合成 fixture | 已验证物理上传、下载、归并或删除 |
 | 正式环境 | 未变更 | 已上线 |
 
@@ -75,6 +75,12 @@ npm --prefix copilot-runtime run build
 该合成访客的 Run 实际处于 `waiting_input`，不是 null 或全已完成。收到门户“重开已完成、可模拟到期”的明确通知后，Root 在精确 preview 库/host/port、guest scope、无认领、20/100、无 queued/running、无文件及恰 41 条的检查下，只把指定 Session 截止设为数据库当前时间前 1 秒，调用原 `expire_guests`。原函数将等待 Run 从 `waiting_input` 转成 `expired`、释放 slot 并写入到期事件，已在提交的事务内查询确认；随后原 `purge_expired_guest` 清理正文及 Run body。没有硬改 Run 状态或修改主机时钟。
 
 Root 清理后只读核对：旧 Session 有 `purged_at`、旧消息为 0，原预算仍为 20/100，20 条最小幂等回执保留。原始证据为本计划 `preview/synthetic-expiry-result.json`、`synthetic-expiry.log`、`expiry-readonly-after.json`；消息与 Run ID 均来自合成数据。此步骤不证明 running 执行停止，也不是真实 24h 流逝。浏览器旧 CID 到期后重新接待的最终表现仍等待门户追加证据。
+
+最终门户回执及 `preview-result.json` 已确认 Node 驱动实际 exit 0（执行 session 44149）：同 profile 发 online 后切到新 CID，仅 1 条欢迎，权威计数仍 20/100、余 80，输入框启用，旧 41 条未混入新窗口；Runtime 总写入仍 20，无第 21 条、stop、auth 或外站请求。SDK 就绪以 V2 facade 唯一就绪门控制的输入框启用为证，不冒称另做原始 SDK 状态审计。两次驱动前置失败分别保留 `preview-first-failure.json`、`preview-pagination-failure.json`，最终结果不能说成首次全绿。
+
+Root 再独立只读核对同一 Budget 已关联新 guest/内容 Session，新 CID 为 `1ba7a53e-477c-4526-b5be-431ee724a048`，仅 assistant 欢迎（text＋suggestions）1 条、Run 0，计数 20、回执 20，旧 Session 仍有清理标记；见 `preview/browser-recovery-db-readonly.json`。因此本轮**匿名生命周期恢复**在该隔离范围内通过。
+
+历史旧 CID 请求的错误状态没有保存：harness `access_log=False`，现有 gateway 两日志均为空，API 日志无该 CID 的 GET 匹配。仅保存成功 snapshot/page 的浏览器产物不能证明当时为 410、401 或其他状态。本项明确为“真实 UI 恢复及 DB 清理已证，原错误状态未留存”，未开启新日志、重放请求、导出旧 Cookie 或补造网络序列；见 `preview/old-cid-status-log-check.json`。新 DB、专用 profile 和冻结构建继续保留。
 
 ## 契约、事件与分页交接
 

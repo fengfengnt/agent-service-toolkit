@@ -222,7 +222,7 @@
     "This is 704 broad passes plus one targeted recovery, not a single all-green 705-case invocation",
     "Six WSL Compose cases blocked",
     "Ten physical MinIO cases not selected",
-    "Chrome paging/restart and reported expiry recovery evidenced; final driver/network/input-ready acknowledgement pending",
+    "Anonymous Chrome lifecycle PASS; historical old-CID failure status not retained (access logs disabled), no claimed410 sequence",
     "No real SSO or deployment"
   ],
   "previewListeners": [
@@ -375,7 +375,7 @@
       "retainedReceipts": 20,
       "oldMessages": 0
     },
-    "browserAfterExpiry": "Recovery phase reported and DB independently verified; driver exit/network sequence/input-ready final acknowledgement pending",
+    "browserAfterExpiry": "PASS: Portal Owner actual Node exit0; input enabled; exactly one DOM message; new CID; count20; writes remain20; no stop/auth/external origin",
     "realClockChanged": false,
     "real24HourElapsed": false,
     "sourceAfterExpiry": "C:\\Users\\70367\\.codex\\worktrees\\xiaohe-auth-card\\yunhezhiyuan-portal\\.superpowers\\sdd\\2026-11-06-xiaohe-lifecycle-history-portal\\preview-result.json",
@@ -402,6 +402,47 @@
       "oldSessionStillPurged": true,
       "readOnly": true
     },
-    "runtimeWritesAfterExpiry": 20
-  }
+    "runtimeWritesAfterExpiry": 20,
+    "driverExitCode": 0,
+    "driverExitEvidenceSource": "Portal Owner exec session44149 completion, confirmed in thread01a19f12-7f6d-74a0-b853-95fafb351220",
+    "inputEnabled": true,
+    "oldHistoryNotMixed": true,
+    "noMessage21": true,
+    "sdkReadyEvidence": "Input enabled through the V2 facade readiness gate; no21st send or independent raw SDK state audit",
+    "partialDriverFailureRecords": [
+      "preview-first-failure.json",
+      "preview-pagination-failure.json"
+    ],
+    "historicalOldCidGetStatus": null,
+    "historicalStatusEvidence": {
+      "accessLogEnabled": false,
+      "filesExamined": [
+        {
+          "file": "gateway.log",
+          "bytes": 0
+        },
+        {
+          "file": "gateway-static.log",
+          "bytes": 0
+        },
+        {
+          "file": "api.log",
+          "bytes": 9528
+        }
+      ],
+      "matchingGetLines": 0,
+      "observedStatuses": [],
+      "historicalOldCidStatus": "not recorded",
+      "headersCookiesCursorsExported": false,
+      "noRequestsReplayed": true
+    },
+    "actualBrowserNetworkSequenceRetained": false,
+    "independentCoordinatorCheck": {
+      "record": "D:/Code/yunhezhiyuan-agents/.scratch/consolidate-20261107/v2-native-browser-evidence-check.json",
+      "scope": "Read public browser result and assert TLS/paging/restart/count20/welcome1/no external/no export",
+      "reportedPassed": true,
+      "notASecondBrowserRun": true
+    }
+  },
+  "anonymousLifecycleAcceptance": "PASS within dedicated synthetic Windows-native+WSL-PG preview; real24h/running cancellation/memberSSO/physical files/deployment not implied"
 }
