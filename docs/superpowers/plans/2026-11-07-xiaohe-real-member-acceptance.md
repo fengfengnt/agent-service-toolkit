@@ -63,4 +63,4 @@
 
 - [x] 记录真实身份/对象/API/浏览器/模型/部署分别通过或未验；保留 secret/profile 私有，公开只留必要身份摘要。
 - [x] 核精确 source/build/contract/日志指纹、原资源保留、新资源去留及后续人工项；不重跑旧通过 suite。
-- [ ] 普通提交/推送 `origin/dev-fengfeng`、核 `git ls-remote`，向门户/SSO/协调 Owner 回固定新 checkpoint。不合并、不替换正式部署。
+- [x] 普通提交/推送 `origin/dev-fengfeng`、核 `git ls-remote`；后续仅追加本次交付勾选和审阅结论，最终提交再核远端并回传门户/SSO/协调 Owner。不合并、不替换正式部署。
