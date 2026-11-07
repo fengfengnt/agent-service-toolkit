@@ -1,0 +1,35 @@
+{
+  "status": "MANUAL_UI_ACCEPTED_AUTOMATED_UI_AND_TRUE_PROFILE_REOPEN_UNVERIFIED",
+  "portalResultSha256": "bfcacdaa89e79bf1941ffc4728cedfbc58ba1169b7fe842a8b56dc7afba1cebc",
+  "logicalOrigin": "https://portal.lvh.me",
+  "strictTls": true,
+  "runtimeWrites": 20,
+  "remoteStops": 0,
+  "authCompleteStatuses": [
+    200
+  ],
+  "storageStateExported": false,
+  "originalFileMemberBrowserHttpGet": 200,
+  "originalFileSha256": "1e290e7afa6810e58c0a26e095cb7d830bd0f47019f81b3fd8edb1613a3383d4",
+  "fullProfileReopenPassed": false,
+  "observationBlock": "Computer Use could not reliably determine current Chrome URL on Windows; no alternate-channel retry",
+  "humanForegroundConfirmedInCoordinator": true,
+  "observationBlockRecurredAfterForegroundConfirmation": true,
+  "uiChecksStopped": true,
+  "originalToolFailure": "sky.get_window_state: current browser URL on Windows could not be determined with enough confidence",
+  "automatedHistoryUiPassed": false,
+  "manualUiAcceptance": {
+    "verifiedOriginalHumanReply": true,
+    "sourceThreadId": "01a1aafc-13d0-7b51-a48e-ee06741d7da1",
+    "sourceTurnId": "01a1b640-fe5f-7c30-bdcc-a45653006fd5",
+    "questionCallId": "call_f7db19cf89d94559911f1c4ca7aa8f15",
+    "literalAnswer": "三项正常（可补充最早序号）",
+    "chatModalCloseOpen": true,
+    "testMessages1Through20CompleteOrderedNoDuplicates": true,
+    "ordinaryRefreshKeepsMemberHistoryAndOriginalFile": true,
+    "earliestVisibleTestNumber": null,
+    "browserContextActuallyClosedAndReopened": false,
+    "refreshedFileHttpDownloadRepeated": false
+  },
+  "deliveryGate": "manual UI accepted; remaining automated and full-profile checks explicitly unverified"
+}
