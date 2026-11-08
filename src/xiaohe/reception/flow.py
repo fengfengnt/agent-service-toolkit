@@ -269,6 +269,8 @@ async def _extract(model, direction, step, text, definition):
 
 async def apply_reception_control(db, actor, conversation_id, request):
     flow = await flow_record(db, actor, conversation_id)
+    if request.action == "switch_direction":
+        return await _switch_partner(db, actor, conversation_id, flow, request)
     if request.action == "start_collection" and actor.user_id is None:
         raise ServiceError("AUTH_REQUIRED", 401)
     existing = await db.scalar(
@@ -321,6 +323,73 @@ async def apply_reception_control(db, actor, conversation_id, request):
         request.client_action_id,
         payload,
         system_notice="开始注册或登录" if request.action == "accept_invitation" else "采集信息",
+    )
+
+
+async def _switch_partner(db, actor, conversation_id, flow, request):
+    from xiaohe.admission import _agent_entry
+    from xiaohe.agents.runtime import _select_direction
+    from xiaohe.runs import cancel_run
+
+    conversation = await db.get(Conversation, conversation_id)
+    agent_id = "xiaohe-" + request.direction
+    _agent_entry(db, agent_id)
+    existing = await db.scalar(
+        select(Command).where(
+            Command.conversation_id == conversation_id,
+            Command.client_key == request.client_action_id,
+        )
+    )
+    if existing is not None:
+        if (existing.payload.get("receptionControl"), existing.payload.get("direction")) != (
+            request.action,
+            request.direction,
+        ):
+            raise ServiceError("IDEMPOTENCY_CONFLICT", 409)
+        return await _result(db, actor, existing)
+    if conversation.merge_pending:
+        raise ServiceError("MERGE_PENDING", 409)
+    if conversation.direction == request.direction:
+        previous = await db.scalar(
+            select(Command)
+            .where(
+                Command.conversation_id == conversation_id,
+                Command.payload["receptionControl"].astext == "switch_direction",
+                Command.payload["direction"].astext == request.direction,
+            )
+            .order_by(Command.created_at.desc(), Command.id.desc())
+            .limit(1)
+        )
+        if previous is not None:
+            return await _result(db, actor, previous)
+    runs = (
+        await db.scalars(
+            select(Run)
+            .where(
+                Run.conversation_id == conversation_id,
+                Run.status.in_(["queued", "running", "waiting_input"]),
+            )
+            .order_by(Run.created_at, Run.id)
+        )
+    ).all()
+    for run in runs:
+        await cancel_run(db, actor, run.id)
+    flow.pending_request_id = None
+    await _select_direction(db, conversation, flow, agent_id)
+    flow.invitation_state = "accepted" if flow.active_draft_id else "none"
+    return await _accept(
+        db,
+        actor,
+        conversation_id,
+        "message",
+        request.client_action_id,
+        {
+            "clientMessageId": request.client_action_id,
+            "receptionControl": request.action,
+            "direction": request.direction,
+            "entryAgent": agent_id,
+        },
+        system_notice="已转接" + LABELS[request.direction] + " Agent",
     )
 
 

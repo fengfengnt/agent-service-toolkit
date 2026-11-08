@@ -54,9 +54,7 @@ class PatchDraft(WireModel):
     def known_fields(self) -> Self:
         from xiaohe.reception.fields import ALLOWED_FIELDS
 
-        if self.fields.keys() - {
-            key for fields in ALLOWED_FIELDS.values() for key in fields
-        }:
+        if self.fields.keys() - {key for fields in ALLOWED_FIELDS.values() for key in fields}:
             raise ValueError("unknown draft field")
         return self
 
@@ -159,7 +157,17 @@ class ReceptionView(WireModel):
 
 class ReceptionControl(WireModel):
     client_action_id: InputId
-    action: Literal["accept_invitation", "start_collection"]
+    action: Literal["accept_invitation", "start_collection", "switch_direction"]
+    direction: Literal["organization", "supplier"] | None = None
+
+    @model_validator(mode="after")
+    def switch_direction_required(self) -> Self:
+        if self.action == "switch_direction":
+            if self.direction is None:
+                raise ValueError("switch_direction requires direction")
+        elif "direction" in self.model_fields_set:
+            raise ValueError("direction is only valid for switch_direction")
+        return self
 
 
 class ReceptionAction(WireModel):

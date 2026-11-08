@@ -14,6 +14,30 @@ FIXTURES = json.loads((ROOT / "reception-fixtures.json").read_text("utf-8"))
 CASES = FIXTURES["schemaCases"]
 
 
+@pytest.mark.parametrize("direction", ["organization", "supplier"])
+def test_partner_switch_control_requires_its_direction(direction):
+    control = contracts.ReceptionControl.model_validate(
+        {"clientActionId": "partner", "action": "switch_direction", "direction": direction}
+    )
+    assert control.direction == direction
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"action": "switch_direction"},
+        {"action": "switch_direction", "direction": "buyer"},
+        {"action": "switch_direction", "direction": "unknown"},
+        {"action": "switch_direction", "direction": "supplier", "text": "确认提交"},
+        {"action": "accept_invitation", "direction": "supplier"},
+        {"action": "start_collection", "direction": None},
+    ],
+)
+def test_partner_switch_control_rejects_invalid_payload(body):
+    with pytest.raises(ValidationError):
+        contracts.ReceptionControl.model_validate({"clientActionId": "partner"} | body)
+
+
 def test_reception_schema_snapshot_matches_master_digest():
     assert (
         hashlib.sha256((ROOT / "reception-v1.schema.json").read_bytes()).hexdigest()

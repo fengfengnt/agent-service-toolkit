@@ -331,9 +331,11 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
                 raise ServiceError("ACTION_STALE", 409)
             decision = SemanticDecision(action=BUTTON_EVENTS[action["action"]])
         elif control:
-            if control not in ("accept_invitation", "start_collection"):
+            if control not in ("accept_invitation", "start_collection", "switch_direction"):
                 raise ServiceError("ACTION_STALE", 409)
-            decision = SemanticDecision(action="accept_invitation")
+            decision = SemanticDecision(
+                action="consultation" if control == "switch_direction" else "accept_invitation"
+            )
         else:
             if model is None:
                 from xiaohe.graph import reception_model
@@ -397,21 +399,34 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
             _, command, _, _ = await _checked(db, frame)
             if cached := _stage(command, frame.agent_id).get("answer"):
                 return {"answer": cached}
-        materials = load_skill_materials(bundle, frame.agent_id, decision.topics)
-        definition = workflow_for(bundle, frame.agent_id)
-        if model is None:
-            from xiaohe.graph import reception_model
+            partner_entry = command.payload.get("receptionControl") == "switch_direction"
+        if partner_entry:
+            from xiaohe.reception.flow import LABELS, OPENERS
 
-            turn_model = reception_model()
+            direction = ROLE_DIRECTIONS[frame.agent_id]
+            text = "您好，我是小鹤" + LABELS[direction] + " Agent。"
+            text += (
+                "您在此方向的资料已保留，可以继续咨询或补充原资料。"
+                if frame.draft_id
+                else OPENERS[direction]
+            )
+            result = AnswerDraft(text=text, basis="needs_confirmation")
         else:
-            turn_model = model
-        result = await compose_answer(
-            turn_model,
-            frame,
-            decision,
-            materials,
-            bundle.resources["prompts/" + definition.prompts[node.prompt]],
-        )
+            materials = load_skill_materials(bundle, frame.agent_id, decision.topics)
+            definition = workflow_for(bundle, frame.agent_id)
+            if model is None:
+                from xiaohe.graph import reception_model
+
+                turn_model = reception_model()
+            else:
+                turn_model = model
+            result = await compose_answer(
+                turn_model,
+                frame,
+                decision,
+                materials,
+                bundle.resources["prompts/" + definition.prompts[node.prompt]],
+            )
         async with factory.begin() as db:
             _, command, _, _ = await _checked(db, frame)
             _save_stage(command, frame.agent_id, answer=result.model_dump(mode="json"))
@@ -740,6 +755,7 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
                 text += "\n\n好的，先继续咨询；需要登记时再告诉我。"
             offered = (
                 frame.agent_id != "xiaohe-reception"
+                and command.payload.get("receptionControl") != "switch_direction"
                 and flow.active_draft_id is None
                 and flow.invitation_state == "none"
                 and answer_value
