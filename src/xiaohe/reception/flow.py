@@ -1,4 +1,6 @@
 import asyncio
+import hashlib
+import json
 import re
 from uuid import uuid5
 
@@ -9,6 +11,7 @@ from sqlalchemy import select
 from xiaohe.admission import _accept, _result, accept_action
 from xiaohe.contracts import AgentOutcome, ServiceError, WireModel, WriteFence
 from xiaohe.conversations import WELCOME
+from xiaohe.database import database_now
 from xiaohe.models import Command, Conversation, Message, Run
 from xiaohe.reception.contracts import FieldValue, ReceptionAction, SkillContext
 from xiaohe.reception.fields import (
@@ -349,6 +352,12 @@ async def _switch_partner(db, actor, conversation_id, flow, request):
         return await _result(db, actor, existing)
     if conversation.merge_pending:
         raise ServiceError("MERGE_PENDING", 409)
+    payload = {
+        "clientMessageId": request.client_action_id,
+        "receptionControl": request.action,
+        "direction": request.direction,
+        "entryAgent": agent_id,
+    }
     if conversation.direction == request.direction:
         previous = await db.scalar(
             select(Command)
@@ -361,7 +370,26 @@ async def _switch_partner(db, actor, conversation_id, flow, request):
             .limit(1)
         )
         if previous is not None:
-            return await _result(db, actor, previous)
+            # 合并开场也记录新键，迟到重放只能返回回执，不能再次切换方向。
+            receipt = Command(
+                conversation_id=conversation_id,
+                system_id=actor.system.system_id,
+                tenant_id=actor.system.tenant_id,
+                kind="message",
+                client_key=request.client_action_id,
+                payload_digest=hashlib.sha256(
+                    json.dumps(
+                        payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+                    ).encode()
+                ).hexdigest(),
+                payload=payload | {"receptionReceiptFor": str(previous.id)},
+                message_id=previous.message_id,
+                run_id=previous.run_id,
+                completed_at=await database_now(db),
+            )
+            db.add(receipt)
+            await db.flush()
+            return await _result(db, actor, receipt)
     runs = (
         await db.scalars(
             select(Run)
@@ -383,12 +411,7 @@ async def _switch_partner(db, actor, conversation_id, flow, request):
         conversation_id,
         "message",
         request.client_action_id,
-        {
-            "clientMessageId": request.client_action_id,
-            "receptionControl": request.action,
-            "direction": request.direction,
-            "entryAgent": agent_id,
-        },
+        payload,
         system_notice="已转接" + LABELS[request.direction] + " Agent",
     )
 

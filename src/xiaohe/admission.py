@@ -330,7 +330,8 @@ async def accept_agent_action(db, actor, agent_id, conversation_id, body: ChatAc
         return await _accept(db, actor, conversation_id, "action", body.client_action_id, payload)
     run = await db.scalar(select(Run).where(Run.conversation_id == conversation_id,
         Run.status == "waiting_input", Run.pending_request["requestId"].astext == body.request_id))
-    previous = await db.scalar(select(Command).where(Command.run_id == run.id)
+    previous = await db.scalar(select(Command).where(Command.run_id == run.id,
+        Command.payload["receptionReceiptFor"].astext.is_(None))
         .order_by(Command.created_at.desc(), Command.id.desc()).limit(1)) if run else None
     if run is None or run.runtime_version != "dsl-v1" or previous is None or (
         previous.payload.get("agentExecution", {}).get("active") != agent_id

@@ -9,8 +9,8 @@ from test_http_api import client_for, session
 from test_identity_sessions import system
 from test_reception_submission import confirmed
 
-from xiaohe.admission import accept_action, accept_message
-from xiaohe.contracts import Actor, ServiceError
+from xiaohe.admission import accept_action, accept_agent_action, accept_message
+from xiaohe.contracts import Actor, ChatAction, ServiceError
 from xiaohe.models import Command, Conversation, GuestBudget, Message, Run
 from xiaohe.reception.api import create_reception_router
 from xiaohe.reception.contracts import (
@@ -123,10 +123,13 @@ async def test_partner_entry_is_idempotent(pg_factory, runtime_env, monkeypatch)
         await switch(pg_factory, who, conversation, "supplier", "one")
     second = await switch(pg_factory, who, conversation, "supplier", "two")
     await switch(pg_factory, who, conversation, "organization", "one")
+    await switch(pg_factory, who, conversation, "organization", "duplicate")
     async with pg_factory() as db:
         assert (await db.get(Conversation, conversation)).direction == "supplier"
-        assert await db.scalar(select(func.count()).select_from(Command)) == 2
+        assert await db.scalar(select(func.count()).select_from(Run)) == 2
         assert (await db.get(Run, UUID(second.run.id))).status == "queued"
+    with pytest.raises(ServiceError, match="IDEMPOTENCY_CONFLICT"):
+        await switch(pg_factory, who, conversation, "supplier", "duplicate")
 
 
 @pytest.mark.parametrize("direction", ["organization", "supplier"])
@@ -153,9 +156,14 @@ async def test_partner_entry_greets_without_model_or_submission(
             .order_by(Message.created_at.desc())
         )
         assert all(part["type"] != "auth_request" for part in answer.parts)
+    await switch(pg_factory, who, conversation, direction, "same-direction")
     async with pg_factory.begin() as db:
-        following = await accept_action(
-            db, who, conversation, "follow", question, None, "想了解合作方式"
+        following = await accept_agent_action(
+            db,
+            who,
+            "xiaohe-" + direction,
+            conversation,
+            ChatAction(client_action_id="follow", request_id=question, text="想了解合作方式"),
         )
     await runtime_env.worker.execute_run(UUID(following.run.id))
     assert len(model.agent_calls) == 1 and "小鹤接待" not in model.agent_calls[0]
