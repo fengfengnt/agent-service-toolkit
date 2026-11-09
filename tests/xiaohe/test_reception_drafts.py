@@ -20,15 +20,17 @@ def definition(direction):
 
 
 def test_minimum_fields_and_explicit_clear():
-    assert (
-        missing_required("buyer", {"companyName": "甲公司"}, definition=definition("buyer")) == []
-    )
-    assert (
-        missing_required("supplier", {"companyName": "甲公司"}, definition=definition("supplier"))
-        == []
-    )
+    assert missing_required("buyer", {"companyName": "甲公司"}, definition=definition("buyer")) == [
+        "contactName",
+        "contactPhone",
+    ]
+    assert missing_required(
+        "supplier", {"companyName": "甲公司"}, definition=definition("supplier")
+    ) == ["contactName", "contactPhone"]
     assert missing_required("buyer", {"companyName": None}, definition=definition("buyer")) == [
-        "companyName"
+        "companyName",
+        "contactName",
+        "contactPhone",
     ]
     fields = dict(
         organizationName="行业协会",
@@ -37,7 +39,8 @@ def test_minimum_fields_and_explicit_clear():
         onlineChannels=["微信群"],
     )
     assert missing_required("organization", fields, definition=definition("organization")) == [
-        "contactName"
+        "contactName",
+        "contactPhone",
     ]
 
 
@@ -78,7 +81,10 @@ async def test_drafts_reuse_key_preserve_round_and_do_not_create_business_record
         assert (await create_draft(db, who, conversation, request)).id == first.id
         changed = await patch_draft(db, who, first.id, 1, {"companyName": "甲公司"})
         assert changed.revision == 2 and changed.step == "round1"
-        assert changed.missing_required == [] and changed.state == "collecting"
+        assert (
+            changed.missing_required == ["contactName", "contactPhone"]
+            and changed.state == "collecting"
+        )
         assert (await patch_draft(db, who, first.id, 2, {"companyName": "甲公司"})).revision == 2
         second = await create_draft(
             db,
@@ -92,7 +98,10 @@ async def test_drafts_reuse_key_preserve_round_and_do_not_create_business_record
         assert {ref.subject_name for ref in view.draft_refs} == {"甲公司", "乙公司"}
         assert await db.scalar(select(func.count()).select_from(ReceptionDraft)) == 2
         cleared = await patch_draft(db, who, first.id, 2, {"companyName": None})
-        assert cleared.missing_required == ["companyName"] and cleared.revision == 3
+        assert (
+            cleared.missing_required == ["companyName", "contactName", "contactPhone"]
+            and cleared.revision == 3
+        )
 
 
 @pytest.mark.pg

@@ -71,6 +71,8 @@ def _ref(row):
 
 
 def _mutable(draft):
+    if draft.kind == "onboarding":
+        raise ServiceError("APPLICATION_FLOW_CHANGED", 409)
     if draft.state not in ("collecting", "review"):
         raise ServiceError("DRAFT_CONFLICT", 409)
 
@@ -209,6 +211,12 @@ async def detach_file(db, actor, draft_id, file_id, expected_revision):
 
 
 async def download_file(factory, actor, file_id, *, artifacts):
+    from xiaohe.reception.models import ReceptionFormFile
+    async with factory.begin() as db:
+        form_file = await db.get(ReceptionFormFile, _uuid(file_id))
+    if form_file is not None:
+        from xiaohe.reception.form_files import download_form_file
+        return await download_form_file(factory, actor, file_id, artifacts=artifacts)
     async with factory.begin() as db:
         row = await db.get(ReceptionFile, _uuid(file_id))
         if row is None:
@@ -226,6 +234,12 @@ async def download_file(factory, actor, file_id, *, artifacts):
 async def download_operational_file(
     factory, system_id, file_id, application_id, owner_ai_user_id, *, artifacts
 ):
+    from xiaohe.reception.models import ReceptionFormFile
+    async with factory.begin() as db:
+        form_file = await db.get(ReceptionFormFile, _uuid(file_id))
+    if form_file is not None:
+        from xiaohe.reception.form_files import download_operational_form_file
+        return await download_operational_form_file(factory, system_id, file_id, application_id, owner_ai_user_id, artifacts=artifacts)
     async def authorized(db):
         user = await db.get(User, owner_ai_user_id)
         system = await db.get(System, system_id)

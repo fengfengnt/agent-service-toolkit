@@ -1,6 +1,7 @@
 from typing import Annotated, Literal, Self
+from uuid import UUID
 
-from pydantic import Field, model_validator
+from pydantic import Field, ValidationInfo, model_validator
 
 from xiaohe.contracts import Id as BaseId
 from xiaohe.contracts import InputId, Positive, UtcTime, WireModel
@@ -20,10 +21,14 @@ MediaType = Literal[
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 ]
-FORMAL_REQUIRED_FIELDS = {
+LEGACY_REQUIRED_FIELDS = {
     "buyer": ("companyName",),
     "supplier": ("companyName",),
     "organization": ("organizationName", "memberSize", "coverage", "onlineChannels", "contactName"),
+}
+FORMAL_REQUIRED_FIELDS = {
+    direction: tuple(dict.fromkeys(keys + ("contactName", "contactPhone")))
+    for direction, keys in LEGACY_REQUIRED_FIELDS.items()
 }
 
 
@@ -92,6 +97,21 @@ class InitFile(WireModel):
         return self
 
 
+class FormInitFile(WireModel):
+    client_upload_id: Id
+    category: FileCategory
+    filename: Annotated[BaseId, Field(max_length=255)]
+    media_type: MediaType
+    bytes: Positive
+
+    @model_validator(mode="after")
+    def bounded_size(self) -> Self:
+        from xiaohe.contracts import ServiceError
+        if self.bytes > 33554432:
+            raise ServiceError("FILE_TOO_LARGE", 413)
+        return self
+
+
 class UploadView(WireModel):
     file: FileRef
     upload_path: str
@@ -117,12 +137,45 @@ class FieldLayout(WireModel):
     required_fields: list[str]
 
 
+class ApplicationFormQuery(WireModel):
+    source_application_id: Id
+    mode: Literal["edit", "new"]
+
+
+class ApplicationFormView(ApplicationFormQuery):
+    subject_id: Id
+    direction: Direction
+    expected_application_revision: Positive | None
+    definition_bundle_id: Id
+    field_layout: FieldLayout
+    fields: dict[str, FieldValue]
+    files: list[FileRef]
+
+
+class FormSubmissionInput(ApplicationFormQuery):
+    form_id: UUID
+    client_submission_id: Id
+    expected_application_revision: Positive | None
+    definition_bundle_id: Id
+    fields: dict[str, FieldValue]
+    files: Annotated[list[Id], Field(max_length=32)]
+
+    @model_validator(mode="after")
+    def valid_target(self) -> Self:
+        if (self.mode == "edit") != (self.expected_application_revision is not None):
+            raise ValueError("editing requires the formal revision")
+        if len(self.files) != len(set(self.files)):
+            raise ValueError("duplicate files")
+        return self
+
+
 class DraftView(WireModel):
     id: Id
     kind: DraftKind
     direction: Direction
     source_application_id: Id | None = None
     source_onboarding_id: Id | None = None
+    accepted_application_id: Id | None = None
     subject_id: Id | None = None
     revision: Positive
     step: DraftStep
@@ -226,11 +279,17 @@ class ApplicationView(WireModel):
 
     @model_validator(mode="after")
     def valid_profile(self) -> Self:
-        _check_formal_fields(self.direction, self.public_fields, self.request_fields, self.files)
+        _check_formal_fields(
+            self.direction,
+            self.public_fields,
+            self.request_fields,
+            self.files,
+            required=LEGACY_REQUIRED_FIELDS[self.direction],
+        )
         return self
 
 
-def _check_formal_fields(direction, public, request, files):
+def _check_formal_fields(direction, public, request, files, *, required=None):
     from xiaohe.contracts import ServiceError
     from xiaohe.reception.fields import PUBLIC_FIELDS, validate_fields
 
@@ -243,7 +302,7 @@ def _check_formal_fields(direction, public, request, files):
     except ServiceError:
         raise ValueError("invalid formal fields") from None
     # 后台正式 payload 的最低契约独立于可调整的采集流程，不能由 YAML 降低。
-    minimum = FORMAL_REQUIRED_FIELDS[direction]
+    minimum = FORMAL_REQUIRED_FIELDS[direction] if required is None else required
     if any(not fields.get(key) for key in minimum) or any(file.status != "ready" for file in files):
         raise ValueError("incomplete formal submission")
 
@@ -263,8 +322,15 @@ class Submission(WireModel):
     files: list[FileRef]
 
     @model_validator(mode="after")
-    def valid_submission(self) -> Self:
-        _check_formal_fields(self.direction, self.public_fields, self.request_fields, self.files)
+    def valid_submission(self, info: ValidationInfo) -> Self:
+        required = (
+            LEGACY_REQUIRED_FIELDS[self.direction]
+            if (info.context or {}).get("persisted_submission")
+            else None
+        )
+        _check_formal_fields(
+            self.direction, self.public_fields, self.request_fields, self.files, required=required
+        )
         if (self.direction == "organization") != (self.subject_kind == "organization"):
             raise ValueError("subject kind does not match direction")
         if self.operation == "update" and not (
@@ -355,8 +421,15 @@ class OnboardingSubmission(WireModel):
     files: list[FileRef]
 
     @model_validator(mode="after")
-    def valid_onboarding(self) -> Self:
-        _check_formal_fields("organization", self.public_fields, self.request_fields, self.files)
+    def valid_onboarding(self, info: ValidationInfo) -> Self:
+        required = (
+            LEGACY_REQUIRED_FIELDS["organization"]
+            if (info.context or {}).get("persisted_submission")
+            else None
+        )
+        _check_formal_fields(
+            "organization", self.public_fields, self.request_fields, self.files, required=required
+        )
         if (self.onboarding_id is None) != (self.expected_onboarding_revision is None):
             raise ValueError("update requires current onboarding revision")
         return self
@@ -373,7 +446,13 @@ class OnboardingApplicationView(WireModel):
 
     @model_validator(mode="after")
     def valid_onboarding(self) -> Self:
-        _check_formal_fields("organization", self.public_fields, self.request_fields, self.files)
+        _check_formal_fields(
+            "organization",
+            self.public_fields,
+            self.request_fields,
+            self.files,
+            required=LEGACY_REQUIRED_FIELDS["organization"],
+        )
         return self
 
 
@@ -420,7 +499,7 @@ class ProgressApplication(WireModel):
     direction: Direction
     summary: Annotated[str, Field(max_length=4000)]
     submitted_at: UtcTime
-    stage: Literal["recorded", "communicating", "awaiting_user", "completed", "closed"]
+    stage: Literal["recorded", "communicating", "awaiting_user", "completed", "closed", "approved", "onboarded"]
     manager: ManagerView | None
     grade: Annotated[str, Field(max_length=200)] | None
     expected_contact_at: UtcTime | None

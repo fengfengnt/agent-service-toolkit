@@ -86,6 +86,8 @@ class ReceptionBusinessClient:
                         1050000002: ("DRAFT_CONFLICT", 409),
                         1050000003: ("SUBJECT_CONFLICT", 409),
                         1050000004: ("IDEMPOTENCY_CONFLICT", 409),
+                        1050000007: ("APPLICATION_FLOW_CHANGED", 409),
+                        1050000008: ("APPLICATION_MIGRATION_REQUIRED", 409),
                         403: ("FORBIDDEN", 403),
                     }.get(value["code"])
                     if error:

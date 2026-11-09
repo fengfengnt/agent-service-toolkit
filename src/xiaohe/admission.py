@@ -49,6 +49,12 @@ def _parse(model, value):
 
 def _safe_text(value: str):
     inspected = re.sub(r"(?<=\d)[\s-]+(?=\d)", "", unicodedata.normalize("NFKC", value))
+    # 明确标记的业务联系电话允许留资；未标记手机号和认证凭证仍使用认证卡片。
+    inspected = re.sub(
+        r"(?:联系电话|电话号码|联系人电话|联系手机)[^，,；;。\n]*",
+        lambda match: re.sub(r"(?<!\d)1[3-9]\d{9}(?!\d)", "[业务联系电话]", match[0]),
+        inspected,
+    )
     if _SENSITIVE.search(inspected) or _CREDENTIAL.search(inspected):
         raise ServiceError("SENSITIVE_INPUT_REQUIRES_CARD", 422)
 

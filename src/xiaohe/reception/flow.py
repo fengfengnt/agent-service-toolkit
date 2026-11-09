@@ -164,9 +164,22 @@ class Extraction(WireModel):
 def _labelled_fields(direction, allowed, text):
     names = {label: key for key, label in FIELD_LABELS.items()}
     names.update({key: key for key in FIELD_LABELS})
-    names.update({"公司名称": "companyName", "规模": "companyScale"})
+    names.update(
+        {
+            "公司名称": "companyName",
+            "规模": "companyScale",
+            "联系人姓名": "contactName",
+            "电话号码": "contactPhone",
+            "电话": "contactPhone",
+        }
+    )
     values, ambiguous, labelled = {}, set(), False
     for chunk in re.split(r"[；;\n]|[，,](?=\s*[^，,；;\n:：]{1,30}[:：])", text):
+        chunk = re.sub(
+            r"^\s*(?:我(?:要|想))?(?:更新|修改|更改)\s*(联系电话|电话号码|电话|联系人姓名|联系人)\s*(?:改为|是|为)",
+            r"\1：",
+            chunk,
+        )
         match = re.fullmatch(r"\s*([^:：]+?)\s*[:：]\s*(.*?)\s*", chunk)
         if match is None or (key := names.get(match[1])) is None:
             continue
@@ -219,9 +232,7 @@ async def _extract(model, direction, step, text, definition):
         return {}
     allowed = (
         [key for group in definition.rounds for key in group.fields]
-        if step == "summary"
-        else next(group.fields for group in definition.rounds if group.id == step)
-        if step.startswith("round")
+        if step == "summary" or step.startswith("round")
         else []
     )
     labelled = _labelled_fields(direction, allowed, text)
@@ -418,6 +429,8 @@ async def _switch_partner(db, actor, conversation_id, flow, request):
 
 async def apply_reception_action(db, actor, draft_id, request: ReceptionAction):
     row = await require_draft(db, actor, draft_id)
+    if row.kind == "onboarding":
+        raise ServiceError("APPLICATION_FLOW_CHANGED", 409)
     flow = await flow_record(db, actor, row.conversation_id)
     conversation = await db.get(Conversation, row.conversation_id)
     if request.action == "resume" and row.direction != conversation.direction:
@@ -881,7 +894,7 @@ async def run_reception_step(
                     "type": "suggestions",
                     "items": [
                         {"id": kind, "text": label}
-                        for kind, label in {**INTENT_LABELS, "onboarding": "提交入驻资料"}.items()
+                        for kind, label in INTENT_LABELS.items()
                     ],
                 }
             )

@@ -5,8 +5,8 @@ from pathlib import Path
 from sqlalchemy import select
 
 from xiaohe.models import WorkflowDefinitionRecord
-from xiaohe.workflows.loader import load_bundle, workflow_for
-from xiaohe.workflows.models import WorkflowValidationError
+from xiaohe.workflows.loader import workflow_for
+from xiaohe.workflows.models import WorkflowBundle, WorkflowValidationError
 from xiaohe.workflows.store import load_persisted_bundle, persist_bundle
 
 RESOURCE_ROOT = Path(__file__).resolve().parents[3] / "resources/xiaohe"
@@ -36,12 +36,17 @@ async def baseline_bundle(db):
         )
     ).all()
     for row in rows:
-        from xiaohe.workflows.models import WorkflowBundle
-
         bundle = WorkflowBundle.model_validate(row.payload)
         if rules_digest(bundle) == LEGACY_RULES_DIGEST:
             return bundle
-    bundle = load_bundle(RESOURCE_ROOT)
+    try:
+        bundle = WorkflowBundle.model_validate_json(
+            (RESOURCE_ROOT / "legacy-bundle-v1.json").read_text("utf-8")
+        )
+    except ValueError:
+        raise WorkflowValidationError(
+            "original draft definition unavailable; explicit migration required"
+        ) from None
     if rules_digest(bundle) != LEGACY_RULES_DIGEST:
         raise WorkflowValidationError(
             "original draft definition unavailable; explicit migration required"
@@ -56,7 +61,19 @@ async def draft_definition(db, row):
         row.definition_bundle_id = bundle.bundle_id
     else:
         bundle = await load_persisted_bundle(db, row.definition_bundle_id)
-    return workflow_for(bundle, "xiaohe-" + row.direction)
+    definition = workflow_for(bundle, "xiaohe-" + row.direction)
+    if row.state == "submitting":
+        return definition
+    # 新的受理门槛只投影联系人字段，不改写已持久化的历史流程或提交 payload。
+    fields = {key for group in definition.rounds for key in group.fields}
+    contacts = [key for key in ("contactName", "contactPhone") if key not in fields]
+    required = list(dict.fromkeys(definition.required_fields + ["contactName", "contactPhone"]))
+    if not contacts and required == definition.required_fields:
+        return definition
+    rounds = list(definition.rounds)
+    index = next((i for i, group in enumerate(rounds) if group.id == "round2"), 0)
+    rounds[index] = rounds[index].model_copy(update={"fields": rounds[index].fields + contacts})
+    return definition.model_copy(update={"rounds": rounds, "required_fields": required})
 
 
 def rounds_for(bundle, direction):

@@ -3644,5 +3644,5 @@
       "$ref": "#/$defs/StreamEventV2"
     }
   ],
-  "$comment": "由唯一主合同机器块提取；SHA256 3435d508e3401ba42359e191ff0b90a96f18c05102274a78e9dcce1fa45d6ca9；源 docs/contracts/2026-11-03-xiaohe-integration-v1.md"
+  "$comment": "由唯一主合同机器块提取；SHA256 1aa0bb1ac58436c4c5b594afc3f7b48a17f743d3f5277532cb1d7a729fc3291a；源 docs/contracts/2026-11-03-xiaohe-integration-v1.md"
 }

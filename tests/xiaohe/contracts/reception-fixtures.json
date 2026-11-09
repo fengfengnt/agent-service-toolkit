@@ -1,9 +1,9 @@
 {
   "schemaVersion": "reception.v1",
-  "schemaSha256": "cfc323b58e95e7aebb336243d538f83154914a0f3a59c2c4ce112d6d2c7c27cc",
+  "schemaSha256": "7480d43b711581f617d40133cacf34b6ee63abd04216ccfee43906a7d192b790",
   "schemaCases": [
     {
-      "name": "buyer-name-only",
+      "name": "buyer-minimum-contacts",
       "type": "Submission",
       "value": {
         "submissionKey": "submit-1",
@@ -15,13 +15,16 @@
         "publicFields": {
           "companyName": "甲公司"
         },
-        "requestFields": {},
+        "requestFields": {
+          "contactName": "测试联系人",
+          "contactPhone": "+86 010-12345678 转 9"
+        },
         "files": []
       },
       "valid": true
     },
     {
-      "name": "supplier-name-only",
+      "name": "supplier-minimum-contacts",
       "type": "Submission",
       "value": {
         "submissionKey": "submit-1",
@@ -33,7 +36,10 @@
         "publicFields": {
           "companyName": "甲公司"
         },
-        "requestFields": {},
+        "requestFields": {
+          "contactName": "测试联系人",
+          "contactPhone": "+86 010-12345678 转 9"
+        },
         "files": []
       },
       "valid": true
@@ -58,7 +64,8 @@
           ]
         },
         "requestFields": {
-          "contactName": "张女士"
+          "contactName": "张女士",
+          "contactPhone": "+86 010-12345678 转 9"
         },
         "files": []
       },
@@ -271,7 +278,10 @@
         "publicFields": {
           "companyName": "甲公司"
         },
-        "requestFields": {},
+        "requestFields": {
+          "contactName": "测试联系人",
+          "contactPhone": "+86 010-12345678 转 9"
+        },
         "files": [],
         "subjectId": "s-1",
         "applicationId": "a-1",
@@ -377,7 +387,8 @@
           ]
         },
         "requestFields": {
-          "contactName": "张女士"
+          "contactName": "张女士",
+          "contactPhone": "+86 010-12345678 转 9"
         },
         "files": []
       },
@@ -646,7 +657,8 @@
           ]
         },
         "requestFields": {
-          "contactName": "张女士"
+          "contactName": "张女士",
+          "contactPhone": "+86 010-12345678 转 9"
         },
         "files": []
       },
@@ -825,7 +837,10 @@
           "publicFields": {
             "companyName": "甲公司"
           },
-          "requestFields": {},
+          "requestFields": {
+            "contactName": "测试联系人",
+            "contactPhone": "+86 010-12345678 转 9"
+          },
           "files": []
         }
       },
@@ -900,11 +915,373 @@
           ]
         },
         "requestFields": {
-          "contactName": "张女士"
+          "contactName": "张女士",
+          "contactPhone": "+86 010-12345678 转 9"
         },
         "files": []
       },
       "valid": true
+    },
+    {
+      "name": "buyer-missing-contactName",
+      "type": "Submission",
+      "valid": false,
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "company",
+        "direction": "buyer",
+        "publicFields": {
+          "companyName": "甲公司"
+        },
+        "requestFields": {
+          "contactPhone": "+86 010-12345678 转 9"
+        },
+        "files": []
+      }
+    },
+    {
+      "name": "buyer-missing-contactPhone",
+      "type": "Submission",
+      "valid": false,
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "company",
+        "direction": "buyer",
+        "publicFields": {
+          "companyName": "甲公司"
+        },
+        "requestFields": {
+          "contactName": "测试联系人"
+        },
+        "files": []
+      }
+    },
+    {
+      "name": "buyer-free-text-phone",
+      "type": "Submission",
+      "valid": true,
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "company",
+        "direction": "buyer",
+        "publicFields": {
+          "companyName": "甲公司"
+        },
+        "requestFields": {
+          "contactName": "测试联系人",
+          "contactPhone": "总台转国际业务部"
+        },
+        "files": []
+      }
+    },
+    {
+      "name": "buyer-clear-contacts",
+      "type": "DraftView",
+      "valid": true,
+      "value": {
+        "id": "draft-clear-buyer",
+        "kind": "service",
+        "direction": "buyer",
+        "revision": 2,
+        "step": "round1",
+        "state": "collecting",
+        "fields": {
+          "contactName": null,
+          "contactPhone": null
+        },
+        "missingRequired": [
+          "contactName",
+          "contactPhone"
+        ],
+        "files": []
+      }
+    },
+    {
+      "name": "supplier-missing-contactName",
+      "type": "Submission",
+      "valid": false,
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "company",
+        "direction": "supplier",
+        "publicFields": {
+          "companyName": "甲公司"
+        },
+        "requestFields": {
+          "contactPhone": "+86 010-12345678 转 9"
+        },
+        "files": []
+      }
+    },
+    {
+      "name": "supplier-missing-contactPhone",
+      "type": "Submission",
+      "valid": false,
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "company",
+        "direction": "supplier",
+        "publicFields": {
+          "companyName": "甲公司"
+        },
+        "requestFields": {
+          "contactName": "测试联系人"
+        },
+        "files": []
+      }
+    },
+    {
+      "name": "supplier-free-text-phone",
+      "type": "Submission",
+      "valid": true,
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "company",
+        "direction": "supplier",
+        "publicFields": {
+          "companyName": "甲公司"
+        },
+        "requestFields": {
+          "contactName": "测试联系人",
+          "contactPhone": "总台转国际业务部"
+        },
+        "files": []
+      }
+    },
+    {
+      "name": "supplier-clear-contacts",
+      "type": "DraftView",
+      "valid": true,
+      "value": {
+        "id": "draft-clear-supplier",
+        "kind": "service",
+        "direction": "supplier",
+        "revision": 2,
+        "step": "round1",
+        "state": "collecting",
+        "fields": {
+          "contactName": null,
+          "contactPhone": null
+        },
+        "missingRequired": [
+          "contactName",
+          "contactPhone"
+        ],
+        "files": []
+      }
+    },
+    {
+      "name": "organization-missing-contactName",
+      "type": "Submission",
+      "valid": false,
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "organization",
+        "direction": "organization",
+        "publicFields": {
+          "organizationName": "采购协会",
+          "memberSize": "100—500",
+          "coverage": "本省",
+          "onlineChannels": [
+            "公众号",
+            "微信群"
+          ]
+        },
+        "requestFields": {
+          "contactPhone": "+86 010-12345678 转 9"
+        },
+        "files": []
+      }
+    },
+    {
+      "name": "organization-missing-contactPhone",
+      "type": "Submission",
+      "valid": false,
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "organization",
+        "direction": "organization",
+        "publicFields": {
+          "organizationName": "采购协会",
+          "memberSize": "100—500",
+          "coverage": "本省",
+          "onlineChannels": [
+            "公众号",
+            "微信群"
+          ]
+        },
+        "requestFields": {
+          "contactName": "张女士"
+        },
+        "files": []
+      }
+    },
+    {
+      "name": "organization-free-text-phone",
+      "type": "Submission",
+      "valid": true,
+      "value": {
+        "submissionKey": "submit-1",
+        "draftId": "draft-1",
+        "draftRevision": 1,
+        "operation": "create",
+        "subjectKind": "organization",
+        "direction": "organization",
+        "publicFields": {
+          "organizationName": "采购协会",
+          "memberSize": "100—500",
+          "coverage": "本省",
+          "onlineChannels": [
+            "公众号",
+            "微信群"
+          ]
+        },
+        "requestFields": {
+          "contactName": "张女士",
+          "contactPhone": "总台转国际业务部"
+        },
+        "files": []
+      }
+    },
+    {
+      "name": "organization-clear-contacts",
+      "type": "DraftView",
+      "valid": true,
+      "value": {
+        "id": "draft-clear-organization",
+        "kind": "service",
+        "direction": "organization",
+        "revision": 2,
+        "step": "round1",
+        "state": "collecting",
+        "fields": {
+          "contactName": null,
+          "contactPhone": null
+        },
+        "missingRequired": [
+          "contactName",
+          "contactPhone"
+        ],
+        "files": []
+      }
+    },
+    {
+      "name": "standalone-form-edit",
+      "type": "FormSubmissionInput",
+      "valid": true,
+      "value": {
+        "formId": "632e3fa7-f127-42a0-97ee-d4505eb382da",
+        "clientSubmissionId": "form-test",
+        "mode": "edit",
+        "sourceApplicationId": "10",
+        "expectedApplicationRevision": 3,
+        "definitionBundleId": "bundle",
+        "fields": {
+          "companyName": "测试企业",
+          "contactName": "李先生",
+          "contactPhone": "总台"
+        },
+        "files": []
+      }
+    },
+    {
+      "name": "standalone-form-forged-stage",
+      "type": "FormSubmissionInput",
+      "valid": false,
+      "value": {
+        "formId": "632e3fa7-f127-42a0-97ee-d4505eb382da",
+        "clientSubmissionId": "form-test",
+        "mode": "edit",
+        "sourceApplicationId": "10",
+        "expectedApplicationRevision": 3,
+        "definitionBundleId": "bundle",
+        "fields": {
+          "companyName": "测试企业",
+          "contactName": "李先生",
+          "contactPhone": "总台"
+        },
+        "files": [],
+        "stage": "approved"
+      }
+    },
+    {
+      "name": "standalone-form-new",
+      "type": "FormSubmissionInput",
+      "valid": true,
+      "value": {
+        "formId": "632e3fa7-f127-42a0-97ee-d4505eb382da",
+        "clientSubmissionId": "form-test",
+        "mode": "new",
+        "sourceApplicationId": "10",
+        "expectedApplicationRevision": null,
+        "definitionBundleId": "bundle",
+        "fields": {
+          "companyName": "测试企业",
+          "contactName": "李先生",
+          "contactPhone": "总台"
+        },
+        "files": []
+      }
+    },
+    {
+      "name": "standalone-form-new-revision-rejected",
+      "type": "FormSubmissionInput",
+      "valid": false,
+      "value": {
+        "formId": "632e3fa7-f127-42a0-97ee-d4505eb382da",
+        "clientSubmissionId": "form-test",
+        "mode": "new",
+        "sourceApplicationId": "10",
+        "expectedApplicationRevision": 3,
+        "definitionBundleId": "bundle",
+        "fields": {
+          "companyName": "测试企业",
+          "contactName": "李先生",
+          "contactPhone": "总台"
+        },
+        "files": []
+      }
+    },
+    {
+      "name": "standalone-form-upload-path",
+      "type": "UploadView",
+      "valid": true,
+      "value": {
+        "file": {
+          "id": "file-1",
+          "category": "case",
+          "filename": "资料.pdf",
+          "mediaType": "application/pdf",
+          "bytes": 10,
+          "sha256": null,
+          "status": "pending"
+        },
+        "uploadPath": "/ai-api/v1/reception/application-form/form-1/files/file-1"
+      }
     }
   ],
   "guardCases": [

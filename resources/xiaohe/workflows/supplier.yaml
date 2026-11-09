@@ -2,7 +2,7 @@
 schema_version: 1
 agent_id: xiaohe-supplier
 name: 供应商 Agent
-workflow_version: '1'
+workflow_version: '2'
 entry: understand
 prompts:
   intent: supplier-intent.md
@@ -14,6 +14,8 @@ skills:
 - supplier.security
 required_fields:
 - companyName
+- contactName
+- contactPhone
 rounds:
 - id: round1
   name: 基础资料
@@ -31,6 +33,7 @@ rounds:
   - serviceAreas
   - orderTypes
   - contactName
+  - contactPhone
 - id: round3
   name: 选填补充
   fields:

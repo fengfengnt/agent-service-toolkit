@@ -89,8 +89,8 @@ def test_reception_actions_keep_original_admission_identifier_limit(key):
 @pytest.mark.parametrize(
     "name,key",
     [
-        ("buyer-name-only", "painPoints"),
-        ("supplier-name-only", "capabilityTags"),
+        ("buyer-minimum-contacts", "painPoints"),
+        ("supplier-minimum-contacts", "capabilityTags"),
         ("organization-minimum", "aiNeeds"),
     ],
 )

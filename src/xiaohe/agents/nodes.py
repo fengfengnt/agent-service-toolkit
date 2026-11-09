@@ -21,7 +21,12 @@ from xiaohe.reception.fields import CHANNELS, FIELD_LABELS, ORG_ENUMS, missing_r
 from xiaohe.reception.models import ReceptionDraft, ReceptionSubmission
 from xiaohe.reception.skills import load_skill_materials
 from xiaohe.reception.store import create_draft, locked_flow, patch_locked_draft
-from xiaohe.reception.submission import actor_from_user, confirm_locked_draft, submit_confirmed
+from xiaohe.reception.submission import (
+    actor_from_user,
+    confirm_locked_draft,
+    create_draft_from_business,
+    submit_confirmed,
+)
 from xiaohe.runs import require_write
 from xiaohe.workflows.compiler import ORGANIZATION_OPERATIONS, NodeExecutor
 from xiaohe.workflows.definitions import draft_definition
@@ -552,6 +557,16 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
             ):
                 if row is None:
                     text = "请先接受登记邀请并登录，再填写或确认资料。"
+                elif (
+                    row.state == "accepted"
+                    and row.kind == "service"
+                    and node.operation == "collect_details"
+                ):
+                    if decision.action == "consultation_with_details" and not stage.get("answer"):
+                        raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
+                    return await _external_prepared(
+                        db, "edit_application", frame, decision, row, command, run
+                    )
                 elif row.state == "accepted":
                     text = "该需求已有受理回执；新需求请新建草稿。"
                 elif node.operation == "confirm_submission":
@@ -612,10 +627,15 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
                             (group.fields for group in draft_rules.rounds if group.id == row.step),
                             [],
                         )
+                        fields = [key for key in fields if not row.fields.get(key)]
                         text = (
-                            "请补充本轮资料："
-                            + "、".join(FIELD_LABELS[key] for key in fields)
-                            + "；也可先继续咨询。"
+                            (
+                                "请补充本轮资料："
+                                + "、".join(FIELD_LABELS[key] for key in fields)
+                                + "；也可先继续咨询。"
+                            )
+                            if fields
+                            else "本轮资料已保存。您可以继续交流、补充其他资料，或查看汇总。"
                         )
             elif node.operation in (
                 "record_organization_intent",
@@ -824,8 +844,68 @@ async def _external_operation(factory, frame, decision, prepared, client):
                 if page.groups
                 else "当前没有查到该方向的进展记录。"
             }
+    elif name == "edit_application":
+        if not application_id:
+            raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
+        async with factory.begin() as db:
+            _, command, _, flow = await _checked(db, frame)
+            drafts = (
+                await db.scalars(
+                    select(ReceptionDraft).where(
+                        ReceptionDraft.conversation_id == frame.conversation_id,
+                        ReceptionDraft.source_application_id == application_id,
+                        ReceptionDraft.kind == "service",
+                        ReceptionDraft.direction == frame.model_context.direction,
+                        ReceptionDraft.state.in_(["collecting", "review"]),
+                    )
+                )
+            ).all()
+            if len(drafts) > 1:
+                flow.active_draft_id = None
+                value = {"text": "这份申请有多份修改草稿，请先在草稿列表选择要继续的一份。"}
+                _save_stage(command, frame.agent_id, external_result=value)
+                return value
+            draft_id = drafts[0].id if drafts else None
+            expected_revision = drafts[0].revision if drafts else None
+        if draft_id is None:
+            view = await create_draft_from_business(
+                factory,
+                frame.actor,
+                frame.conversation_id,
+                CreateDraft(
+                    client_draft_id="edit:" + str(frame.command_id),
+                    kind="service",
+                    direction=frame.model_context.direction,
+                    source_application_id=application_id,
+                ),
+                client,
+                fence=frame.fence,
+                definition_bundle_id=frame.bundle_id,
+            )
+            draft_id = UUID(view.id)
+            expected_revision = view.revision
+        async with factory.begin() as db:
+            _, command, _, flow = await _checked(db, frame)
+            draft = await db.scalar(
+                select(ReceptionDraft).where(ReceptionDraft.id == draft_id).with_for_update()
+            )
+            if decision.candidates:
+                await patch_locked_draft(
+                    db,
+                    draft,
+                    expected_revision,
+                    {key: item.value for key, item in decision.candidates.items()},
+                )
+            flow.active_draft_id = draft.id
+            value = {
+                "text": "已保存原申请的修改草稿，并同步到右侧资料。您可以继续补充，查看汇总并确认后才会更新正式申请。"
+            }
+            _save_stage(command, frame.agent_id, external_result=value)
+        return value
+    elif name == "start_onboarding":
+        value = {"text": "合作与入驻已统一为一份申请，无需再次提交入驻资料。请在“我的进展”查看/修改原申请；审核通过与已完成入驻会分别显示。"}
     elif not application_id:
-        value = {"text": "请先完成组织需求登记，受理后再办理意向或入驻。"}
+        value = {"text": "请先完成组织合作申请，受理后可在我的进展查看或修改。"}
     elif name == "record_organization_intent":
         from xiaohe.reception.organization import record_intent
 
@@ -842,45 +922,8 @@ async def _external_operation(factory, frame, decision, prepared, client):
             semantic_command_id=frame.command_id,
         )
         value = {"text": "已记录合作意向，具体安排及素材提供待生态经理确认。"}
-    elif prepared.get("choose"):
-        async with factory.begin() as db:
-            _, _, _, flow = await _checked(db, frame)
-            flow.active_draft_id = None
-        value = {"text": "该组织有多份入驻草稿，请先在草稿列表选择要继续的一份。"}
-    elif prepared.get("resume_id"):
-        async with factory.begin() as db:
-            _, _, _, flow = await _checked(db, frame)
-            row = await db.get(ReceptionDraft, UUID(prepared["resume_id"]))
-            if row.conversation_id != frame.conversation_id or row.state not in (
-                "collecting",
-                "review",
-            ):
-                raise ServiceError("DRAFT_CONFLICT", 409)
-            flow.active_draft_id = row.id
-        value = {"text": "已恢复保存的入驻草稿，请核对当前资料。"}
-    elif prepared.get("missing_onboarding"):
-        value = {"text": "请在进展中选择已有入驻申请，再继续补充资料。"}
     else:
-        from xiaohe.reception.organization import start_onboarding
-
-        if client is None:
-            raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
-        view = await start_onboarding(
-            factory,
-            frame.actor,
-            frame.conversation_id,
-            application_id,
-            client=client,
-            client_draft_id=str(uuid5(frame.command_id, "organization.onboarding")),
-            fence=frame.fence,
-            onboarding_id=prepared.get("onboarding_id"),
-            definition_bundle_id=frame.bundle_id,
-        )
-        async with factory.begin() as db:
-            await _checked(db, frame)
-            row = await db.get(ReceptionDraft, UUID(view.id))
-            row.definition_bundle_id = frame.bundle_id
-        value = {"text": "已准备独立入驻草稿，请核对补充后确认当前汇总。"}
+        raise ServiceError("INPUT_INVALID", 422)
     async with factory.begin() as db:
         _, command, _, _ = await _checked(db, frame)
         _save_stage(command, frame.agent_id, external_result=value)

@@ -38,7 +38,7 @@ def payload():
         subject_kind="company",
         direction="buyer",
         public_fields={"companyName": "甲公司"},
-        request_fields={},
+        request_fields={"contactName": "测试联系人", "contactPhone": "总台分机"},
         files=[],
     )
 

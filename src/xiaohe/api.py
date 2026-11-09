@@ -37,6 +37,8 @@ _MESSAGES = {
     "MESSAGE_NOT_FOUND": "未找到此消息。",
     "VISITOR_LIMIT_REACHED": "访客消息额度已用完，可继续注册或登录。",
     "VISITOR_EXPIRED": "访客会话已到期。",
+    "APPLICATION_FLOW_CHANGED": "合作与入驻已统一，请到我的进展查看/修改原申请。",
+    "APPLICATION_MIGRATION_REQUIRED": "历史申请资料尚未完成归并，暂不可提交修改。",
     "AUTH_REQUIRED": "请重新验证登录身份。",
     "FORBIDDEN": "无权访问此内容。",
     "RUN_ACTIVE": "当前对话正在处理中。",

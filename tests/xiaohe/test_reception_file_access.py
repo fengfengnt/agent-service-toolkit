@@ -86,7 +86,7 @@ async def confirmed_file(factory, artifacts, *, invalid=False, sub="member:1:fix
         await write_file(factory, who, draft.id, upload.file.id, chunks(PDF), artifacts=artifacts)
     async with factory.begin() as db:
         row = await db.get(ReceptionDraft, UUID(draft.id))
-        view = await patch_draft(db, who, draft.id, row.revision, {"companyName": "甲公司"})
+        view = await patch_draft(db, who, draft.id, row.revision, {"companyName": "甲公司", "contactName": "张先生", "contactPhone": "企业总台"})
         row.state, row.step, row.summary_version = "review", "summary", view.revision
         turn = await send_in_db(db, who, conversation, "确认提交")
         submission = await confirm_draft(

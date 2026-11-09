@@ -67,6 +67,8 @@ async def confirm_locked_draft(
         if existing.summary_version != summary_version:
             raise ServiceError("DRAFT_CONFLICT", 409)
         return existing
+    if row.kind == "onboarding":
+        raise ServiceError("APPLICATION_FLOW_CHANGED", 409)
     if (
         row.revision != expected_revision
         or row.state != "review"
@@ -199,7 +201,7 @@ async def submit_confirmed(factory, fence, submission_id, client) -> SubmitRecei
         actor = actor_from_user(user)
         kind = draft.kind
         payload = (OnboardingSubmission if kind == "onboarding" else Submission).model_validate(
-            row.payload
+            row.payload, context={"persisted_submission": True}
         )
     if client is None:
         raise ServiceError("SUBMISSION_UNKNOWN", 503, True)

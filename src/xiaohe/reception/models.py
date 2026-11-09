@@ -146,3 +146,50 @@ class ReceptionFile(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.clock_timestamp()
     )
+
+
+class ReceptionFormSubmission(Base):
+    __tablename__ = "reception_form_submissions"
+    __table_args__ = (
+        ForeignKeyConstraint(["user_id", "system_id", "tenant_id"],
+            ["xiaohe.users.user_id", "xiaohe.users.system_id", "xiaohe.users.tenant_id"]),
+        CheckConstraint("status IN ('pending','accepted','failed')"),
+    )
+    system_id: Mapped[str] = mapped_column(primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    user_id: Mapped[str] = mapped_column(primary_key=True)
+    client_submission_id: Mapped[str] = mapped_column(String(200), primary_key=True)
+    form_id: Mapped[UUID]
+    input_hash: Mapped[str] = mapped_column(String(64))
+    payload: Mapped[dict] = mapped_column(JSONB)
+    receipt: Mapped[dict | None] = mapped_column(JSONB)
+    status: Mapped[str] = mapped_column(default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.clock_timestamp())
+
+
+class ReceptionFormFile(Base):
+    __tablename__ = "reception_form_files"
+    __table_args__ = (
+        ForeignKeyConstraint(["user_id", "system_id", "tenant_id"],
+            ["xiaohe.users.user_id", "xiaohe.users.system_id", "xiaohe.users.tenant_id"]),
+        UniqueConstraint("system_id", "tenant_id", "user_id", "form_id", "client_upload_id"),
+        CheckConstraint("status IN ('pending','ready','failed')"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    system_id: Mapped[str]
+    tenant_id: Mapped[int] = mapped_column(BigInteger)
+    user_id: Mapped[str]
+    form_id: Mapped[UUID]
+    client_upload_id: Mapped[str] = mapped_column(String(200))
+    upload_request: Mapped[dict] = mapped_column(JSONB)
+    category: Mapped[str]
+    filename: Mapped[str]
+    media_type: Mapped[str]
+    bytes: Mapped[int] = mapped_column(BigInteger)
+    sha256: Mapped[str | None]
+    status: Mapped[str] = mapped_column(default="pending")
+    object_key: Mapped[str] = mapped_column(unique=True)
+    object_keys: Mapped[list] = mapped_column(JSONB, default=list)
+    detached: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.clock_timestamp())
+    cleanup_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

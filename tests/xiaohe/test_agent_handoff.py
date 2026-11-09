@@ -213,7 +213,13 @@ async def test_pending_submission_query_reconciles_without_reconfirmation(
             conversation,
             CreateDraft(client_draft_id="lost", kind="service", direction="buyer"),
         )
-        view = await patch_draft(db, who, view.id, view.revision, {"companyName": "虚构甲公司"})
+        view = await patch_draft(
+            db,
+            who,
+            view.id,
+            view.revision,
+            {"companyName": "虚构甲公司", "contactName": "测试联系人", "contactPhone": "总台分机"},
+        )
         row = await db.get(ReceptionDraft, UUID(view.id))
         row.step, row.state, row.summary_version = "summary", "review", row.revision
     message, view = await talk(pg_factory, runtime_env, who, conversation, "就按这份资料提交吧")

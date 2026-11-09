@@ -7,7 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from xiaohe.contracts import Actor, ServiceError
 from xiaohe.conversations import require_conversation
 from xiaohe.models import Conversation
-from xiaohe.reception.contracts import CreateDraft, DraftRef, DraftView, FileRef, ReceptionView
+from xiaohe.reception.contracts import (
+    CreateDraft,
+    DraftRef,
+    DraftView,
+    FileRef,
+    ReceptionView,
+    SubmitReceipt,
+)
 from xiaohe.reception.fields import PUBLIC_FIELDS, missing_required, validate_fields
 from xiaohe.reception.models import (
     ReceptionDraft,
@@ -15,7 +22,9 @@ from xiaohe.reception.models import (
     ReceptionFlow,
     ReceptionSubmission,
 )
-from xiaohe.workflows.definitions import draft_definition
+from xiaohe.workflows.definitions import RESOURCE_ROOT, draft_definition
+from xiaohe.workflows.loader import load_bundle
+from xiaohe.workflows.store import persist_bundle
 
 
 def _uuid(value: str | UUID) -> UUID:
@@ -73,6 +82,23 @@ async def draft_view(db: AsyncSession, row: ReceptionDraft) -> DraftView:
         )
     ).all()
     definition = await draft_definition(db, row)
+    accepted_application_id = None
+    if row.state == "accepted" and row.kind == "service":
+        submission = await db.scalar(
+            select(ReceptionSubmission).where(
+                ReceptionSubmission.draft_id == row.id,
+                ReceptionSubmission.draft_revision == row.revision,
+                ReceptionSubmission.status == "accepted",
+            )
+        )
+        if submission and submission.receipt:
+            receipt = SubmitReceipt.model_validate(submission.receipt)
+            if (
+                receipt.status == "accepted"
+                and receipt.kind == row.kind
+                and receipt.submission_key == submission.submission_key
+            ):
+                accepted_application_id = receipt.application_id
     return DraftView(
         id=str(row.id),
         kind=row.kind,
@@ -80,6 +106,7 @@ async def draft_view(db: AsyncSession, row: ReceptionDraft) -> DraftView:
         subject_id=row.subject_id,
         source_application_id=row.source_application_id,
         source_onboarding_id=row.source_onboarding_id,
+        accepted_application_id=accepted_application_id,
         revision=row.revision,
         step=row.step,
         state=row.state,
@@ -128,6 +155,8 @@ async def create_draft(
         ):
             raise ServiceError("DRAFT_CONFLICT", 409)
         return await draft_view(db, existing)
+    if request.kind == "onboarding":
+        raise ServiceError("APPLICATION_FLOW_CHANGED", 409)
     if (request.subject_id or request.source_application_id) and source is None:
         # Linked formal data must first be loaded and authorized by the business-client path.
         raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
@@ -135,7 +164,9 @@ async def create_draft(
         conversation_id=conversation_id,
         system_id=actor.system.system_id,
         tenant_id=actor.system.tenant_id,
-        definition_bundle_id=definition_bundle_id or db.info.get("workflow_bundle_id"),
+        definition_bundle_id=definition_bundle_id
+        or db.info.get("workflow_bundle_id")
+        or await persist_bundle(db, load_bundle(RESOURCE_ROOT)),
         creation_request=request.model_dump(mode="json", by_alias=True, exclude_none=True),
         **request.model_dump(),
     )
@@ -185,6 +216,8 @@ async def patch_draft(
 
 
 async def patch_locked_draft(db, row, expected_revision, fields) -> DraftView:
+    if row.kind == "onboarding":
+        raise ServiceError("APPLICATION_FLOW_CHANGED", 409)
     if row.revision != expected_revision:
         raise ServiceError("DRAFT_CONFLICT", 409)
     if row.state in ("submitting", "accepted"):

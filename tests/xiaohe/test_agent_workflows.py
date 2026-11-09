@@ -41,7 +41,7 @@ async def test_formal_payload_and_draft_api_use_same_bound_definition(pg_factory
         row = await db.get(ReceptionDraft, UUID(view.id))
         original = row.definition_bundle_id
     data = yaml.safe_load((root / "workflows/buyer.yaml").read_text("utf-8"))
-    data["required_fields"] = ["companyName", "city"]
+    data["required_fields"] = ["companyName", "contactName", "contactPhone", "city"]
     data["rounds"][0], data["rounds"][1] = data["rounds"][1], data["rounds"][0]
     (root / "workflows/buyer.yaml").write_text(yaml.safe_dump(data), "utf-8")
     latest = load_bundle(root)
@@ -49,9 +49,13 @@ async def test_formal_payload_and_draft_api_use_same_bound_definition(pg_factory
         await persist_bundle(db, latest)
         row = await db.get(ReceptionDraft, UUID(view.id))
         assert row.definition_bundle_id == original != latest.bundle_id
-        assert (await draft_view(db, row)).missing_required == ["companyName"]
+        assert (await draft_view(db, row)).missing_required == [
+            "companyName",
+            "contactName",
+            "contactPhone",
+        ]
         layout = (await draft_view(db, row)).field_layout
-        assert layout.required_fields == ["companyName"]
+        assert layout.required_fields == ["companyName", "contactName", "contactPhone"]
         assert layout.rounds[0].fields == ["companyName", "industry", "companyScale", "city"]
         db.info["workflow_bundle_id"] = latest.bundle_id
         new = await create_draft(
@@ -60,7 +64,12 @@ async def test_formal_payload_and_draft_api_use_same_bound_definition(pg_factory
             conversation,
             CreateDraft(client_draft_id="latest", direction="buyer", kind="service"),
         )
-        assert new.field_layout.required_fields == ["companyName", "city"]
+        assert new.field_layout.required_fields == [
+            "companyName",
+            "contactName",
+            "contactPhone",
+            "city",
+        ]
         assert new.step == "round2"
     with pytest.raises(ValidationError):
         Submission(
@@ -138,6 +147,10 @@ async def test_fresh_install_can_start_changed_workflow_without_legacy_snapshot(
     data = yaml.safe_load(path.read_text("utf-8"))
     data["rounds"][0], data["rounds"][1] = data["rounds"][1], data["rounds"][0]
     path.write_text(yaml.safe_dump(data), "utf-8")
+    baseline_path = root / "legacy-bundle-v1.json"
+    baseline = json.loads(baseline_path.read_text("utf-8"))
+    baseline["definitions"]["xiaohe-buyer"]["rounds"].reverse()
+    baseline_path.write_text(json.dumps(baseline), "utf-8")
     monkeypatch.setattr(definitions, "RESOURCE_ROOT", root)
     registry = await load_agent_registry(pg_factory, root, AgentSequenceModel(result={}), None)
     assert registry.bundle.definitions["xiaohe-buyer"].rounds[0].id == "round2"
@@ -163,6 +176,10 @@ async def test_legacy_draft_still_requires_original_snapshot(pg_factory, tmp_pat
     data = yaml.safe_load(path.read_text("utf-8"))
     data["rounds"][0], data["rounds"][1] = data["rounds"][1], data["rounds"][0]
     path.write_text(yaml.safe_dump(data), "utf-8")
+    baseline_path = root / "legacy-bundle-v1.json"
+    baseline = json.loads(baseline_path.read_text("utf-8"))
+    baseline["definitions"]["xiaohe-buyer"]["rounds"].reverse()
+    baseline_path.write_text(json.dumps(baseline), "utf-8")
     monkeypatch.setattr(definitions, "RESOURCE_ROOT", root)
     _, conversation = await visitor(pg_factory)
     async with pg_factory.begin() as db:
@@ -183,14 +200,15 @@ async def test_legacy_draft_still_requires_original_snapshot(pg_factory, tmp_pat
 def test_yaml_preserves_existing_rounds_and_minimums():
     bundle = load_bundle(RESOURCE_ROOT)
     expected = {
-        "buyer": ["companyName"],
-        "supplier": ["companyName"],
+        "buyer": ["companyName", "contactName", "contactPhone"],
+        "supplier": ["companyName", "contactName", "contactPhone"],
         "organization": [
             "organizationName",
             "memberSize",
             "coverage",
             "onlineChannels",
             "contactName",
+            "contactPhone",
         ],
     }
     for direction, minimum in expected.items():

@@ -344,6 +344,8 @@ async def purge_expired_guests(factory, artifacts, limit=100):
                 )
     if artifacts is not None:
         await _reap_late_objects(factory, artifacts, limit)
+        from xiaohe.reception.form_files import purge_form_files
+        await purge_form_files(factory, artifacts, limit)
 
 
 async def _reap_late_objects(factory, artifacts, limit):

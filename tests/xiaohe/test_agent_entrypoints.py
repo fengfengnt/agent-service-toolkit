@@ -167,7 +167,15 @@ async def test_other_system_can_submit_through_direct_entry_with_alternate_backe
                 CreateDraft(client_draft_id="other-system", kind="service", direction="buyer"),
             )
             view = await patch_draft(
-                db, who, view.id, view.revision, {"companyName": "虚构外部公司"}
+                db,
+                who,
+                view.id,
+                view.revision,
+                {
+                    "companyName": "虚构外部公司",
+                    "contactName": "测试联系人",
+                    "contactPhone": "总台分机",
+                },
             )
             row = await db.get(ReceptionDraft, UUID(view.id))
             row.step, row.state, row.summary_version = "summary", "review", row.revision

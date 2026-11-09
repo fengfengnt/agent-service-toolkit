@@ -108,7 +108,15 @@
           "$ref": "#/$defs/FieldValue"
         },
         "contactName": {
-          "$ref": "#/$defs/FieldValue"
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 4000
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "contactRole": {
           "$ref": "#/$defs/FieldValue"
@@ -127,6 +135,17 @@
         },
         "decisionProcess": {
           "$ref": "#/$defs/FieldValue"
+        },
+        "contactPhone": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 4000
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [],
@@ -163,7 +182,10 @@
           "$ref": "#/$defs/FieldValue"
         },
         "contactName": {
-          "$ref": "#/$defs/FieldValue"
+          "type": "string",
+          "maxLength": 4000,
+          "minLength": 1,
+          "pattern": "\\S"
         },
         "contactRole": {
           "$ref": "#/$defs/FieldValue"
@@ -182,10 +204,18 @@
         },
         "decisionProcess": {
           "$ref": "#/$defs/FieldValue"
+        },
+        "contactPhone": {
+          "type": "string",
+          "maxLength": 4000,
+          "minLength": 1,
+          "pattern": "\\S"
         }
       },
       "required": [
-        "companyName"
+        "companyName",
+        "contactName",
+        "contactPhone"
       ],
       "additionalProperties": false
     },
@@ -229,7 +259,10 @@
           "$ref": "#/$defs/FieldValue"
         },
         "contactName": {
-          "$ref": "#/$defs/FieldValue"
+          "type": "string",
+          "maxLength": 4000,
+          "minLength": 1,
+          "pattern": "\\S"
         },
         "contactRole": {
           "$ref": "#/$defs/FieldValue"
@@ -248,9 +281,18 @@
         },
         "decisionProcess": {
           "$ref": "#/$defs/FieldValue"
+        },
+        "contactPhone": {
+          "type": "string",
+          "maxLength": 4000,
+          "minLength": 1,
+          "pattern": "\\S"
         }
       },
-      "required": [],
+      "required": [
+        "contactName",
+        "contactPhone"
+      ],
       "additionalProperties": false
     },
     "organizationDraftFields": {
@@ -400,6 +442,17 @@
         },
         "resources": {
           "$ref": "#/$defs/FieldValue"
+        },
+        "contactPhone": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 4000
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [],
@@ -517,6 +570,12 @@
         },
         "resources": {
           "$ref": "#/$defs/FieldValue"
+        },
+        "contactPhone": {
+          "type": "string",
+          "maxLength": 4000,
+          "minLength": 1,
+          "pattern": "\\S"
         }
       },
       "required": [
@@ -524,7 +583,8 @@
         "memberSize",
         "coverage",
         "onlineChannels",
-        "contactName"
+        "contactName",
+        "contactPhone"
       ],
       "additionalProperties": false
     },
@@ -652,10 +712,17 @@
         },
         "resources": {
           "$ref": "#/$defs/FieldValue"
+        },
+        "contactPhone": {
+          "type": "string",
+          "maxLength": 4000,
+          "minLength": 1,
+          "pattern": "\\S"
         }
       },
       "required": [
-        "contactName"
+        "contactName",
+        "contactPhone"
       ],
       "additionalProperties": false
     },
@@ -700,7 +767,15 @@
           "$ref": "#/$defs/FieldValue"
         },
         "contactName": {
-          "$ref": "#/$defs/FieldValue"
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 4000
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "capacity": {
           "$ref": "#/$defs/FieldValue"
@@ -719,6 +794,17 @@
         },
         "targetAreas": {
           "$ref": "#/$defs/FieldValue"
+        },
+        "contactPhone": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 4000
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [],
@@ -758,7 +844,10 @@
           "$ref": "#/$defs/FieldValue"
         },
         "contactName": {
-          "$ref": "#/$defs/FieldValue"
+          "type": "string",
+          "maxLength": 4000,
+          "minLength": 1,
+          "pattern": "\\S"
         },
         "capacity": {
           "$ref": "#/$defs/FieldValue"
@@ -777,10 +866,18 @@
         },
         "targetAreas": {
           "$ref": "#/$defs/FieldValue"
+        },
+        "contactPhone": {
+          "type": "string",
+          "maxLength": 4000,
+          "minLength": 1,
+          "pattern": "\\S"
         }
       },
       "required": [
-        "companyName"
+        "companyName",
+        "contactName",
+        "contactPhone"
       ],
       "additionalProperties": false
     },
@@ -827,7 +924,10 @@
           "$ref": "#/$defs/FieldValue"
         },
         "contactName": {
-          "$ref": "#/$defs/FieldValue"
+          "type": "string",
+          "maxLength": 4000,
+          "minLength": 1,
+          "pattern": "\\S"
         },
         "capacity": {
           "$ref": "#/$defs/FieldValue"
@@ -846,9 +946,18 @@
         },
         "targetAreas": {
           "$ref": "#/$defs/FieldValue"
+        },
+        "contactPhone": {
+          "type": "string",
+          "maxLength": 4000,
+          "minLength": 1,
+          "pattern": "\\S"
         }
       },
-      "required": [],
+      "required": [
+        "contactName",
+        "contactPhone"
+      ],
       "additionalProperties": false
     },
     "FileRef": {
@@ -982,6 +1091,9 @@
         },
         "fieldLayout": {
           "$ref": "#/$defs/FieldLayout"
+        },
+        "acceptedApplicationId": {
+          "$ref": "#/$defs/Id"
         }
       },
       "required": [
@@ -1487,7 +1599,7 @@
         },
         "uploadPath": {
           "type": "string",
-          "pattern": "^/ai-api/v1/reception/drafts/[^/]+/files/[^/]+$"
+          "pattern": "^/ai-api/v1/reception/(?:drafts|application-form)/[^/?#]+/files/[^/?#]+$"
         }
       },
       "required": [
@@ -1989,7 +2101,7 @@
                 "$ref": "#/$defs/buyerPublicFields"
               },
               "requestFields": {
-                "$ref": "#/$defs/buyerRequestFields"
+                "$ref": "#/$defs/buyerReadRequestFields"
               }
             }
           }
@@ -2008,7 +2120,7 @@
                 "$ref": "#/$defs/organizationPublicFields"
               },
               "requestFields": {
-                "$ref": "#/$defs/organizationRequestFields"
+                "$ref": "#/$defs/organizationReadRequestFields"
               }
             }
           }
@@ -2027,7 +2139,7 @@
                 "$ref": "#/$defs/supplierPublicFields"
               },
               "requestFields": {
-                "$ref": "#/$defs/supplierRequestFields"
+                "$ref": "#/$defs/supplierReadRequestFields"
               }
             }
           }
@@ -2172,7 +2284,7 @@
           "$ref": "#/$defs/organizationPublicFields"
         },
         "requestFields": {
-          "$ref": "#/$defs/organizationRequestFields"
+          "$ref": "#/$defs/organizationReadRequestFields"
         },
         "files": {
           "type": "array",
@@ -2239,7 +2351,9 @@
                   "communicating",
                   "awaiting_user",
                   "completed",
-                  "closed"
+                  "closed",
+                  "approved",
+                  "onboarded"
                 ]
               },
               "manager": {
@@ -2553,6 +2667,412 @@
         "requiredFields"
       ],
       "additionalProperties": false
+    },
+    "buyerReadRequestFields": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "requirement": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "annualPurchase": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "painPoints": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "contactName": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "contactRole": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "existingSystems": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "projectStatus": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "budget": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "desiredTime": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "decisionProcess": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "contactPhone": {
+          "type": "string",
+          "maxLength": 4000,
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "supplierReadRequestFields": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "productDescription": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "capabilityTags": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "qualifications": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "serviceAreas": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "orderTypes": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "contactName": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "capacity": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "deliveryCycle": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "revenue": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "teamSize": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "targetCustomers": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "targetAreas": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "contactPhone": {
+          "type": "string",
+          "maxLength": 4000,
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "organizationReadRequestFields": {
+      "type": "object",
+      "properties": {
+        "aiNeeds": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "contactName": {
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "contactRole": {
+          "anyOf": [
+            {
+              "enum": [
+                "会长",
+                "副会长",
+                "秘书长",
+                "运营负责人",
+                "专职工作人员",
+                "其他"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "email": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "email",
+              "maxLength": 254
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "activeRatio": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "revenueStructure": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "desiredLaunchTime": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "decisionProcess": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "resources": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "contactPhone": {
+          "type": "string",
+          "maxLength": 4000,
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "contactName"
+      ],
+      "additionalProperties": false
+    },
+    "ApplicationFormView": {
+      "additionalProperties": false,
+      "properties": {
+        "sourceApplicationId": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Sourceapplicationid",
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "edit",
+            "new"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "subjectId": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Subjectid",
+          "type": "string"
+        },
+        "direction": {
+          "enum": [
+            "buyer",
+            "organization",
+            "supplier"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "expectedApplicationRevision": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Expectedapplicationrevision"
+        },
+        "definitionBundleId": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Definitionbundleid",
+          "type": "string"
+        },
+        "fieldLayout": {
+          "$ref": "#/$defs/FieldLayout"
+        },
+        "fields": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Fields",
+          "type": "object"
+        },
+        "files": {
+          "items": {
+            "$ref": "#/$defs/FileRef"
+          },
+          "title": "Files",
+          "type": "array"
+        }
+      },
+      "required": [
+        "sourceApplicationId",
+        "mode",
+        "subjectId",
+        "direction",
+        "expectedApplicationRevision",
+        "definitionBundleId",
+        "fieldLayout",
+        "fields",
+        "files"
+      ],
+      "title": "ApplicationFormView",
+      "type": "object"
+    },
+    "FormSubmissionInput": {
+      "additionalProperties": false,
+      "properties": {
+        "sourceApplicationId": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Sourceapplicationid",
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "edit",
+            "new"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "formId": {
+          "format": "uuid",
+          "title": "Formid",
+          "type": "string"
+        },
+        "clientSubmissionId": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Clientsubmissionid",
+          "type": "string"
+        },
+        "expectedApplicationRevision": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Expectedapplicationrevision"
+        },
+        "definitionBundleId": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Definitionbundleid",
+          "type": "string"
+        },
+        "fields": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Fields",
+          "type": "object"
+        },
+        "files": {
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 32,
+          "title": "Files",
+          "type": "array"
+        }
+      },
+      "required": [
+        "sourceApplicationId",
+        "mode",
+        "formId",
+        "clientSubmissionId",
+        "expectedApplicationRevision",
+        "definitionBundleId",
+        "fields",
+        "files"
+      ],
+      "title": "FormSubmissionInput",
+      "type": "object"
+    },
+    "FormInitFile": {
+      "additionalProperties": false,
+      "properties": {
+        "clientUploadId": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Clientuploadid",
+          "type": "string"
+        },
+        "category": {
+          "enum": [
+            "business_license",
+            "product_manual",
+            "certificate",
+            "case"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "filename": {
+          "maxLength": 255,
+          "minLength": 1,
+          "title": "Filename",
+          "type": "string"
+        },
+        "mediaType": {
+          "enum": [
+            "application/pdf",
+            "image/png",
+            "image/jpeg",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+          ],
+          "title": "Mediatype",
+          "type": "string"
+        },
+        "bytes": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "clientUploadId",
+        "category",
+        "filename",
+        "mediaType",
+        "bytes"
+      ],
+      "title": "FormInitFile",
+      "type": "object"
     }
   }
 }

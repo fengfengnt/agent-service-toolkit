@@ -26,8 +26,8 @@ from sqlalchemy.orm import Session
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "src"))
 WORKTREES = ROOT.parent
-JAVA = WORKTREES / "xiaocai-collaborator"
-PORTAL = WORKTREES / "reception-portal" / "frontend"
+JAVA = ROOT.parents[1] / "xiaocai/my-xiaocai-group/xiaocai-admin-server"
+PORTAL = ROOT.parents[1] / "yunhezhiyuan-portal/frontend"
 MAVEN = "C:/Program Files/apache-maven-3.9.16/bin/mvn.cmd"
 FLAGS = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
 
@@ -108,7 +108,9 @@ async def initialize(url, origin):
 def main():
     if os.environ.get("RECEPTION_REAL_JOURNEY_ENABLED") != "1":
         raise RuntimeError("请显式设置 RECEPTION_REAL_JOURNEY_ENABLED=1")
-    assert ROOT.name == "reception-agents" and JAVA.is_dir() and PORTAL.is_dir()
+    assert ROOT.name == "agent-service-toolkit" and JAVA.is_dir() and PORTAL.is_dir()
+    forms_only = sys.argv[1:] == ["--forms"]
+    assert not sys.argv[1:] or forms_only, "仅支持 --forms"
     nonce = secrets.token_hex(5)
     directory = ROOT / ".superpowers/sdd/2026-11-06-xiaohe-independent-agents" / ("j1-" + nonce)
     directory.mkdir(parents=True)
@@ -376,7 +378,7 @@ def main():
                 sys.executable,
                 "-m",
                 "pytest",
-                "tests/xiaohe/integration/test_reception_journey.py",
+                "tests/xiaohe/integration/test_application_form_journey.py" if forms_only else "tests/xiaohe/integration/test_reception_journey.py",
                 "-q",
                 "-x",
             ],
@@ -407,6 +409,10 @@ def main():
         assert b"deadlock detected" not in diagnostic.stdout + diagnostic.stderr, (
             "隔离数据库出现死锁，不允许按自动重试掩盖"
         )
+        if forms_only:
+            (directory / "result.json").write_text(json.dumps({"http":"passed","real":["AI routers","Java controllers/services/filter","PostgreSQL","MySQL","MinIO"],"controlled":["model","center","admin directory"],"browser":"separate Chrome fixture"}), "utf-8")
+            print("独立表单真实 HTTP 链路通过；证据目录 " + str(directory), flush=True)
+            return
         print("J1：服务闭环通过，构建原 Native Runtime 与门户", flush=True)
         if not (ROOT / "copilot-runtime/node_modules").is_dir():
             command("npm.cmd ci", ROOT / "copilot-runtime", env, "runtime-install")

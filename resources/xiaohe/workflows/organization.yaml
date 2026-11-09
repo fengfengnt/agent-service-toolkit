@@ -2,7 +2,7 @@
 schema_version: 1
 agent_id: xiaohe-organization
 name: 社群组织 Agent
-workflow_version: '1'
+workflow_version: '2'
 entry: understand
 prompts:
   intent: organization-intent.md
@@ -21,6 +21,7 @@ required_fields:
 - coverage
 - onlineChannels
 - contactName
+- contactPhone
 rounds:
 - id: round1
   name: 基础资料
@@ -38,6 +39,7 @@ rounds:
   - services
   - aiNeeds
   - contactName
+  - contactPhone
   - contactRole
   - email
 - id: round3

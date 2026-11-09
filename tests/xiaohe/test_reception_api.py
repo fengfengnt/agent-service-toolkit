@@ -16,7 +16,7 @@ async def test_draft_routes_share_auth_csrf_and_safe_errors(pg_factory):
         )
         assert create.status_code == 201, create.text
         draft = create.json()
-        assert "sourceApplicationId" not in draft and draft["missingRequired"] == ["companyName"]
+        assert "sourceApplicationId" not in draft and draft["missingRequired"] == ["companyName", "contactName", "contactPhone"]
         endpoint = "/ai-api/v1/reception/drafts/" + draft["id"]
         result = await client.patch(
             endpoint, json={"expectedRevision": 1, "fields": {"companyName": "甲公司"}}

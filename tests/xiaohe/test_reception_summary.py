@@ -22,7 +22,11 @@ async def test_changed_summary_and_plain_ok_cannot_authorize_submission(
     _, view = await talk(pg_factory, runtime_env, who, conversation, "我愿意登记需求")
     async with pg_factory.begin() as db:
         await patch_draft(
-            db, who, view.active_draft.id, view.active_draft.revision, {"companyName": "甲公司"}
+            db,
+            who,
+            view.active_draft.id,
+            view.active_draft.revision,
+            {"companyName": "甲公司", "contactName": "测试联系人", "contactPhone": "总台分机"},
         )
     _, summary = await talk(pg_factory, runtime_env, who, conversation, "查看汇总")
     assert summary.active_draft.state == "review"

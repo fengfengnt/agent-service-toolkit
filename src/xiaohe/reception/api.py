@@ -3,15 +3,18 @@ from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Request, Response
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from xiaohe.api import _actor, _body
 from xiaohe.contracts import ServiceError
 from xiaohe.identity import CSRF_HEADER, require_session
 from xiaohe.models import User
 from xiaohe.reception.contracts import (
+    ApplicationFormQuery,
     CreateDraft,
     DetachFile,
+    FormInitFile,
+    FormSubmissionInput,
     InitFile,
     OperationalDownload,
     PageCursor,
@@ -79,6 +82,78 @@ def create_reception_router(factory, business_client=None):
         if service is None:
             raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
         return service
+
+    async def form_actor(request):
+        async with factory.begin() as db:
+            actor = await _actor(request, db)
+            if actor.user_id is None:
+                raise ServiceError("AUTH_REQUIRED", 401)
+            record = await require_session(db, actor)
+            proof = request.headers.getlist(CSRF_HEADER)
+            if len(proof) != 1 or not proof[0].isascii() or not hmac.compare_digest(proof[0], record.csrf_token):
+                raise ServiceError("CSRF_INVALID", 403)
+        return actor
+
+    @router.get("/application-form")
+    async def form_view(request: Request):
+        from xiaohe.reception.forms import read_application_form
+        if len(request.query_params.multi_items()) != len(request.query_params):
+            raise ServiceError("INPUT_INVALID", 422)
+        try:
+            query = ApplicationFormQuery.model_validate(dict(request.query_params))
+        except ValidationError:
+            raise ServiceError("INPUT_INVALID", 422) from None
+        view = await read_application_form(factory, await form_actor(request), query.source_application_id, query.mode, business_client)
+        return view.model_dump(mode="json", by_alias=True)
+
+    @router.post("/application-form/submissions")
+    async def form_submit(request: Request):
+        from xiaohe.reception.forms import submit_application_form
+        body = await _body(request, FormSubmissionInput, max_bytes=512 * 1024)
+        result = await submit_application_form(factory, await form_actor(request), body, business_client)
+        return result.model_dump(mode="json", by_alias=True)
+
+    @router.get("/application-form/submissions/{client_submission_id}")
+    async def form_result(client_submission_id: str, request: Request):
+        from xiaohe.reception.contracts import Id
+        from xiaohe.reception.forms import application_form_result
+        try:
+            TypeAdapter(Id).validate_python(client_submission_id)
+        except ValidationError:
+            raise ServiceError("INPUT_INVALID", 422) from None
+        result = await application_form_result(factory, await form_actor(request), client_submission_id, business_client)
+        return result.model_dump(mode="json", by_alias=True)
+
+    @router.post("/application-form/{form_id}/files", status_code=201)
+    async def form_file_init(form_id: UUID, request: Request):
+        from xiaohe.reception.form_files import init_form_file
+        body = await _body(request, FormInitFile)
+        result = await init_form_file(factory, await form_actor(request), form_id, body)
+        return result.model_dump(mode="json", by_alias=True)
+
+    @router.put("/application-form/{form_id}/files/{file_id}")
+    async def form_file_upload(form_id: UUID, file_id: UUID, request: Request):
+        from xiaohe.reception.form_files import write_form_file
+        ref = await write_form_file(factory, await form_actor(request), form_id, file_id, request.stream(), artifacts=storage(request))
+        return ref.model_dump(mode="json", by_alias=True)
+
+    @router.delete("/application-form/{form_id}/files/{file_id}", status_code=204)
+    async def form_file_detach(form_id: UUID, file_id: UUID, request: Request):
+        from xiaohe.reception.form_files import detach_form_file
+        await detach_form_file(factory, await form_actor(request), form_id, file_id)
+        return Response(status_code=204)
+
+    @router.delete("/application-form/{form_id}", status_code=204)
+    async def form_abandon(form_id: UUID, request: Request):
+        from xiaohe.reception.form_files import abandon_form
+        await abandon_form(factory, await form_actor(request), form_id)
+        return Response(status_code=204)
+
+    @router.get("/application-form/files/{file_id}/download")
+    async def form_file_download(file_id: UUID, request: Request):
+        from xiaohe.reception.form_files import download_form_file
+        ref, content = await download_form_file(factory, await form_actor(request), file_id, artifacts=storage(request))
+        return file_response(ref, content)
 
     @router.get("/conversations/{conversation_id}")
     async def state(conversation_id: UUID, request: Request):

@@ -120,6 +120,7 @@ async def test_actual_reception_application_progress_onboarding_and_private_file
             return await view()
 
         async def create(direction, fields, **source):
+            fields = {"contactName":"张先生", "contactPhone":"企业总台"} | fields
             response = await client.post(
                 path + "/drafts",
                 json={
@@ -242,11 +243,6 @@ async def test_actual_reception_application_progress_onboarding_and_private_file
         await create("organization", organization)
         org = await finish()
         assert (await client.get("/__test/counts", headers=control)).json()["co_onboarding"] == 0
-        await create(
-            "organization", {}, kind="onboarding", sourceApplicationId=org["applicationId"]
-        )
-        onboarding = await finish()
-        assert onboarding["onboardingId"]
         await create("supplier", {"companyName": "联合甲公司", "category": "零部件"})
         current = (await view())["activeDraft"]
         payload = b"%PDF-1.7\nisolated supplier material\n%%EOF\n"
@@ -306,13 +302,13 @@ async def test_actual_reception_application_progress_onboarding_and_private_file
         )
         assert response.status_code == 200, response.text
         response = await client.post(
-            "/admin-api/collaborator/reception/onboarding/review",
+            "/admin-api/collaborator/reception/progress",
             headers=control,
             json={
                 "applicationId": org["applicationId"],
-                "onboardingId": onboarding["onboardingId"],
                 "expectedRevision": 1,
                 "stage": "approved",
+                "visibility": "public",
                 "text": "审核通过，等待实际入驻",
             },
         )
@@ -328,12 +324,13 @@ async def test_actual_reception_application_progress_onboarding_and_private_file
         )
         assert records[first["applicationId"]]["grade"] == "人工评估A"
         assert records[second["applicationId"]]["manager"] is None
-        assert records[org["applicationId"]]["onboarding"]["stage"] == "approved"
+        assert records[org["applicationId"]]["stage"] == "approved"
+        assert records[org["applicationId"]]["onboarding"] is None
         counts = (await client.get("/__test/counts", headers=control)).json()
         assert (
             counts["co_subject"] == 3
             and counts["co_application"] == 5
-            and counts["co_onboarding"] == 1
+            and counts["co_onboarding"] == 0
         )
         # 已知来源租户2、业务租户9；不透明 sub 不转换为原会员。
         response = await client.post(

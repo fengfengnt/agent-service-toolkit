@@ -23,7 +23,9 @@ from xiaohe.workflows.store import bind_run_bundle, persist_bundle
 pytestmark = [pytest.mark.pg, pytest.mark.asyncio]
 
 
-async def prepare(factory, tmp_path, *, text="就按这份资料提交吧", host="portal"):
+async def prepare(
+    factory, tmp_path, *, text="就按这份资料提交吧", host="portal", direction="buyer"
+):
     bundle = load_bundle(write_test_bundle(tmp_path / "resources"))
     if host == "portal":
         _, token = await login(factory)
@@ -44,9 +46,25 @@ async def prepare(factory, tmp_path, *, text="就按这份资料提交吧", host
             db,
             who,
             conversation,
-            CreateDraft(client_draft_id="one", direction="buyer", kind="service"),
+            CreateDraft(client_draft_id="one", direction=direction, kind="service"),
         )
-        view = await patch_draft(db, who, view.id, 1, {"companyName": "虚构甲公司"})
+        fields = (
+            {
+                "organizationName": "虚构协会",
+                "memberSize": "100—500",
+                "coverage": "本市",
+                "onlineChannels": ["暂无"],
+            }
+            if direction == "organization"
+            else {"companyName": "虚构甲公司"}
+        )
+        view = await patch_draft(
+            db,
+            who,
+            view.id,
+            1,
+            fields | {"contactName": "测试联系人", "contactPhone": "测试联系电话"},
+        )
         row = await db.get(ReceptionDraft, UUID(view.id))
         row.step, row.state, row.summary_version = "summary", "review", row.revision
         accepted = await send_in_db(db, who, conversation, text)
@@ -54,7 +72,7 @@ async def prepare(factory, tmp_path, *, text="就按这份资料提交吧", host
         await bind_run_bundle(db, UUID(accepted.run.id), bundle.bundle_id)
     async with factory.begin() as db:
         fence = await acquire_run(db, UUID(accepted.run.id))
-    frame = await build_agent_frame(factory, fence, "xiaohe-buyer", bundle)
+    frame = await build_agent_frame(factory, fence, "xiaohe-" + direction, bundle)
     return bundle, frame
 
 
@@ -119,6 +137,167 @@ async def cache_decision(factory, frame, decision):
                 }
             }
         }
+
+
+@pytest.mark.parametrize("direction", ["buyer", "supplier", "organization"])
+async def test_accepted_details_create_edit_draft_and_keep_original_receipt(
+    pg_factory, job_app, tmp_path, direction
+):
+    from xiaohe.reception.contracts import ApplicationView
+    from xiaohe.reception.store import draft_view
+
+    bundle, frame = await prepare(
+        pg_factory, tmp_path, text="我要更新联系电话为 +44 20 1234", direction=direction
+    )
+    async with pg_factory.begin() as db:
+        original = await db.get(ReceptionDraft, frame.draft_id)
+        original.state = "accepted"
+        db.add(
+            ReceptionSubmission(
+                draft_id=original.id,
+                conversation_id=original.conversation_id,
+                system_id=original.system_id,
+                tenant_id=original.tenant_id,
+                draft_revision=original.revision,
+                summary_version=original.revision,
+                confirmation_message_id=frame.message_id,
+                submission_key="original-receipt",
+                payload={},
+                status="accepted",
+                receipt={
+                    "submissionKey": "original-receipt",
+                    "kind": "service",
+                    "applicationId": "formal-original",
+                    "revision": 1,
+                    "status": "accepted",
+                },
+            )
+        )
+    decision = SemanticDecision.model_validate(
+        {
+            "action": "provide_details",
+            "candidates": {"contactPhone": {"value": "+44 20 1234", "evidence": "+44 20 1234"}},
+        }
+    )
+    await cache_decision(pg_factory, frame, decision)
+
+    class FormalSource:
+        async def application(self, actor, application_id):
+            assert application_id == "formal-original"
+            public = (
+                {
+                    "organizationName": "后台最新协会",
+                    "memberSize": "100—500",
+                    "coverage": "本市",
+                    "onlineChannels": ["暂无"],
+                }
+                if direction == "organization"
+                else {"companyName": "后台最新公司"}
+            )
+            return ApplicationView(
+                id=application_id,
+                subject_id="same-company",
+                direction=direction,
+                revision=6,
+                public_fields=public,
+                request_fields={"contactName": "最新联系人", "contactPhone": "旧电话"},
+                files=[],
+            )
+
+    nodes = make_node_executors(
+        pg_factory, model=None, business_client=FormalSource(), bundle=bundle
+    )
+    node = OperationNode(
+        id="collect", name="更新", type="operation", operation="collect_details", next="result"
+    )
+    state = {"frame": frame.model_dump(), "decision": decision.model_dump()}
+    state |= await nodes["operation"](node, state, {})
+    from xiaohe.workflows.models import ResultNode
+
+    await nodes["result"](
+        ResultNode(id="result", name="返回", type="result", wait_for_input=True), state, {}
+    )
+    # Command replay must reuse its edit draft and original source revision.
+    await nodes["operation"](node, state, {})
+    await nodes["result"](
+        ResultNode(id="result", name="返回", type="result", wait_for_input=True), state, {}
+    )
+    async with pg_factory() as db:
+        original = await db.get(ReceptionDraft, frame.draft_id)
+        assert original.state == "accepted" and original.fields["contactPhone"] == "测试联系电话"
+        assert (await draft_view(db, original)).accepted_application_id == "formal-original"
+        from xiaohe.reception.models import ReceptionFlow
+
+        flow = await db.get(ReceptionFlow, original.conversation_id)
+        updated = await db.get(ReceptionDraft, flow.active_draft_id)
+        assert updated.id != original.id
+        assert updated.source_application_id == "formal-original" and updated.source_revision == 6
+        assert updated.fields["contactPhone"] == "+44 20 1234"
+        assert updated.fields["contactName"] == "最新联系人"
+        assert updated.fields[
+            "organizationName" if direction == "organization" else "companyName"
+        ] == ("后台最新协会" if direction == "organization" else "后台最新公司")
+        assert updated.state == "collecting" and updated.summary_version is None
+        assert len((await db.scalars(select(ReceptionDraft))).all()) == 2
+
+
+async def test_accepted_chat_edit_does_not_overwrite_another_page_save(
+    pg_factory, job_app, tmp_path, monkeypatch
+):
+    from xiaohe.agents import nodes as module
+
+    _, frame = await prepare(pg_factory, tmp_path)
+    async with pg_factory.begin() as db:
+        original = await db.get(ReceptionDraft, frame.draft_id)
+        original.state = "accepted"
+        target = ReceptionDraft(
+            conversation_id=original.conversation_id,
+            system_id=original.system_id,
+            tenant_id=original.tenant_id,
+            client_draft_id="existing-edit",
+            kind="service",
+            direction="buyer",
+            source_application_id="formal-original",
+            source_revision=1,
+            definition_bundle_id=original.definition_bundle_id,
+            fields=dict(original.fields),
+        )
+        db.add(target)
+        await db.flush()
+        target_id = target.id
+    checked, calls = module._checked, 0
+
+    async def race(db, current_frame):
+        nonlocal calls
+        calls += 1
+        if calls == 3:
+            async with pg_factory.begin() as other:
+                row = await other.get(ReceptionDraft, target_id)
+                row.fields = row.fields | {"contactPhone": "另一页面刚保存的电话"}
+                row.revision += 1
+        return await checked(db, current_frame)
+
+    monkeypatch.setattr(module, "_checked", race)
+    decision = SemanticDecision.model_validate(
+        {
+            "action": "provide_details",
+            "candidates": {
+                "contactPhone": {"value": "本轮聊天的旧电话", "evidence": "本轮聊天的旧电话"}
+            },
+        }
+    )
+    with pytest.raises(ServiceError, match="DRAFT_CONFLICT"):
+        await module._external_operation(
+            pg_factory,
+            frame,
+            decision,
+            {"external": "edit_application", "application_id": "formal-original"},
+            None,
+        )
+    async with pg_factory() as db:
+        assert (await db.get(ReceptionDraft, target_id)).fields[
+            "contactPhone"
+        ] == "另一页面刚保存的电话"
 
 
 @pytest.mark.parametrize(

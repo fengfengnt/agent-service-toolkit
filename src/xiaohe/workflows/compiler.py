@@ -6,7 +6,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from pydantic import ValidationError
 
-from xiaohe.reception.contracts import FORMAL_REQUIRED_FIELDS
+from xiaohe.reception.contracts import FORMAL_REQUIRED_FIELDS, LEGACY_REQUIRED_FIELDS
 from xiaohe.workflows.models import (
     AnswerNode,
     DecideNode,
@@ -62,7 +62,10 @@ def validate_graph(definition: WorkflowDefinition) -> None:
                 "collection requires a first collection round and final summary"
             )
     if "confirm_submission" in operations:
-        minimum = FORMAL_REQUIRED_FIELDS.get(definition.agent_id.removeprefix("xiaohe-"), ())
+        required = (
+            LEGACY_REQUIRED_FIELDS if definition.workflow_version == "1" else FORMAL_REQUIRED_FIELDS
+        )
+        minimum = required.get(definition.agent_id.removeprefix("xiaohe-"), ())
         if set(minimum) - set(definition.required_fields):
             raise WorkflowValidationError("workflow cannot lower formal submission requirements")
     for node in nodes.values():

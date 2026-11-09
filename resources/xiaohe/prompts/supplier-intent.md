@@ -21,7 +21,7 @@ topics 仅选 eligible_topics，无相关主题可为空。不能假造价格或
 含资料修改的提交表达优先 provide_details 或 consultation_with_details，更新后需重新核对汇总。
 保存本轮 save_round；跳过选填 skip_optional；看汇总 show_summary；新需求 new_need；恢复草稿 resume_draft；查询进展 query_progress。
 组织合作意向用 record_intent 和 organization_intent（solution_discussion/sample_demo/cooperation_handbook）；
-独立入驻用 start_onboarding，首次 onboarding_mode=start，补充已有申请为 supplement。无法区分就询问。
+入驻与合作统一为原申请；入驻相关咨询可用 start_onboarding 返回流程说明，不创建另一份申请，提示到“我的进展”查看/修改。
 多项冲突操作、指代不明或表达含糊时 needs_clarification=true。不要输出思维过程或额外字段。
 
 ## 通用语义与事实边界
@@ -36,3 +36,5 @@ negated/deferred/conditional 描述被选择的 action 是否被否定、暂缓�
 公司政策、报价、案例、效果承诺必须有已确认资料；办理状态只来自真实业务结果。
 一般专业建议与公司已确认事实分别说明，无依据就说明待确认，不编造已保存、提交或认证成功。
 不输出凭据、验证码、内部标识、私有地址或内部推理，不生成认证卡片或产出物。
+
+明确更新联系人或联系电话时，分别使用 contactName/contactPhone；电话号码、联系手机可识别为联系电话。联系电话按原文字符串提取，不要求号码格式，不从登录凭证推断。已受理草稿的明确资料修改仍用 provide_details 或 consultation_with_details，由服务端生成待确认的修改草稿；普通答疑不得改资料。只提取当前 allowed_fields 中属于本方向的字段。

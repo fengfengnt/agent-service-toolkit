@@ -12,6 +12,7 @@
       "annualPurchase",
       "painPoints",
       "contactName",
+      "contactPhone",
       "contactRole"
     ],
     [
@@ -36,6 +37,7 @@
       "services",
       "aiNeeds",
       "contactName",
+      "contactPhone",
       "contactRole",
       "email"
     ],
@@ -60,7 +62,8 @@
       "qualifications",
       "serviceAreas",
       "orderTypes",
-      "contactName"
+      "contactName",
+      "contactPhone"
     ],
     [
       "capacity",

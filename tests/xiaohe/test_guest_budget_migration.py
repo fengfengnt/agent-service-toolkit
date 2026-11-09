@@ -27,7 +27,7 @@ def test_guest_budget_migration_adds_structure_without_guessing_legacy_identity(
             ("auth_operations", "expected_identity"),
         ):
             assert column in {c["name"] for c in inspector.get_columns(table, schema="xiaohe")}
-        assert connection.scalar(text("SELECT version_num FROM xiaohe.alembic_version")) == "0010"
+        assert connection.scalar(text("SELECT version_num FROM xiaohe.alembic_version")) == "0012"
     engine.dispose()
 
 

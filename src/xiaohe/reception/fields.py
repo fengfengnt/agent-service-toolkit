@@ -11,7 +11,8 @@ FIELD_LABELS = {
     "requirement": "需求描述",
     "annualPurchase": "年采购额",
     "painPoints": "痛点",
-    "contactName": "联系人姓名",
+    "contactName": "联系人",
+    "contactPhone": "联系电话",
     "contactRole": "职务",
     "existingSystems": "现有系统",
     "projectStatus": "立项情况",
@@ -56,6 +57,7 @@ ALLOWED_FIELDS = {
         "annualPurchase",
         "painPoints",
         "contactName",
+        "contactPhone",
         "contactRole",
         "existingSystems",
         "projectStatus",
@@ -74,6 +76,7 @@ ALLOWED_FIELDS = {
         "services",
         "aiNeeds",
         "contactName",
+        "contactPhone",
         "contactRole",
         "email",
         "activeRatio",
@@ -93,6 +96,7 @@ ALLOWED_FIELDS = {
         "serviceAreas",
         "orderTypes",
         "contactName",
+        "contactPhone",
         "capacity",
         "deliveryCycle",
         "revenue",
@@ -138,6 +142,10 @@ def validate_fields(direction: str, fields: dict) -> dict:
                 isinstance(item, str) and len(item) <= 256 for item in value
             )
             valid = valid and len(set(value)) == len(value)
+        if key == "contactPhone":
+            valid = isinstance(value, str) and len(value) <= 4000
+        if key == "contactName":
+            valid = isinstance(value, str) and len(value) <= 4000
         if key == "companyName":
             valid = isinstance(value, str) and bool(value.strip()) and len(value) <= 200
         if direction == "organization":
@@ -168,7 +176,8 @@ def validate_fields(direction: str, fields: dict) -> dict:
             raise ServiceError("INPUT_INVALID", 422)
         result[key] = (
             value.strip()
-            if key in ("companyName", "organizationName", "contactName") and isinstance(value, str)
+            if key in ("companyName", "organizationName", "contactName", "contactPhone")
+            and isinstance(value, str)
             else value
         )
     return result
@@ -177,7 +186,11 @@ def validate_fields(direction: str, fields: dict) -> dict:
 def missing_required(direction: str, fields: dict, *, definition) -> list[str]:
     if definition.agent_id != "xiaohe-" + direction:
         raise ServiceError("INPUT_INVALID", 422)
-    return [key for key in definition.required_fields if not fields.get(key)]
+    return [
+        key
+        for key in definition.required_fields
+        if not fields.get(key) or isinstance(fields[key], str) and not fields[key].strip()
+    ]
 
 
 def map_member_size(text: str) -> str | None:

@@ -106,6 +106,8 @@
   with_draft: true
   initial_fields: &id001
     companyName: 虚构航桥公司
+    contactName: 虚构联系人
+    contactPhone: 总台转业务部
   expected_fields:
     city: 苏州
   expected_direction: buyer
@@ -224,6 +226,7 @@
     coverage: 本省
     onlineChannels: *id002
     contactName: 虚构联系人
+    contactPhone: 总台转业务部
   source_application: true
   expect_intent: true
   expected_direction: organization
@@ -237,7 +240,7 @@
   with_draft: true
   initial_fields: *id003
   source_application: true
-  expect_onboarding: true
+  expect_onboarding: false
   expected_direction: organization
 - id: O06
   agent_id: xiaohe-organization
@@ -296,6 +299,8 @@
   with_draft: true
   initial_fields:
     companyName: 虚构远岚公司
+    contactName: 虚构联系人
+    contactPhone: 总台转业务部
     city: 杭州
   expected_fields:
     city: 宁波
@@ -311,6 +316,8 @@
   summary_visible: true
   initial_fields: &id004
     companyName: 虚构远岚公司
+    contactName: 虚构联系人
+    contactPhone: 总台转业务部
   recent_turns:
   - role: assistant
     text: 当前已展示供应商资料汇总，企业名称为虚构远岚公司，请核对后再明确确认。

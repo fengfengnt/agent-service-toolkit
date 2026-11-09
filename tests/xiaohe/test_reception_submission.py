@@ -27,7 +27,13 @@ async def confirmed(factory):
             conversation,
             CreateDraft(client_draft_id="one", direction="buyer", kind="service"),
         )
-        view = await patch_draft(db, who, view.id, 1, {"companyName": "甲公司"})
+        view = await patch_draft(
+            db,
+            who,
+            view.id,
+            1,
+            {"companyName": "甲公司", "contactName": "测试联系人", "contactPhone": "总台分机"},
+        )
         row = await db.get(ReceptionDraft, UUID(view.id))
         row.step, row.state, row.summary_version = "summary", "review", row.revision
         accepted = await send_in_db(db, who, conversation, "确认提交当前汇总")
@@ -44,8 +50,13 @@ async def confirmed(factory):
     return fence, submission
 
 
-async def test_worker_restart_reconciles_submission(pg_factory, job_app):
+@pytest.mark.parametrize("legacy_payload", [False, True])
+async def test_worker_restart_reconciles_submission(pg_factory, job_app, legacy_payload):
     fence, submission = await confirmed(pg_factory)
+    if legacy_payload:
+        async with pg_factory.begin() as db:
+            pending = await db.get(ReceptionSubmission, submission.id)
+            pending.payload = pending.payload | {"requestFields": {}}
     backend = {"receipt": None, "creates": 0}
 
     class LostReplyClient:
@@ -252,7 +263,11 @@ async def test_worker_recovers_pending_submission_with_same_key(
     _, view = await talk(pg_factory, runtime_env, who, conversation, "我愿意登记需求")
     async with pg_factory.begin() as db:
         await patch_draft(
-            db, who, view.active_draft.id, view.active_draft.revision, {"companyName": "甲公司"}
+            db,
+            who,
+            view.active_draft.id,
+            view.active_draft.revision,
+            {"companyName": "甲公司", "contactName": "测试联系人", "contactPhone": "总台分机"},
         )
     await talk(pg_factory, runtime_env, who, conversation, "查看汇总")
     message, view = await talk(pg_factory, runtime_env, who, conversation, "确认提交")

@@ -25,7 +25,7 @@ PUBLIC = {
     "coverage": "本省",
     "onlineChannels": ["公众号"],
 }
-PRIVATE = {"contactName": "演示联系人"}
+PRIVATE = {"contactName": "演示联系人", "contactPhone": "总台分机"}
 
 
 class Business:
@@ -123,40 +123,33 @@ async def test_intent_records_only_followup_and_is_not_an_appointment(pg_factory
 
 @pytest.mark.pg
 @pytest.mark.asyncio
-async def test_onboarding_reuses_minimum_and_requires_independent_confirmation(pg_factory, job_app):
+async def test_new_onboarding_is_rejected_without_creating_a_second_application(pg_factory, job_app):
+    from xiaohe.contracts import ServiceError
     who, conversation = await user(pg_factory)
     client = Business()
-    draft = await start_onboarding(
-        pg_factory, who, conversation, "parent", client=client, client_draft_id="onboard-new"
-    )
-    assert draft.kind == "onboarding" and draft.fields == PUBLIC | PRIVATE
-    assert not draft.missing_required and not draft.files and not client.onboards
-    submission, fence = await confirm(pg_factory, who, conversation, draft)
-    receipt = await submit_confirmed(pg_factory, fence, submission.id, client)
-    assert receipt.onboarding_id == "onboard-one" and not client.services
-    assert client.onboards[0].application_id == "parent"
+    with pytest.raises(ServiceError, match="APPLICATION_FLOW_CHANGED"):
+        await start_onboarding(pg_factory, who, conversation, "parent", client=client, client_draft_id="onboard-new")
+    assert not client.onboards and not client.services
+    async with pg_factory() as db:
+        assert await db.scalar(select(func.count()).select_from(ReceptionDraft)) == 0
 
 
 @pytest.mark.pg
 @pytest.mark.asyncio
-async def test_edit_onboarding_reads_its_current_fields_instead_of_parent_snapshot(pg_factory):
+async def test_legacy_onboarding_remains_readable_but_cannot_be_changed(pg_factory):
+    from xiaohe.contracts import ServiceError
+    from xiaohe.reception.store import load_reception
     who, conversation = await user(pg_factory)
-    draft = await start_onboarding(
-        pg_factory,
-        who,
-        conversation,
-        "parent",
-        onboarding_id="onboard-one",
-        client=Business(),
-        client_draft_id="onboard-edit",
-    )
-    assert (
-        draft.fields["organizationName"] == "入驻最新协会"
-        and draft.fields["contactName"] == "最新联系人"
-    )
-    assert draft.source_onboarding_id == "onboard-one"
-    async with pg_factory() as db:
-        assert (await db.get(ReceptionDraft, UUID(draft.id))).source_revision == 8
+    async with pg_factory.begin() as db:
+        draft = await create_draft(db, who, conversation, CreateDraft(client_draft_id="legacy", kind="service", direction="organization"))
+        row = await db.get(ReceptionDraft, UUID(draft.id))
+        row.kind, row.source_application_id, row.fields = "onboarding", "parent", PUBLIC | PRIVATE
+    async with pg_factory.begin() as db:
+        restored = await load_reception(db, who, conversation)
+        assert restored.active_draft.kind == "onboarding"
+        assert restored.active_draft.fields == PUBLIC | PRIVATE
+        with pytest.raises(ServiceError, match="APPLICATION_FLOW_CHANGED"):
+            await patch_draft(db, who, draft.id, draft.revision, {"contactName": "不可写"})
 
 
 @pytest.mark.pg
@@ -216,7 +209,7 @@ async def test_guest_organization_intent_offers_login_once_and_preserves_defer(
 
 @pytest.mark.pg
 @pytest.mark.asyncio
-async def test_worker_records_intent_and_submits_onboarding_only_after_its_own_summary(
+async def test_worker_records_intent_and_routes_onboarding_to_the_unified_application(
     pg_factory, runtime_env, monkeypatch
 ):
     client = Business()
@@ -233,12 +226,9 @@ async def test_worker_records_intent_and_submits_onboarding_only_after_its_own_s
     assert len(client.services) == 1 and not client.onboards
     message, state = await talk(pg_factory, runtime_env, who, conversation, "预约方案沟通")
     assert len(client.intents) == 1 and "意向" in message.model_dump_json()
-    _, state = await talk(pg_factory, runtime_env, who, conversation, "我要入驻")
-    assert state.active_draft.kind == "onboarding" and not client.onboards
     current_id = state.active_draft.id
-    _, state = await talk(pg_factory, runtime_env, who, conversation, '我要入驻')
-    assert state.active_draft.id == current_id
-    await talk(pg_factory, runtime_env, who, conversation, "查看汇总")
-    message, state = await talk(pg_factory, runtime_env, who, conversation, "确认提交")
-    assert len(client.onboards) == 1 and len(client.services) == 1
-    assert "入驻申请" in message.model_dump_json() and state.active_draft.state == "accepted"
+    message, state = await talk(pg_factory, runtime_env, who, conversation, "我要入驻")
+    assert state.active_draft.id == current_id and state.active_draft.kind == "service"
+    assert state.active_draft.state == "accepted"
+    assert not client.onboards and len(client.services) == 1
+    assert "已统一为一份申请" in message.model_dump_json()

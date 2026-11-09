@@ -3,13 +3,13 @@ from uuid import uuid5
 
 from sqlalchemy import select
 
-from xiaohe.contracts import Actor, AgentOutcome, ServiceError, TrustedSystem
-from xiaohe.models import Command, Conversation, Message, System, User
-from xiaohe.reception.contracts import CreateDraft, IntentReceipt, IntentRequest, SkillContext
+from xiaohe.contracts import AgentOutcome, ServiceError
+from xiaohe.models import Command, Conversation, Message, User
+from xiaohe.reception.contracts import IntentReceipt, IntentRequest, SkillContext
 from xiaohe.reception.models import ReceptionDraft, ReceptionSubmission
 from xiaohe.reception.skills import answer_skill
 from xiaohe.reception.store import locked_flow
-from xiaohe.reception.submission import actor_from_user, create_draft_from_business
+from xiaohe.reception.submission import actor_from_user
 from xiaohe.runs import require_write
 
 INTENT_LABELS = {
@@ -111,17 +111,7 @@ async def start_onboarding(
     fence=None,
     definition_bundle_id=None,
 ):
-    request = CreateDraft(
-        client_draft_id=client_draft_id,
-        kind="onboarding",
-        direction="organization",
-        source_application_id=application_id,
-        source_onboarding_id=onboarding_id,
-    )
-    return await create_draft_from_business(
-        factory, actor, conversation_id, request, client, fence=fence,
-        definition_bundle_id=definition_bundle_id,
-    )
+    raise ServiceError("APPLICATION_FLOW_CHANGED", 409)
 
 
 async def run_organization_step(factory, fence, client):
@@ -169,88 +159,13 @@ async def run_organization_step(factory, fence, client):
             if draft
             else None
         )
-        onboarding_id = (
-            formal.receipt.get("onboardingId")
-            if formal
-            else draft.source_onboarding_id
-            if draft
-            else None
-        )
-        resume_id, choose = None, False
-        if starting and application_id:
-            pending = (
-                await db.scalars(
-                    select(ReceptionDraft).where(
-                        ReceptionDraft.conversation_id == conversation.id,
-                        ReceptionDraft.kind == "onboarding",
-                        ReceptionDraft.source_application_id == application_id,
-                        ReceptionDraft.state.in_(["collecting", "review"]),
-                    )
-                )
-            ).all()
-            if (
-                draft is not None
-                and draft.kind == "onboarding"
-                and draft.state in ("collecting", "review")
-            ):
-                resume_id = draft.id
-            elif len(pending) == 1:
-                resume_id = pending[0].id
-            elif len(pending) > 1:
-                choose = True
-        if starting and "补充" in text and not onboarding_id and application_id:
-            latest = await db.scalar(
-                select(ReceptionSubmission)
-                .where(
-                    ReceptionSubmission.conversation_id == conversation.id,
-                    ReceptionSubmission.status == "accepted",
-                    ReceptionSubmission.receipt["applicationId"].astext == application_id,
-                    ReceptionSubmission.receipt["kind"].astext == "onboarding",
-                )
-                .order_by(ReceptionSubmission.draft_revision.desc())
-                .limit(1)
-            )
-            onboarding_id = latest.receipt.get("onboardingId") if latest else None
-        command_id, conversation_id = command.id, conversation.id
-        actor = None
-        if run.user_id is not None:
-            system = await db.get(System, run.system_id)
-            actor = Actor(
-                system=TrustedSystem(
-                    system_id=system.system_id,
-                    tenant_id=system.tenant_id,
-                    portal_client_id=system.portal_client_id,
-                    allowed_origin=system.allowed_origin,
-                ),
-                session_id=run.session_id,
-                user_id=run.user_id,
-                guest_id=None,
-            )
+        command_id = command.id
     if application_id is None:
-        answer = "可以先登记组织需求，受理后再办理相关意向或独立入驻。"
+        answer = "可以先登记组织合作申请，受理后在“我的进展”查看或修改。"
         if kind == "sample_demo":
             answer = (await sample_answer()).text + "\n\n" + answer
     elif starting:
-        if actor is None:
-            raise ServiceError("AUTH_REQUIRED", 401)
-        if choose:
-            answer = "该组织有多份入驻草稿，请先选择要继续的一份。"
-        elif resume_id is not None:
-            answer = "将继续已保存的入驻草稿，请核对当前资料；最后确认汇总后再正式提交。"
-        elif "补充" in text and not onboarding_id:
-            answer = "请在“我的进展”选择已有入驻申请，再继续补充资料。"
-        else:
-            await start_onboarding(
-                factory,
-                actor,
-                conversation_id,
-                application_id,
-                client=client,
-                client_draft_id=str(uuid5(command_id, "organization.onboarding")),
-                onboarding_id=onboarding_id,
-                fence=fence,
-            )
-            answer = "已准备独立的入驻草稿，并复用已有组织资料。请核对和补充，最后确认当前汇总后再正式提交入驻申请。"
+        answer = "合作与入驻已统一为一份申请，无需再次提交入驻资料。请在“我的进展”查看/修改原申请；审核通过与已完成入驻会分别显示。"
     else:
         await record_intent(factory, fence, application_id, kind, client)
         answer = "已记录" + INTENT_LABELS[kind] + "意向，具体安排待生态经理确认。"
@@ -262,10 +177,6 @@ async def run_organization_step(factory, fence, client):
             raise ServiceError("ACTION_STALE", 409)
         conversation = await db.get(Conversation, run.conversation_id)
         flow = await locked_flow(db, conversation)
-        if choose:
-            flow.active_draft_id = None
-        elif resume_id is not None:
-            flow.active_draft_id = resume_id
         offered = (
             application_id is None
             and flow.active_draft_id is None
