@@ -129,14 +129,19 @@ async def compose_answer(
             for item in materials
         ],
     }
-    answer = await _structured(
-        model,
-        AnswerDraft,
-        [
-            SystemMessage(content=prompt),
-            HumanMessage(content=json.dumps(payload, ensure_ascii=False)),
-        ],
-    )
+    for _ in range(2):
+        answer = await _structured(
+            model,
+            AnswerDraft,
+            [
+                SystemMessage(content=prompt),
+                HumanMessage(content=json.dumps(payload, ensure_ascii=False)),
+            ],
+        )
+        if "\ufffd" not in answer.text:
+            break
+    else:
+        raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
     if set(answer.source_ids) - {item.source for item in materials}:
         raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
     return answer

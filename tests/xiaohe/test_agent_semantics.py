@@ -225,3 +225,48 @@ async def test_answer_cannot_invent_a_source_or_success_card(tmp_path):
         await compose_answer(
             model, frame, SemanticDecision.model_validate(semantic_result()), [], "只依据资料回答"
         )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("damaged_first", [False, True])
+async def test_damaged_answer_is_regenerated_without_stripping_valid_braces(tmp_path, damaged_first):
+    _, _, frame = prepared(tmp_path)
+    clean = '具体材料清单与准入条件以确认后的信息为准，暂不做承诺。示例：{"类型":"协会"}'
+    damaged = "具体材料清单与准入条件以确认后的信息为准，暂不做承诺。}\ufffd\ufffd"
+    texts = [damaged, clean] if damaged_first else [clean]
+
+    class AnswerModel(ScriptedModel):
+        def with_structured_output(self, schema, **kwargs):
+            async def respond(messages):
+                self.requests.append(messages)
+                return {"text": texts.pop(0), "basis": "needs_confirmation", "source_ids": []}
+
+            return RunnableLambda(respond)
+
+    model = AnswerModel(result={})
+    answer = await compose_answer(
+        model, frame, SemanticDecision(action="consultation"), [], "只依据资料回答"
+    )
+    assert answer.text == clean
+    assert len(model.requests) == (2 if damaged_first else 1)
+
+
+@pytest.mark.asyncio
+async def test_persistently_damaged_answer_is_retryable_and_never_returned(tmp_path):
+    _, _, frame = prepared(tmp_path)
+    model = ScriptedModel(
+        result={},
+        responses={
+            "AnswerDraft": {
+                "text": "暂不做承诺。}\ufffd\ufffd",
+                "basis": "needs_confirmation",
+                "source_ids": [],
+            }
+        },
+    )
+    with pytest.raises(ServiceError) as error:
+        await compose_answer(
+            model, frame, SemanticDecision(action="consultation"), [], "只依据资料回答"
+        )
+    assert error.value.code == "UPSTREAM_UNAVAILABLE" and error.value.retryable
+    assert len(model.requests) == 2
