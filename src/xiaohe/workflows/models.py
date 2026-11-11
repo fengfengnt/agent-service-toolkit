@@ -8,6 +8,7 @@ from pydantic import (
     Field,
     StringConstraints,
     field_validator,
+    model_serializer,
     model_validator,
 )
 
@@ -138,6 +139,7 @@ class WorkflowDefinition(DefinitionModel):
     entry: Identifier
     prompts: dict[Identifier, str] = Field(min_length=1)
     skills: list[str] = Field(default_factory=list)
+    lead_skill_id: str | None = None
     required_fields: list[str] = Field(default_factory=list)
     rounds: list[RoundDefinition] = Field(default_factory=list)
     nodes: list[NodeDefinition] = Field(min_length=1, max_length=128)
@@ -151,6 +153,13 @@ class WorkflowDefinition(DefinitionModel):
 
     @model_validator(mode="after")
     def check_references(self) -> Self:
+        if (
+            self.lead_skill_id is not None
+            and self.lead_skill_id != self.agent_id.removeprefix("xiaohe-") + ".lead_capture"
+        ):
+            raise ValueError("invalid lead skill binding")
+        if self.agent_id == "xiaohe-reception" and self.lead_skill_id is not None:
+            raise ValueError("reception cannot bind a collection skill")
         if len(self.skills) != len(set(self.skills)):
             raise ValueError("duplicate skill")
         fields = [key for group in self.rounds for key in group.fields]
@@ -174,6 +183,13 @@ class WorkflowDefinition(DefinitionModel):
             if isinstance(node, (UnderstandNode, AnswerNode)) and node.prompt not in self.prompts:
                 raise ValueError("missing prompt reference")
         return self
+
+    @model_serializer(mode="wrap")
+    def preserve_legacy_shape(self, handler):
+        data = handler(self)
+        if self.lead_skill_id is None:
+            data.pop("lead_skill_id", None)
+        return data
 
 
 def bundle_digest(definitions: dict[AgentId, WorkflowDefinition], resources: dict[str, str]) -> str:

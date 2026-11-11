@@ -1,0 +1,10 @@
+version: 1
+direct_submission: true
+notices:
+  prepare: 请在资料面板填写本次{direction}资料。
+  missing: 正式提交还需：{missing}。
+  saved: 本次资料已保存，尚未正式提交。
+  submitting: 正在提交本次资料。
+  unknown: 正在核实提交结果，请稍后查询，无需重复提交。
+  accepted: 本次需求已受理，可在“我的进展”查看状态。
+  failed: 本次提交未完成。{guidance}

@@ -127,7 +127,9 @@ PUBLIC_FIELDS = {
 }
 
 
-def validate_fields(direction: str, fields: dict) -> dict:
+def validate_fields(direction: str, fields: dict, *, policy=None) -> dict:
+    if policy is not None:
+        return _validate_policy_fields(direction, fields, policy)
     allowed = set(ALLOWED_FIELDS.get(direction, ()))
     if not allowed or not isinstance(fields, dict) or fields.keys() - allowed:
         raise ServiceError("INPUT_INVALID", 422)
@@ -180,6 +182,54 @@ def validate_fields(direction: str, fields: dict) -> dict:
             and isinstance(value, str)
             else value
         )
+    return result
+
+
+def _validate_policy_fields(direction, fields, policy):
+    specs = {item.id: item for item in policy.fields}
+    if (
+        policy.direction != direction
+        or not isinstance(fields, dict)
+        or fields.keys() - specs.keys()
+    ):
+        raise ServiceError("INPUT_INVALID", 422)
+    result = {}
+    for key, value in fields.items():
+        spec = specs[key]
+        if value is None:
+            result[key] = None
+            continue
+        length = (
+            len(value.strip() if spec.length_on_trimmed else value)
+            if isinstance(value, str)
+            else -1
+        )
+        valid = isinstance(value, str) and spec.min_length <= length <= spec.max_length
+        if spec.nonblank and isinstance(value, str):
+            valid = valid and bool(value.strip())
+        if spec.validator == "generic" and isinstance(value, list):
+            valid = len(value) <= spec.max_items and all(
+                isinstance(item, str) and len(item) <= spec.item_max_length for item in value
+            )
+            valid = valid and len(set(value)) == len(value)
+        elif spec.validator == "enum":
+            valid = isinstance(value, str) and value in spec.options
+        elif spec.validator == "email":
+            valid = valid and bool(re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", value))
+        elif spec.validator == "channels":
+            valid = (
+                isinstance(value, list)
+                and 0 < len(value) <= spec.max_items
+                and all(isinstance(item, str) and item in spec.options for item in value)
+            )
+            valid = (
+                valid
+                and len(set(value)) == len(value)
+                and ("暂无" not in value or value == ["暂无"])
+            )
+        if not valid:
+            raise ServiceError("INPUT_INVALID", 422)
+        result[key] = value.strip() if spec.trim and isinstance(value, str) else value
     return result
 
 

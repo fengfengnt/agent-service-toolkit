@@ -85,6 +85,20 @@ def load_bundle(resource_root: Path) -> WorkflowBundle:
         definition = parse_workflow(text)
         if definition.agent_id != agent_id:
             raise WorkflowValidationError("workflow filename and agent identity differ")
+        if definition.lead_skill_id is not None:
+            from xiaohe.lead_skills.loader import parse_lead_skills, read_lead_resources
+
+            if definition.rounds or definition.required_fields:
+                raise WorkflowValidationError("lead skill owns collection fields")
+            if "lead-skills/common/policy.yaml" not in resources:
+                resources.update(read_lead_resources(resource_root))
+            policy = parse_lead_skills(resources).field_policies[stem]
+            definition = definition.model_copy(
+                update={
+                    "rounds": policy.rounds,
+                    "required_fields": policy.required_fields,
+                }
+            )
         definitions[agent_id] = definition
         for reference in definition.prompts.values():
             resources["prompts/" + reference] = _read_resource(

@@ -1,0 +1,100 @@
+version: 1
+skill_id: supplier.lead_capture
+direction: supplier
+fields:
+- id: companyName
+  label: 企业名称
+  scope: public
+  validator: text
+  trim: true
+  max_length: 200
+  nonblank: true
+- id: companyType
+  label: 企业类型
+  scope: public
+- id: category
+  label: 品类
+  scope: request
+- id: city
+  label: 城市
+  scope: public
+- id: productDescription
+  label: 产品描述
+  scope: request
+- id: capabilityTags
+  label: 能力标签
+  scope: request
+- id: qualifications
+  label: 资质认证
+  scope: request
+- id: serviceAreas
+  label: 服务区域
+  scope: request
+- id: orderTypes
+  label: 接单类型
+  scope: request
+- id: contactName
+  label: 联系人
+  scope: request
+  validator: text
+  trim: true
+- id: contactPhone
+  label: 联系电话
+  scope: request
+  validator: text
+  trim: true
+- id: capacity
+  label: 产能
+  scope: request
+- id: deliveryCycle
+  label: 交付周期
+  scope: request
+- id: revenue
+  label: 营业额
+  scope: request
+- id: teamSize
+  label: 团队规模
+  scope: request
+- id: targetCustomers
+  label: 目标客户
+  scope: request
+- id: targetAreas
+  label: 目标区域
+  scope: request
+rounds:
+- id: round1
+  name: 基础资料
+  fields:
+  - companyName
+  - companyType
+  - category
+  - city
+- id: round2
+  name: 需求和联系信息
+  fields:
+  - productDescription
+  - capabilityTags
+  - qualifications
+  - serviceAreas
+  - orderTypes
+  - contactName
+  - contactPhone
+- id: round3
+  name: 选填补充
+  fields:
+  - capacity
+  - deliveryCycle
+  - revenue
+  - teamSize
+  - targetCustomers
+  - targetAreas
+- id: files
+  name: 供应商材料（选填）
+  fields: []
+- id: summary
+  name: 核对并确认当前汇总
+  fields: []
+required_fields:
+- companyName
+- contactName
+- contactPhone
