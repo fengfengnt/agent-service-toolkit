@@ -77,6 +77,8 @@ async def test_expand_migration_preserves_legacy_submissions(pg_factory, pg_url,
             try:
                 config = Config("alembic.ini")
                 config.attributes["connection"] = connection
+                # 构造未引入 Skill 前的样本；不能把新绑定伪称为旧库数据。
+                connection.execute(text("UPDATE xiaohe.reception_drafts SET field_policy_id=NULL"))
                 command.downgrade(config, "0012")
                 before = connection.execute(
                     text("SELECT row_to_json(s) FROM xiaohe.reception_submissions s")

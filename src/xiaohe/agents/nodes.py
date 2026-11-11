@@ -15,9 +15,10 @@ from xiaohe.agents.contracts import (
 )
 from xiaohe.agents.semantic import compose_answer, understand_turn
 from xiaohe.contracts import Actor, AgentOutcome, ServiceError, TrustedSystem
+from xiaohe.lead_skills.store import command_bundle_id, load_policy, resolve_draft_policy
 from xiaohe.models import Command, Conversation, Message, System, User
 from xiaohe.reception.contracts import CreateDraft
-from xiaohe.reception.fields import CHANNELS, FIELD_LABELS, ORG_ENUMS, missing_required
+from xiaohe.reception.fields import FIELD_LABELS, missing_required
 from xiaohe.reception.models import ReceptionDraft, ReceptionSubmission
 from xiaohe.reception.skills import load_skill_materials
 from xiaohe.reception.store import create_draft, locked_flow, patch_locked_draft
@@ -74,7 +75,7 @@ async def build_agent_frame(factory, fence, agent_id, bundle):
     definition = workflow_for(bundle, agent_id)
     async with factory.begin() as db:
         run, command = await _command(db, fence)
-        if run.runtime_version != "dsl-v1" or run.workflow_bundle_id != bundle.bundle_id:
+        if command_bundle_id(run, command) != bundle.bundle_id:
             raise ServiceError("ACTION_STALE", 409)
         system = await db.get(System, run.system_id)
         actor = Actor(
@@ -120,6 +121,8 @@ async def build_agent_frame(factory, fence, agent_id, bundle):
         from xiaohe.graph import _safe_model_text, visible_text
 
         draft_rules = await draft_definition(db, row) if row else definition
+        field_policy = await resolve_draft_policy(db, row) if row else None
+        interaction_policy = await load_policy(db, command.interaction_policy_id) if command.interaction_policy_id else None
         allowed = [key for group in draft_rules.rounds for key in group.fields] if row else []
         return AgentFrame(
             fence=fence,
@@ -129,6 +132,8 @@ async def build_agent_frame(factory, fence, agent_id, bundle):
             actor=actor,
             agent_id=agent_id,
             bundle_id=bundle.bundle_id,
+            field_policy=field_policy,
+            interaction_policy=interaction_policy,
             draft_id=row.id if row else None,
             draft_revision=row.revision if row else None,
             summary_version=row.summary_version if row else None,
@@ -153,12 +158,11 @@ async def build_agent_frame(factory, fence, agent_id, bundle):
                 else None,
                 allowed_fields=allowed,
                 field_options={
-                    key: list(values)
-                    for key, values in (ORG_ENUMS | {"onlineChannels": CHANNELS}).items()
-                    if key in allowed
+                    item.id: item.options for item in field_policy.fields if item.options
                 }
-                if agent_id == "xiaohe-organization"
+                if field_policy
                 else {},
+                role_guide=interaction_policy.guides.get(ROLE_DIRECTIONS[agent_id]) if interaction_policy else None,
                 saved_fields=row.fields if row else {},
                 summary_visible=bool(
                     row and row.state == "review" and row.summary_version == row.revision
@@ -192,7 +196,7 @@ async def _checked(db, frame):
         run.guest_id,
         run.system_id,
         run.tenant_id,
-        run.workflow_bundle_id,
+        command_bundle_id(run, command),
     ) != (
         frame.command_id,
         frame.message_id,

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from xiaohe.contracts import Actor, ServiceError
 from xiaohe.conversations import require_conversation
+from xiaohe.lead_skills.store import resolve_draft_policy
 from xiaohe.models import Conversation
 from xiaohe.reception.contracts import (
     CreateDraft,
@@ -198,7 +199,9 @@ async def create_draft(
                 for key, value in source.public_fields.items()
                 if key in PUBLIC_FIELDS[request.direction]
             }
-        row.fields = validate_fields(request.direction, row.fields)
+        row.fields = validate_fields(
+            request.direction, row.fields, policy=await resolve_draft_policy(db, row)
+        )
     db.add(row)
     await db.flush()
     row.step = (await draft_definition(db, row)).rounds[0].id
@@ -225,7 +228,9 @@ async def patch_locked_draft(db, row, expected_revision, fields) -> DraftView:
     definition = await draft_definition(db, row)
     if fields.keys() - {key for group in definition.rounds for key in group.fields}:
         raise ServiceError("INPUT_INVALID", 422)
-    merged = row.fields | validate_fields(row.direction, fields)
+    merged = row.fields | validate_fields(
+        row.direction, fields, policy=await resolve_draft_policy(db, row)
+    )
     if merged != row.fields:
         row.fields = merged
         row.revision += 1

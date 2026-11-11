@@ -299,6 +299,18 @@ def build_graph(
                     from xiaohe.workflows.store import bundle_for_run
 
                     bundle = await bundle_for_run(db, fence.run_id)
+                    from xiaohe.workflows.store import load_persisted_bundle
+
+                    command = await db.scalar(
+                        select(Command).where(
+                            Command.run_id == fence.run_id, Command.completed_at.is_(None)
+                        )
+                    )
+                    if command.interaction_policy_id:
+                        from xiaohe.lead_skills.store import command_bundle_id
+
+                        run = await require_write(db, fence)
+                        bundle = await load_persisted_bundle(db, command_bundle_id(run, command))
                 if bundle is None:
                     outcome = await run_reception_step(
                         factory, fence, model, business_client=business_client

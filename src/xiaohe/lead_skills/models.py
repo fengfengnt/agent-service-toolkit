@@ -75,13 +75,13 @@ class FieldPolicy(DefinitionModel):
             raise ValueError("role skill mismatch")
         if len(ids) != len(set(ids)) or set(ids) - set(ALLOWED_FIELDS[self.direction]):
             raise ValueError("unsupported role field")
-        if set(grouped) != set(ids) or len(grouped) != len(ids):
-            raise ValueError("every field must belong to one group")
+        if set(grouped) - set(ids) or len(grouped) != len(set(grouped)):
+            raise ValueError("grouped fields must have unique definitions")
         if len({r.id for r in self.rounds}) != len(self.rounds):
             raise ValueError("duplicate round")
         if len(set(self.required_fields)) != len(self.required_fields) or set(
             self.required_fields
-        ) - set(ids):
+        ) - set(grouped):
             raise ValueError("invalid required field")
         return self
 

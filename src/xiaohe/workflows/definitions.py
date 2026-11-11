@@ -55,7 +55,7 @@ async def baseline_bundle(db):
     return bundle
 
 
-async def draft_definition(db, row):
+async def legacy_draft_definition(db, row):
     if row.definition_bundle_id is None:
         bundle = await baseline_bundle(db)
         row.definition_bundle_id = bundle.bundle_id
@@ -74,6 +74,18 @@ async def draft_definition(db, row):
     index = next((i for i, group in enumerate(rounds) if group.id == "round2"), 0)
     rounds[index] = rounds[index].model_copy(update={"fields": rounds[index].fields + contacts})
     return definition.model_copy(update={"rounds": rounds, "required_fields": required})
+
+
+async def draft_definition(db, row):
+    definition = await legacy_draft_definition(db, row)
+    if row.state == "submitting" and row.field_policy_id is None:
+        return definition
+    from xiaohe.lead_skills.store import resolve_draft_policy
+
+    policy = await resolve_draft_policy(db, row)
+    return definition.model_copy(
+        update={"rounds": policy.rounds, "required_fields": policy.required_fields}
+    )
 
 
 def rounds_for(bundle, direction):

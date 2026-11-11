@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from xiaohe.contracts import Actor, InternalModel, WriteFence
+from xiaohe.lead_skills.models import FieldPolicy, InteractionPolicy
 from xiaohe.reception.contracts import FieldValue
 from xiaohe.workflows.models import AgentId, RouteEvent
 
@@ -40,6 +41,7 @@ class ModelContext(StrictAgentModel):
     invitation_state: InvitationState = "none"
     eligible_topics: list[str] = Field(default_factory=list)
     allowed_actions: list[RouteEvent] = Field(default_factory=list)
+    role_guide: str | None = None
 
 
 class AgentFrame(InternalModel):
@@ -58,6 +60,8 @@ class AgentFrame(InternalModel):
     pending_request_id: UUID | None = None
     invitation_state: InvitationState = "none"
     model_context: ModelContext
+    field_policy: FieldPolicy | None = None
+    interaction_policy: InteractionPolicy | None = None
 
 
 class FieldCandidate(StrictAgentModel):

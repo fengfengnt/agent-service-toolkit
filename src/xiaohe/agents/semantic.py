@@ -104,6 +104,7 @@ async def understand_turn(
             validate_fields(
                 frame.agent_id.removeprefix("xiaohe-"),
                 {key: item.value for key, item in decision.candidates.items()},
+                policy=frame.field_policy,
             )
         except ServiceError:
             raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True) from None

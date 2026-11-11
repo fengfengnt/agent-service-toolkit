@@ -229,6 +229,15 @@ async def _accept(
             run_id=run.id,
             request_id=request_id,
         )
+        if policy_id := db.info.get("lead_interaction_policy_id"):
+            from xiaohe.lead_skills.store import bind_command_policy, load_policy
+
+            await bind_command_policy(
+                db,
+                command,
+                await load_policy(db, policy_id),
+                workflow_bundle_id=db.info["workflow_bundle_id"],
+            )
         await db.flush()
         db.add(command)
         await db.flush()
@@ -309,6 +318,7 @@ async def accept_action(
 
 def _agent_entry(db, agent_id):
     from xiaohe.workflows.models import AGENT_IDS
+
     if agent_id not in AGENT_IDS:
         raise ServiceError("AGENT_NOT_FOUND", 404)
     if not db.info.get("workflow_bundle_id"):
@@ -319,8 +329,14 @@ async def accept_agent_message(db, actor, agent_id, conversation_id, body: Messa
     _agent_entry(db, agent_id)
     body = _parse(MessageInput, body)
     _safe_text(body.text)
-    return await _accept(db, actor, conversation_id, "message", body.client_message_id,
-        body.model_dump(mode="json", by_alias=True) | {"entryAgent": agent_id})
+    return await _accept(
+        db,
+        actor,
+        conversation_id,
+        "message",
+        body.client_message_id,
+        body.model_dump(mode="json", by_alias=True) | {"entryAgent": agent_id},
+    )
 
 
 async def accept_agent_action(db, actor, agent_id, conversation_id, body: ChatAction):
@@ -330,17 +346,39 @@ async def accept_agent_action(db, actor, agent_id, conversation_id, body: ChatAc
         _safe_text(body.text)
     await require_conversation(db, actor, conversation_id)
     payload = body.model_dump(mode="json", by_alias=True) | {"entryAgent": agent_id}
-    existing = await db.scalar(select(Command).where(Command.conversation_id == conversation_id,
-        Command.kind == "action", Command.client_key == body.client_action_id))
+    existing = await db.scalar(
+        select(Command).where(
+            Command.conversation_id == conversation_id,
+            Command.kind == "action",
+            Command.client_key == body.client_action_id,
+        )
+    )
     if existing is not None:
         return await _accept(db, actor, conversation_id, "action", body.client_action_id, payload)
-    run = await db.scalar(select(Run).where(Run.conversation_id == conversation_id,
-        Run.status == "waiting_input", Run.pending_request["requestId"].astext == body.request_id))
-    previous = await db.scalar(select(Command).where(Command.run_id == run.id,
-        Command.payload["receptionReceiptFor"].astext.is_(None))
-        .order_by(Command.created_at.desc(), Command.id.desc()).limit(1)) if run else None
-    if run is None or run.runtime_version != "dsl-v1" or previous is None or (
-        previous.payload.get("agentExecution", {}).get("active") != agent_id
+    run = await db.scalar(
+        select(Run).where(
+            Run.conversation_id == conversation_id,
+            Run.status == "waiting_input",
+            Run.pending_request["requestId"].astext == body.request_id,
+        )
+    )
+    previous = (
+        await db.scalar(
+            select(Command)
+            .where(
+                Command.run_id == run.id, Command.payload["receptionReceiptFor"].astext.is_(None)
+            )
+            .order_by(Command.created_at.desc(), Command.id.desc())
+            .limit(1)
+        )
+        if run
+        else None
+    )
+    if (
+        run is None
+        or run.runtime_version != "dsl-v1"
+        or previous is None
+        or (previous.payload.get("agentExecution", {}).get("active") != agent_id)
     ):
         raise ServiceError("ACTION_STALE", 409)
     return await _accept(db, actor, conversation_id, "action", body.client_action_id, payload)

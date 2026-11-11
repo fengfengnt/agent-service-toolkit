@@ -14,6 +14,7 @@ from xiaohe.agents.nodes import (
     make_node_executors,
 )
 from xiaohe.contracts import AgentOutcome, ServiceError
+from xiaohe.lead_skills.store import command_bundle_id, persist_policy
 from xiaohe.models import Conversation, Run
 from xiaohe.reception.models import ReceptionDraft
 from xiaohe.reception.store import locked_flow
@@ -48,6 +49,14 @@ async def load_agent_registry(factory, resource_root, model, business_client):
         if legacy_draft is not None:
             await baseline_bundle(db)
         await persist_bundle(db, bundle)
+        interaction_policy_id = None
+        if "lead-skills/common/policy.yaml" in bundle.resources:
+            from xiaohe.lead_skills.loader import parse_lead_skills
+
+            policies = parse_lead_skills(bundle.resources)
+            for policy in policies.field_policies.values():
+                await persist_policy(db, policy)
+            interaction_policy_id = await persist_policy(db, policies.interaction_policy)
         # 验证仍活动的旧定义，失败时保留任务并阻止启动，不换用最新流程。
         ids = (
             await db.scalars(
@@ -62,7 +71,13 @@ async def load_agent_registry(factory, resource_root, model, business_client):
         for bundle_id in ids:
             previous = await load_persisted_bundle(db, bundle_id)
             AgentRegistry(previous, factory, model, business_client)
-    factory.configure(info=factory.kw.get("info", {}) | {"workflow_bundle_id": bundle.bundle_id})
+    factory.configure(
+        info=factory.kw.get("info", {})
+        | {
+            "workflow_bundle_id": bundle.bundle_id,
+            "lead_interaction_policy_id": interaction_policy_id,
+        }
+    )
     return registry
 
 
@@ -88,7 +103,7 @@ async def run_agent_turn(
         raise ServiceError("FORBIDDEN", 403)
     async with factory.begin() as db:
         run, command = await _command(db, fence)
-        if run.runtime_version != "dsl-v1" or run.workflow_bundle_id != bundle.bundle_id:
+        if command_bundle_id(run, command) != bundle.bundle_id:
             raise WorkflowValidationError("run definition mismatch")
         if cached := command.payload.get("agentOutcome"):
             return AgentOutcome.model_validate(cached)
