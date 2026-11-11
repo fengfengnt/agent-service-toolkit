@@ -172,12 +172,14 @@
 **Interfaces:** Task 7 的已实现 v2 fixture／契约、formId 冲突语义及原保存／正式提交边界。门户只呈现服务端已有字段组合，Skill 名称、工具策略和内部 checkpoint 不作为用户操作项。
 
 - [x] **Step 1：编写可转交文档。** 附精确响应、v2 保存请求、旧后端回退、真实状态提示和验收命令。保留门户当前 v1 适配与未提交工作；交用户转交，不自动发消息或跨仓编码。
-- [ ] **Step 2：由门户维护者写红灯。** `reception-lead-policy-v2.test.ts` 固定协议解析与 3→4 组合；`reception-form-rebase.test.ts` 固定 owner／角色变化和未保存输入；浏览器 `reception-lead-policy-v2.spec.ts` 验证聚焦、冲突后保留输入及面板去重。
+- [x] **Step 2：由门户维护者写红灯。** `reception-lead-policy-v2.test.ts` 固定协议解析与 3→4 组合；`reception-form-rebase.test.ts` 固定 owner／角色变化和未保存输入；浏览器 `reception-lead-policy-v2.spec.ts` 验证聚焦、冲突后保留输入及面板去重。
 
   门户场景固定断言：`expect(editor.values).toEqual(unsavedValues)`；`expect(serverSubmissionCount).toBe(1)`；`expect(activeFieldGroups).toHaveLength(4)`。
-- [ ] **Step 3：由门户维护者实现。** 声明支持 v2，缺 v2 时回退 v1／旧展示；复用现有字段组件，去除新路径对 round1—round3 的限制，不删旧分支。新组合不覆盖脏输入；用户核对后再更新，过期 form 重新读取。
-- [ ] **Step 4：获得验证回执。** 门户运行 `npm exec vitest run tests/unit/reception-lead-policy-v2.test.ts tests/unit/reception-form-rebase.test.ts`、`npm run typecheck`、`npm run build`，并在隔离 fixture 服务运行对应 Playwright；未完成前标记“后端已验、门户／组合待验”，不得把交接发出视为前端完成。
-- [ ] **Step 5：分别提交。** 本仓库只提交交接文档；门户维护者独立提交其变更并返回 commit／验证及未验项。Java 正式接口不变时不创建额外 Java 改造；确需变更再提供精确交接。
+- [x] **Step 3：由门户维护者实现。** 声明支持 v2，缺 v2 时回退 v1／旧展示；复用现有字段组件，去除新路径对 round1—round3 的限制，不删旧分支。新组合不覆盖脏输入；用户核对后再更新，过期 form 重新读取。
+- [x] **Step 4：获得验证回执。** 门户运行 `npm exec vitest run tests/unit/reception-lead-policy-v2.test.ts tests/unit/reception-form-rebase.test.ts`、`npm run typecheck`、`npm run build`，并在隔离 fixture 服务运行对应 Playwright；未完成前标记“后端已验、门户／组合待验”，不得把交接发出视为前端完成。
+- [x] **Step 5：分别提交。** 本仓库只提交交接文档；门户维护者独立提交其变更并返回 commit／验证及未验项。Java 正式接口不变时不创建额外 Java 改造；确需变更再提供精确交接。
+
+**回执结论：** 已核对[门户固定提交回执](../../handoffs/2026-11-11-standard-skills-portal-receipt.md)，前端 SHA `485a0e3a4ae23fddd2bede4d68220aaa4038014b`；637 项单测、36 项安全检查、38 项留资浏览器、20 项 SSO 浏览器及 typecheck／build 通过。实际浏览器路径为 tests/browser，保留单一“提交信息”入口。Task 8 的交接、前端实现和隔离验证已闭环；这里的勾选不表示真实新后端组合通过。当前统一状态为“前后端各自隔离验证通过，真实新后端组合待验”，未推送、未部署。
 
 ### Task 9：组合恢复、迁移与回退验收
 
