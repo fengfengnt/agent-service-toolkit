@@ -142,13 +142,13 @@
 
 **Interfaces:** `run_deep_turn(factory: async_sessionmaker[AsyncSession], fence: WriteFence, *, execution: DeepExecution, model: BaseChatModel, business_client, checkpointer: BaseCheckpointSaver) -> AgentOutcome`；`deep_thread_ids(command: Command) -> set[str]`。业务图固定三个节点，无新的路由 DSL。原 `run_agent_turn` 和 legacy handler 保留。
 
-- [ ] **Step 1：写失败测试。** 三角色答疑／资料／确认、接待交接和按钮路径；断言三个自定义业务节点、按钮不额外依赖模型判断、每轮最多一次交接。旧 Command 和新 Command 分派分别命中原／新执行器；独立 thread_id、默认根 namespace、首次加消息与恢复 `None` 不重复输入。
+- [x] **Step 1：写失败测试。** 三角色答疑／资料／确认、接待交接和按钮路径；断言三个自定义业务节点、按钮不额外依赖模型判断、每轮最多一次交接。旧 Command 和新 Command 分派分别命中原／新执行器；独立 thread_id、默认根 namespace、首次加消息与恢复 `None` 不重复输入。
 
   固定断言：`assert business_node_names == {"prepare_context", "business_agent", "finalize"}`；`assert user_message_occurrences == 1`；`assert handoff_count <= 1`。
-- [ ] **Step 2：验证红灯。** `.venv/Scripts/python.exe -m pytest tests/xiaohe/test_deep_runtime.py tests/xiaohe/test_deep_recovery.py -q`，目标是新运行时未接入。
-- [ ] **Step 3：实现调度与装配。** `graph.respond` 先找到当前 Command 的固定 runtime，再分派，native 分支不能先调用旧 `bundle_for_run`。admission 的专业 Agent 入口按当前 Command 的可信 active 角色检查，扩展现有只识别 dsl-v1／agentExecution 的条件，测试不能进入他人或错误方向。通过 `build_graph` 返回图实例的既有 checkpointer 生命周期，在 respond 执行时显式传给 native runner；启动未就绪则受控拒绝，不另开 saver 或进程。启动核对所有未完成 native 快照，缺版不回退。
-- [ ] **Step 4：实现恢复与收尾。** 复用既有互斥及 fence，内部线程关系记入 DeepExecution；换 attempt 需隔离时换物理线程并保留业务 effects 键。工具成功后模型失败可由回执生成关键提示。意外内层 interrupt 受控报错，不结束 Command 或抢占外层 await_input；方向交接及最终输出保持原 AgentOutcome。
-- [ ] **Step 5：验证清理并提交。** 加入 Review Focus 5 的崩溃／竞争测试及 `test_native_threads_deleted_with_guest`，覆盖取消、过期、访客正文清理和 child namespace。运行新测试与 `test_workflow_recovery.py`、`test_visitor_expiry.py`、`test_agent_handoff.py`。建议 `feat(xiaohe): run skills in compact durable business graphs`。
+- [x] **Step 2：验证红灯。** `.venv/Scripts/python.exe -m pytest tests/xiaohe/test_deep_runtime.py tests/xiaohe/test_deep_recovery.py -q`，目标是新运行时未接入。
+- [x] **Step 3：实现调度与装配。** `graph.respond` 先找到当前 Command 的固定 runtime，再分派，native 分支不能先调用旧 `bundle_for_run`。admission 的专业 Agent 入口按当前 Command 的可信 active 角色检查，扩展现有只识别 dsl-v1／agentExecution 的条件，测试不能进入他人或错误方向。通过 `build_graph` 返回图实例的既有 checkpointer 生命周期，在 respond 执行时显式传给 native runner；启动未就绪则受控拒绝，不另开 saver 或进程。启动核对所有未完成 native 快照，缺版不回退。
+- [x] **Step 4：实现恢复与收尾。** 复用既有互斥及 fence，内部线程关系记入 DeepExecution；换 attempt 需隔离时换物理线程并保留业务 effects 键。工具成功后模型失败可由回执生成关键提示。意外内层 interrupt 受控报错，不结束 Command 或抢占外层 await_input；方向交接及最终输出保持原 AgentOutcome。
+- [x] **Step 5：验证清理并提交。** 加入 Review Focus 5 的崩溃／竞争测试及 `test_native_threads_deleted_with_guest`，覆盖取消、过期、访客正文清理和 child namespace。运行新测试与 `test_workflow_recovery.py`、`test_visitor_expiry.py`、`test_agent_handoff.py`。建议 `feat(xiaohe): run skills in compact durable business graphs`。
 
 ### Task 7：自由 form、引导进度与规则投影 v2
 

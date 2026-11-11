@@ -293,39 +293,52 @@ def build_graph(
                 raise ServiceError("FORBIDDEN", 403)
             state["write_fence"] = fence.model_dump(mode="json")
             if handlers is None:
-                from xiaohe.reception.flow import run_reception_step
-
                 async with factory.begin() as db:
-                    from xiaohe.workflows.store import bundle_for_run
+                    await require_write(db, fence)
+                    command = await db.scalar(select(Command).where(
+                        Command.run_id == fence.run_id, Command.completed_at.is_(None)))
+                    native = command.payload.get("deepExecution") if command else None
+                if native:
+                    from xiaohe.deep_runtime.models import DeepExecution
+                    from xiaohe.deep_runtime.runtime import run_deep_turn
 
-                    bundle = await bundle_for_run(db, fence.run_id)
-                    from xiaohe.workflows.store import load_persisted_bundle
-
-                    command = await db.scalar(
-                        select(Command).where(
-                            Command.run_id == fence.run_id, Command.completed_at.is_(None)
-                        )
-                    )
-                    if command.interaction_policy_id:
-                        from xiaohe.lead_skills.store import command_bundle_id
-
-                        run = await require_write(db, fence)
-                        bundle = await load_persisted_bundle(db, command_bundle_id(run, command))
-                if bundle is None:
-                    outcome = await run_reception_step(
-                        factory, fence, model, business_client=business_client
-                    )
+                    outcome = await run_deep_turn(factory, fence,
+                        execution=DeepExecution.model_validate(native), model=model,
+                        business_client=business_client, checkpointer=graph.checkpointer)
                 else:
-                    from xiaohe.agents.runtime import run_agent_turn
+                    from xiaohe.reception.flow import run_reception_step
 
-                    outcome = await run_agent_turn(
-                        factory,
-                        fence,
-                        bundle=bundle,
-                        model=model,
-                        business_client=business_client,
-                        registry=agent_registry,
-                    )
+                    async with factory.begin() as db:
+                        from xiaohe.workflows.store import bundle_for_run
+
+                        bundle = await bundle_for_run(db, fence.run_id)
+                        from xiaohe.workflows.store import load_persisted_bundle
+
+                        command = await db.scalar(
+                            select(Command).where(
+                                Command.run_id == fence.run_id, Command.completed_at.is_(None)
+                            )
+                        )
+                        if command.interaction_policy_id:
+                            from xiaohe.lead_skills.store import command_bundle_id
+
+                            run = await require_write(db, fence)
+                            bundle = await load_persisted_bundle(db, command_bundle_id(run, command))
+                    if bundle is None:
+                        outcome = await run_reception_step(
+                            factory, fence, model, business_client=business_client
+                        )
+                    else:
+                        from xiaohe.agents.runtime import run_agent_turn
+
+                        outcome = await run_agent_turn(
+                            factory,
+                            fence,
+                            bundle=bundle,
+                            model=model,
+                            business_client=business_client,
+                            registry=agent_registry,
+                        )
             else:
                 async with factory.begin() as db:
                     context = await build_reception_context(db, fence)
@@ -376,4 +389,5 @@ def build_graph(
         "respond", lambda state: "await_input" if state["outcome"]["wait_for_input"] else END
     )
     builder.add_edge("await_input", "respond")
-    return builder.compile()
+    graph = builder.compile()
+    return graph

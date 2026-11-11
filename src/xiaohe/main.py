@@ -49,6 +49,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
             # 后续独立部署只替换宿主认证和 BusinessBackend 装配；本期共用进程。
             registry = await load_agent_registry(factory, RESOURCE_ROOT, None, reception_client)
+            from xiaohe.deep_runtime.runtime import publish_runtime
+
+            await publish_runtime(factory, RESOURCE_ROOT, enabled=settings.deepagents_enabled)
             app.state.xiaohe_agent_registry = registry
             agents["xiaohe"] = Agent(
                 description="小鹤执行与暂停外壳",

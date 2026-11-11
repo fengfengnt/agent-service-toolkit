@@ -335,6 +335,11 @@ async def execute_effect(
                 )
                 decision = validate_candidates(decision, frame)
                 if operation == "submit_lead":
+                    if command.payload.get("receptionControl") in (
+                        "accept_invitation",
+                        "start_collection",
+                    ):
+                        raise ServiceError("INPUT_INVALID", 422)
                     intent = SubmitIntent.model_validate(payload.get("confirmation", {}))
                     if (
                         not intent.confirmed

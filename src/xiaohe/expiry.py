@@ -159,6 +159,10 @@ async def _delete_guest_bodies(db, conversation_ids, run_ids):
     threads.update(
         await db.scalars(select(RunAttempt.thread_id).where(RunAttempt.run_id.in_(run_ids)))
     )
+    from xiaohe.deep_runtime.runtime import deep_thread_ids
+
+    for command in await db.scalars(select(Command).where(Command.run_id.in_(run_ids))):
+        threads.update(deep_thread_ids(command))
     if await db.scalar(text("SELECT to_regclass('public.checkpoints')")):
         raw = await (await db.connection()).get_raw_connection()
         saver = AsyncPostgresSaver(raw.driver_connection)
