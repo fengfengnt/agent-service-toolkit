@@ -106,6 +106,8 @@ async def _accept(
     async with db.begin_nested():
         conversation = await require_conversation(db, actor, conversation_id)
         session = await require_session(db, actor)
+        if db.info.get("deepagents_enabled") and not db.info.get("deep_runtime_bundle_id"):
+            raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
         existing = await db.scalar(
             select(Command)
             .where(
@@ -204,7 +206,12 @@ async def _accept(
                 ownership_epoch=conversation.ownership_epoch,
             )
             db.add(run)
-            if bundle_id := db.info.get("workflow_bundle_id"):
+            if db.info.get("deepagents_enabled") and (
+                native_id := db.info.get("deep_runtime_bundle_id")
+            ):
+                run.runtime_version = "deepagent-v1"
+                run.deep_runtime_bundle_id = native_id
+            elif bundle_id := db.info.get("workflow_bundle_id"):
                 run.runtime_version = "dsl-v1"
                 run.workflow_bundle_id = bundle_id
         else:
@@ -229,7 +236,18 @@ async def _accept(
             run_id=run.id,
             request_id=request_id,
         )
-        if policy_id := db.info.get("lead_interaction_policy_id"):
+        native_id = (
+            db.info.get("deep_runtime_bundle_id")
+            if db.info.get("deepagents_enabled")
+            else run.deep_runtime_bundle_id
+        )
+        if native_id:
+            from xiaohe.deep_runtime.bundles import bind_deep_command, load_runtime_bundle_record
+
+            await bind_deep_command(
+                db, run, command, await load_runtime_bundle_record(db, native_id)
+            )
+        elif policy_id := db.info.get("lead_interaction_policy_id"):
             from xiaohe.lead_skills.store import bind_command_policy, load_policy
 
             await bind_command_policy(

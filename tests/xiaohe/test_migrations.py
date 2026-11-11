@@ -16,6 +16,8 @@ def test_orm_metadata_resolves_workflow_foreign_keys_without_alembic_imports():
             "-c",
             "from xiaohe.models import Base; from xiaohe.reception import models; "
             "assert 'xiaohe.workflow_definitions' in Base.metadata.tables; "
+            "assert 'xiaohe.deep_runtime_bundles' in Base.metadata.tables; "
+            "assert 'deep_runtime_bundle_id' in Base.metadata.tables['xiaohe.runs'].c; "
             "list(Base.metadata.sorted_tables)",
         ],
         capture_output=True,

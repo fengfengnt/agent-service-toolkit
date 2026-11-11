@@ -60,3 +60,13 @@ class RuntimeBundle(DefinitionModel):
     @property
     def bundle_id(self) -> str:
         return policy_digest(self)
+
+
+class DeepExecution(DefinitionModel):
+    runtime: Literal["deepagent-v1"] = "deepagent-v1"
+    bundle_id: str = Field(pattern=r"^[a-f0-9]{64}$")
+    active: AgentId | None = None
+    handoffs: int = Field(default=0, ge=0, le=1)
+    threads: dict[str, dict] = Field(default_factory=dict)
+    effects: dict[str, dict] = Field(default_factory=dict)
+    result: dict | None = None

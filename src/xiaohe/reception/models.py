@@ -74,6 +74,7 @@ class ReceptionDraft(Base):
     direction: Mapped[str]
     definition_bundle_id: Mapped[str | None] = mapped_column(String(64))
     field_policy_id: Mapped[str | None] = mapped_column(String(64))
+    guidance_progress: Mapped[dict | None] = mapped_column(JSONB)
     subject_id: Mapped[str | None]
     source_application_id: Mapped[str | None]
     source_onboarding_id: Mapped[str | None]

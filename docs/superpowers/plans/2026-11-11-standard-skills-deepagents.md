@@ -98,13 +98,13 @@
 
 **Interfaces:** `persist_runtime_bundle(db: AsyncSession, bundle: RuntimeBundle) -> str`；`load_runtime_bundle_record(db: AsyncSession, bundle_id: str) -> RuntimeBundle`；`bind_deep_command(db: AsyncSession, run: Run, command: Command, bundle: RuntimeBundle) -> DeepExecution`。`DeepExecution` 固定 runtime=`deepagent-v1`、bundle_id、选版策略、各角色内部 thread 引用、工具 effects 与本轮结果；可信 Actor／WriteFence 保留在执行上下文，不能由模型覆盖。
 
-- [ ] **Step 1：写失败测试。** 验证快照不可修改／缺失不回退最新版；Run 的 legacy／dsl-v1 行仍合法；native 新 Run 合法且不会进入旧快照解析器；等待中的旧 Run 新 Command 可选新版，前一 Command 不换版。`test_existing_run_new_command_pins_new_bundle` 同时断言旧字段 policy_id 不变。
+- [x] **Step 1：写失败测试。** 验证快照不可修改／缺失不回退最新版；Run 的 legacy／dsl-v1 行仍合法；native 新 Run 合法且不会进入旧快照解析器；等待中的旧 Run 新 Command 可选新版，前一 Command 不换版。`test_existing_run_new_command_pins_new_bundle` 同时断言旧字段 policy_id 不变。
 
   选版固定断言：`assert old_execution.bundle_id == old_bundle.bundle_id`；`assert new_execution.bundle_id == new_bundle.bundle_id`；`assert draft.field_policy_id == original_field_policy_id`。
-- [ ] **Step 2：验证红灯。** `.venv/Scripts/python.exe -m pytest tests/xiaohe/test_deep_storage.py tests/xiaohe/test_deep_versions.py -q`，目标是新模型／约束缺失，不能是测试库不可连接。
-- [ ] **Step 3：实现增量存储。** 在 models.py 新增 `DeepRuntimeBundleRecord`，映射独立 `xiaohe.deep_runtime_bundles` 内容快照表，避免旧 `WorkflowBundle.model_validate` 读取 native payload；给 Run 增加 nullable `deep_runtime_bundle_id` FK，扩展约束为 legacy 两引用皆空、dsl-v1 仅旧引用非空、deepagent-v1 仅新引用非空。草稿新增 nullable JSONB `guidance_progress`，旧值不回填、不改字段规则。
-- [ ] **Step 4：实现选版。** `Settings.deepagents_enabled=False`，alias `XIAOHE_DEEPAGENTS_ENABLED`，仅影响后续 Command 选择。新 native Run 绑定新列；旧等待 Run 不修改 runtime／原引用，新 Command 在 `payload.deepExecution` 固定 native 快照。旧 Command 无该记录则按原 Run 恢复；关闭开关也必须恢复已固定 native Command。原 `interaction_policy_id` 继续固定真实交互模板，native 不伪造旧 `leadWorkflowBundleId`。
-- [ ] **Step 5：验证并提交。** 运行新测试及 `test_migrations.py`、`test_lead_policy_storage.py`、`test_lead_policy_versions.py`；在临时库演练 upgrade，并验证存在新记录时 downgrade 明确拒绝。建议 `feat(xiaohe): persist native runtime snapshots per command`。
+- [x] **Step 2：验证红灯。** `.venv/Scripts/python.exe -m pytest tests/xiaohe/test_deep_storage.py tests/xiaohe/test_deep_versions.py -q`，目标是新模型／约束缺失，不能是测试库不可连接。
+- [x] **Step 3：实现增量存储。** 在 models.py 新增 `DeepRuntimeBundleRecord`，映射独立 `xiaohe.deep_runtime_bundles` 内容快照表，避免旧 `WorkflowBundle.model_validate` 读取 native payload；给 Run 增加 nullable `deep_runtime_bundle_id` FK，扩展约束为 legacy 两引用皆空、dsl-v1 仅旧引用非空、deepagent-v1 仅新引用非空。草稿新增 nullable JSONB `guidance_progress`，旧值不回填、不改字段规则。
+- [x] **Step 4：实现选版。** `Settings.deepagents_enabled=False`，alias `XIAOHE_DEEPAGENTS_ENABLED`，仅影响后续 Command 选择。新 native Run 绑定新列；旧等待 Run 不修改 runtime／原引用，新 Command 在 `payload.deepExecution` 固定 native 快照。旧 Command 无该记录则按原 Run 恢复；关闭开关也必须恢复已固定 native Command。原 `interaction_policy_id` 继续固定真实交互模板，native 不伪造旧 `leadWorkflowBundleId`。
+- [x] **Step 5：验证并提交。** 运行新测试及 `test_migrations.py`、`test_lead_policy_storage.py`、`test_lead_policy_versions.py`；在临时库演练 upgrade，并验证存在新记录时 downgrade 明确拒绝。建议 `feat(xiaohe): persist native runtime snapshots per command`。
 
 ### Task 4：原生 Agent 装配及只读 child 边界
 

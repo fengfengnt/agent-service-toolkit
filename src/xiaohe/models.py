@@ -33,6 +33,16 @@ class WorkflowDefinitionRecord(Base):
     )
 
 
+class DeepRuntimeBundleRecord(Base):
+    __tablename__ = "deep_runtime_bundles"
+
+    bundle_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    payload: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.clock_timestamp()
+    )
+
+
 class LeadPolicyRecord(Base):
     __tablename__ = "lead_policies"
     __table_args__ = (CheckConstraint("kind IN ('fields','interaction')"),)
@@ -313,13 +323,19 @@ class Run(Base):
     __tablename__ = "runs"
     __table_args__ = (
         ForeignKeyConstraint(
+            ["deep_runtime_bundle_id"],
+            ["xiaohe.deep_runtime_bundles.bundle_id"],
+            name="fk_runs_deep_runtime_bundle",
+        ),
+        ForeignKeyConstraint(
             ["workflow_bundle_id"],
             ["xiaohe.workflow_definitions.bundle_id"],
             name="fk_runs_workflow_definition",
         ),
         CheckConstraint(
-            "(runtime_version = 'legacy' AND workflow_bundle_id IS NULL) OR "
-            "(runtime_version = 'dsl-v1' AND workflow_bundle_id IS NOT NULL)",
+            "(runtime_version = 'legacy' AND workflow_bundle_id IS NULL AND deep_runtime_bundle_id IS NULL) OR "
+            "(runtime_version = 'dsl-v1' AND workflow_bundle_id IS NOT NULL AND deep_runtime_bundle_id IS NULL) OR "
+            "(runtime_version = 'deepagent-v1' AND workflow_bundle_id IS NULL AND deep_runtime_bundle_id IS NOT NULL)",
             name="ck_runs_workflow_runtime",
         ),
         ForeignKeyConstraint(
@@ -368,6 +384,7 @@ class Run(Base):
     execution_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     thread_id: Mapped[str | None]
     workflow_bundle_id: Mapped[str | None] = mapped_column(String(64))
+    deep_runtime_bundle_id: Mapped[str | None] = mapped_column(String(64))
     runtime_version: Mapped[str] = mapped_column(server_default="legacy")
     outcome: Mapped[dict | None] = mapped_column(JSONB)
     initial_message_id: Mapped[UUID]

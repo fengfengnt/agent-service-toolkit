@@ -6,7 +6,13 @@ from deepagents.backends.utils import create_file_data
 from pydantic import ValidationError
 
 from xiaohe.contracts import Actor
-from xiaohe.deep_runtime.models import TOOLS, RuntimeBinding, RuntimeBundle, SkillSpec
+from xiaohe.deep_runtime.models import (
+    TOOLS,
+    DeepExecution,
+    RuntimeBinding,
+    RuntimeBundle,
+    SkillSpec,
+)
 from xiaohe.lead_skills.models import CommonPolicy, FieldPolicy, InteractionPolicy
 from xiaohe.workflows.loader import MAX_DEFINITION_BYTES, MAX_RESOURCE_BYTES, DefinitionLoader
 from xiaohe.workflows.models import AGENT_IDS, AgentId, WorkflowValidationError
@@ -187,3 +193,53 @@ def skill_files(bundle: RuntimeBundle, binding: RuntimeBinding) -> dict[str, dic
             if path.startswith(prefix):
                 result[f"/skills/{name}/" + path.removeprefix(prefix)] = create_file_data(text)
     return result
+
+
+async def persist_runtime_bundle(db, bundle: RuntimeBundle) -> str:
+    from sqlalchemy.dialects.postgresql import insert
+
+    from xiaohe.lead_skills.store import persist_policy
+    from xiaohe.models import DeepRuntimeBundleRecord
+
+    for policy in bundle.field_policies.values():
+        await persist_policy(db, policy)
+    await persist_policy(db, bundle.interaction_policy)
+    await db.execute(
+        insert(DeepRuntimeBundleRecord)
+        .values(bundle_id=bundle.bundle_id, payload=bundle.model_dump(mode="json"))
+        .on_conflict_do_nothing(index_elements=["bundle_id"])
+    )
+    if await load_runtime_bundle_record(db, bundle.bundle_id) != bundle:
+        raise WorkflowValidationError("native snapshot content mismatch")
+    return bundle.bundle_id
+
+
+async def load_runtime_bundle_record(db, bundle_id: str) -> RuntimeBundle:
+    from xiaohe.models import DeepRuntimeBundleRecord
+
+    row = await db.get(DeepRuntimeBundleRecord, bundle_id, populate_existing=True)
+    if row is None:
+        raise WorkflowValidationError("bound native snapshot unavailable")
+    try:
+        bundle = RuntimeBundle.model_validate(row.payload)
+        if bundle.bundle_id != bundle_id:
+            raise ValueError("content mismatch")
+        return bundle
+    except (TypeError, ValueError):
+        raise WorkflowValidationError("bound native snapshot corrupt") from None
+
+
+async def bind_deep_command(db, run, command, bundle: RuntimeBundle) -> DeepExecution:
+    from xiaohe.lead_skills.store import persist_policy
+
+    if previous := command.payload.get("deepExecution"):
+        execution = DeepExecution.model_validate(previous)
+        await load_runtime_bundle_record(db, execution.bundle_id)
+        return execution
+    if command.attempts or command.completed_at is not None:
+        raise WorkflowValidationError("cannot switch started command runtime")
+    await persist_runtime_bundle(db, bundle)
+    execution = DeepExecution(bundle_id=bundle.bundle_id)
+    command.interaction_policy_id = await persist_policy(db, bundle.interaction_policy)
+    command.payload = command.payload | {"deepExecution": execution.model_dump(mode="json")}
+    return execution
