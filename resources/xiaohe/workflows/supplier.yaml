@@ -2,7 +2,7 @@
 schema_version: 1
 agent_id: xiaohe-supplier
 name: 供应商 Agent
-workflow_version: '3'
+workflow_version: '4'
 entry: understand
 prompts:
   intent: supplier-intent.md
@@ -12,43 +12,7 @@ skills:
 - supplier.ontology-evolution
 - supplier.negotiation
 - supplier.security
-required_fields:
-- companyName
-- contactName
-- contactPhone
-rounds:
-- id: round1
-  name: 基础资料
-  fields:
-  - companyName
-  - companyType
-  - category
-  - city
-- id: round2
-  name: 需求和联系信息
-  fields:
-  - productDescription
-  - capabilityTags
-  - qualifications
-  - serviceAreas
-  - orderTypes
-  - contactName
-  - contactPhone
-- id: round3
-  name: 选填补充
-  fields:
-  - capacity
-  - deliveryCycle
-  - revenue
-  - teamSize
-  - targetCustomers
-  - targetAreas
-- id: files
-  name: 供应商材料（选填）
-  fields: []
-- id: summary
-  name: 核对并确认当前汇总
-  fields: []
+lead_skill_id: supplier.lead_capture
 nodes:
 - id: understand
   name: 理解当前表达

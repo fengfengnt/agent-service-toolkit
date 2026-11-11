@@ -9,6 +9,7 @@ from xiaohe.agents.contracts import (
     AnswerDraft,
     ConfirmationEvidence,
     InvitationState,
+    LeadConfirmationEvidence,
     ModelContext,
     SemanticDecision,
     VisibleTurn,
@@ -26,6 +27,7 @@ from xiaohe.reception.submission import (
     actor_from_user,
     confirm_locked_draft,
     create_draft_from_business,
+    prepare_submission_payload,
     submit_confirmed,
 )
 from xiaohe.runs import require_write
@@ -387,9 +389,9 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
             event = "unclear"
         if event == "defer_invitation" and frame.invitation_state not in ("offered", "deferred"):
             event = "unclear"
-        if event == "confirm_current_summary" and decision.candidates:
+        if event == "confirm_current_summary" and decision.candidates and not frame.interaction_policy:
             event = "consultation_with_details" if decision.topics else "provide_details"
-        if event == "confirm_current_summary" and not frame.model_context.summary_visible:
+        if event == "confirm_current_summary" and not frame.model_context.summary_visible and not frame.interaction_policy:
             event = "unclear"
         if event == "switch_direction" and (
             not decision.explicit_switch or decision.target_direction in (None, "unknown")
@@ -463,7 +465,7 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
             raise ServiceError("FORBIDDEN", 403)
         if not _safe_decision(decision) or (
             node.operation == "confirm_submission"
-            and (decision.action != "confirm_current_summary" or decision.candidates)
+            and (decision.action != "confirm_current_summary" or (decision.candidates and not frame.interaction_policy))
         ):
             raise ServiceError("INPUT_INVALID", 422)
         editing_confirmation = node.operation == "collect_details" and (
@@ -485,6 +487,15 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
             else {}
         )
         submission_id = None
+        if node.operation == "confirm_submission":
+            async with factory.begin() as db:
+                _, command, _, _ = await _checked(db, frame)
+                stage = _stage(command, frame.agent_id)
+                if stage.get("decision") != decision.model_dump(mode="json"):
+                    raise ServiceError("INPUT_INVALID", 422)
+                previous = stage.get("submission_id")
+            if previous:
+                return await finish_submission(frame, UUID(previous))
         async with factory.begin() as db:
             run, command, conversation, flow = await _checked(db, frame)
             stage = _stage(command, frame.agent_id)
@@ -494,7 +505,7 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
                 return prepared_answer | {"operation_result": cached}
             await _activate_pending(db, frame, command, conversation, flow)
             row = (
-                await db.get(ReceptionDraft, flow.active_draft_id) if flow.active_draft_id else None
+                await db.get(ReceptionDraft, flow.active_draft_id, with_for_update=True, populate_existing=True) if flow.active_draft_id else None
             )
             if (row.id if row else None, row.revision if row else None) != (
                 frame.draft_id,
@@ -618,21 +629,40 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
                 elif row.state == "accepted":
                     text = "该需求已有受理回执；新需求请新建草稿。"
                 elif node.operation == "confirm_submission":
-                    if not frame.model_context.summary_visible or frame.summary_version is None:
-                        raise ServiceError("DRAFT_CONFLICT", 409)
-                    evidence = ConfirmationEvidence.from_frame(
-                        frame, source="button" if command.payload.get("reception") else "semantic"
-                    )
-                    submission = await confirm_locked_draft(
-                        db,
-                        row,
-                        frame.draft_revision,
-                        frame.summary_version,
-                        frame.message_id,
-                        run.user_id,
-                        evidence=evidence,
-                    )
-                    submission_id = submission.id
+                    if frame.interaction_policy:
+                        if decision.candidates:
+                            await patch_locked_draft(db, row, frame.draft_revision,
+                                {key: item.value for key, item in decision.candidates.items()})
+                        rules = await draft_definition(db, row)
+                        missing = missing_required(row.direction, row.fields, definition=rules)
+                        if missing:
+                            text = "正式提交还需：" + "、".join(
+                                field.label for field in frame.field_policy.fields if field.id in missing) + "。"
+                        else:
+                            from xiaohe.agents.confirmation import payload_digest
+
+                            source = "button" if command.payload.get("reception") else (
+                                "semantic_reviewed" if frame.model_context.summary_visible and not decision.candidates
+                                else "semantic_direct")
+                            evidence = LeadConfirmationEvidence(source=source,
+                                command_id=command.id, run_id=run.id, message_id=frame.message_id,
+                                user_id=run.user_id, draft_id=row.id, revision=row.revision,
+                                agent_id=frame.agent_id, summary_version=row.summary_version if source != "semantic_direct" else None,
+                                field_policy_id=row.field_policy_id,
+                                interaction_policy_id=command.interaction_policy_id,
+                                payload_digest=payload_digest(await prepare_submission_payload(db, row)))
+                            _save_stage(command, frame.agent_id, leadConfirmation=evidence.model_dump(mode="json"))
+                            submission = await confirm_locked_draft(db, row, row.revision,
+                                evidence.summary_version, frame.message_id, run.user_id, evidence=evidence)
+                            submission_id = submission.id
+                    else:
+                        if not frame.model_context.summary_visible or frame.summary_version is None:
+                            raise ServiceError("DRAFT_CONFLICT", 409)
+                        evidence = ConfirmationEvidence.from_frame(
+                            frame, source="button" if command.payload.get("reception") else "semantic")
+                        submission = await confirm_locked_draft(db, row, frame.draft_revision,
+                            frame.summary_version, frame.message_id, run.user_id, evidence=evidence)
+                        submission_id = submission.id
                 else:
                     if row.state == "submitting":
                         raise ServiceError("DRAFT_CONFLICT", 409)
@@ -702,17 +732,21 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
             else:
                 _save_stage(command, frame.agent_id, operation_result=result)
         if submission_id is not None:
-            receipt = await submit_confirmed(factory, frame.fence, submission_id, business_client)
-            result = {
+            return await finish_submission(frame, submission_id)
+        return prepared_answer | {"operation_result": result}
+
+    async def finish_submission(frame, submission_id):
+        receipt = await submit_confirmed(factory, frame.fence, submission_id, business_client)
+        result = {
                 "text": "入驻申请已记录，待后台审核。"
                 if receipt.kind == "onboarding"
                 else "需求已记录，请在进展中查看真实跟进状态。",
                 "wait": False,
-            }
-            async with factory.begin() as db:
-                _, command, _, _ = await _checked(db, frame)
-                _save_stage(command, frame.agent_id, operation_result=result)
-        return prepared_answer | {"operation_result": result}
+        }
+        async with factory.begin() as db:
+            _, command, _, _ = await _checked(db, frame)
+            _save_stage(command, frame.agent_id, operation_result=result)
+        return {"operation_result": result}
 
     async def _external_prepared(db, operation_name, frame, decision, row, command, run):
         if run.user_id is None:

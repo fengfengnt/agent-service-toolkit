@@ -39,7 +39,10 @@ async def confirm_draft(
 async def confirm_locked_draft(
     db, row, expected_revision, summary_version, message_id, user_id, *, evidence=None
 ):
+    from xiaohe.agents.contracts import LeadConfirmationEvidence
     from xiaohe.reception.flow import _explicit_confirmation
+
+    lead_evidence = isinstance(evidence, LeadConfirmationEvidence)
 
     if user_id is None:
         raise ServiceError("AUTH_REQUIRED", 401)
@@ -51,7 +54,11 @@ async def confirm_locked_draft(
         )
     )
     run = await db.get(Run, command.run_id) if command else None
-    if run is not None and run.runtime_version == "dsl-v1":
+    if lead_evidence and run is not None:
+        from xiaohe.agents.confirmation import validate_lead_evidence
+
+        validate_lead_evidence(evidence, row, command, run, message_id, user_id)
+    elif run is not None and run.runtime_version == "dsl-v1":
         from xiaohe.agents.nodes import validate_confirmation_evidence
 
         validate_confirmation_evidence(evidence, row, command, run, message_id, user_id)
@@ -69,11 +76,15 @@ async def confirm_locked_draft(
         return existing
     if row.kind == "onboarding":
         raise ServiceError("APPLICATION_FLOW_CHANGED", 409)
-    if (
+    if not lead_evidence and (
         row.revision != expected_revision
         or row.state != "review"
         or row.summary_version != summary_version
         or summary_version != row.revision
+    ):
+        raise ServiceError("DRAFT_CONFLICT", 409)
+    if lead_evidence and (
+        row.revision != expected_revision or row.state not in ("collecting", "review")
     ):
         raise ServiceError("DRAFT_CONFLICT", 409)
     message = await db.get(Message, message_id)
@@ -101,10 +112,40 @@ async def confirm_locked_draft(
         and action.get("expectedRevision") == row.revision
         and action.get("summaryVersion") == summary_version
     )
-    if run.runtime_version != "dsl-v1" and not (explicit_action or _explicit_confirmation(text)):
+    if (
+        not lead_evidence
+        and run.runtime_version != "dsl-v1"
+        and not (explicit_action or _explicit_confirmation(text))
+    ):
         raise ServiceError("INPUT_INVALID", 422)
     if missing_required(row.direction, row.fields, definition=await draft_definition(db, row)):
         raise ServiceError("INPUT_INVALID", 422)
+    payload = await prepare_submission_payload(db, row)
+    if lead_evidence:
+        from xiaohe.agents.confirmation import payload_digest
+
+        if payload_digest(payload) != evidence.payload_digest:
+            raise ServiceError("DRAFT_CONFLICT", 409)
+    key = payload.submission_key
+    submission = ReceptionSubmission(
+        draft_id=row.id,
+        conversation_id=row.conversation_id,
+        system_id=row.system_id,
+        tenant_id=row.tenant_id,
+        draft_revision=row.revision,
+        summary_version=summary_version,
+        confirmation_message_id=message_id,
+        confirmation_evidence=evidence.model_dump(mode="json") if lead_evidence else None,
+        submission_key=key,
+        payload=payload.model_dump(mode="json", by_alias=True, exclude_none=True),
+    )
+    db.add(submission)
+    row.state = "submitting"
+    await db.flush()
+    return submission
+
+
+async def prepare_submission_payload(db, row):
     files = (
         await db.scalars(
             select(ReceptionFile).where(
@@ -162,21 +203,7 @@ async def confirm_locked_draft(
             subject_kind="organization" if row.direction == "organization" else "company",
             direction=row.direction,
         )
-    submission = ReceptionSubmission(
-        draft_id=row.id,
-        conversation_id=row.conversation_id,
-        system_id=row.system_id,
-        tenant_id=row.tenant_id,
-        draft_revision=row.revision,
-        summary_version=summary_version,
-        confirmation_message_id=message_id,
-        submission_key=key,
-        payload=payload.model_dump(mode="json", by_alias=True, exclude_none=True),
-    )
-    db.add(submission)
-    row.state = "submitting"
-    await db.flush()
-    return submission
+    return payload
 
 
 async def submit_confirmed(factory, fence, submission_id, client) -> SubmitReceipt:

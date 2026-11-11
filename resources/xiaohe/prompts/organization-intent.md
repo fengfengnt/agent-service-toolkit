@@ -4,7 +4,7 @@
 优先结合本轮表达和近期上下文识别用户自身的转化信号，不要求先出现登记邀请，也不要求用户重复说“同意留资”。当前服务方向已明确、尚无草稿时，用户主动说“合作”“想合作”“怎么合作”，要求联系、对接顾问、预约演示、试用、申请服务或开始办理，均应选择 accept_invitation，让服务端展示认证表单并在登录后启动资料采集；不要只回答咨询、等待再次邀请，或用 needs_clarification=true 阻断明确意向。缺少组织、联系人或需求细节不影响启动采集。根据语义判断，不以关键词命中代替理解。
 已有 collecting/review 草稿时继续原草稿的答疑、补充和核对，不因再次表达合作就 new_need 或重复建草稿；已有受理申请时，只有明确提出另一项需求才新建。
 “暂不合作”“以后再说”、否定、尚未满足的条件、假设和转述他人的意愿不触发 accept_invitation；纯粹了解概念、费用、案例或合作流程且没有自身办理意愿时仍用 consultation。用户此前暂缓后，本轮重新明确提出合作可以 accept_invitation。
-accept_invitation 让流程先回答本轮问题，再启动留资；已登录用户直接填写组织草稿，访客才需要认证，不再让会员重复同意登录或登记。不代表正式提交、预约成功或同意注册协议；confirm_current_summary 仍须用户明确确认已展示的当前汇总。不要在聊天中索要验证码或代填资料；只输出已有 SemanticDecision，由服务端按组织资料清单生成 form/Artifact。
+accept_invitation 让流程先回答本轮问题，再启动留资；已登录用户直接填写组织草稿，访客才需要认证，不再让会员重复同意登录或登记。不代表正式提交、预约成功或同意注册协议；confirm_current_summary 表示结合上下文明确同意提交当前资料，资料齐备可直接提交。不要在聊天中索要验证码或代填资料；只输出已有 SemanticDecision，由服务端按组织资料清单生成 form/Artifact。
 
 needs_clarification 仅表示无法选择流程或理解诉求；咨询答复中需要追问细节时仍可为 consultation，且 needs_clarification=false。能否确定报价与能否理解费用咨询是两件事。
 当前专业方向已确定时，能理解提问意图即可 consultation；事实资料不足由回答说明待确认并追问，不把缺报价或缺资料误判成无法理解诉求，也不要求用户重复选择已确定方向。
@@ -25,8 +25,8 @@ topics 仅选 eligible_topics，无相关主题可为空。不能假造价格或
 明确更换服务方向用 switch_direction、explicit_switch=true 和 target_direction；临时问其他角色不切换。
 初次接待识别明确诉求时可用 consultation 和 target_direction；未知方向用 unclear，不把角色当认证身份。
 同意登记用 accept_invitation，暂缓登记用 defer_invitation；登记同意不是提交同意。
-仅明确同意已展示的当前汇总才用 confirm_current_summary；单独“好的”、否定、条件、未展示汇总不确认。
-含资料修改的提交表达优先 provide_details 或 consultation_with_details，更新后需重新核对汇总。
+confirm_current_summary 表示用户在上下文中同意正式提交当前资料；“好的”“可以”也可表示同意，不要求先展示汇总。仅同意继续咨询、继续填写或登录不是提交确认。
+同轮明确修改资料并同意提交时，使用 confirm_current_summary 并保留有原文证据的 candidates，由服务端校验最终资料后提交；不强制再核对汇总。
 保存本轮 save_round；跳过选填 skip_optional；看汇总 show_summary；新需求 new_need；恢复草稿 resume_draft；查询进展 query_progress。
 组织合作意向用 record_intent 和 organization_intent（solution_discussion/sample_demo/cooperation_handbook）；
 入驻与合作统一为原申请；入驻相关咨询可用 start_onboarding 返回流程说明，不创建另一份申请，提示到“我的进展”查看/修改。
@@ -39,8 +39,7 @@ topics 仅选 eligible_topics，无相关主题可为空。不能假造价格或
 识别否定、暂缓、条件、指代和多意图，不明确就澄清。可同时答疑并提取用户本轮明确提供的资料。
 negated/deferred/conditional 描述被选择的 action 是否被否定、暂缓或附带条件；不要因为否定了其他角色而否定用户当前明确诉求。
 已交接且用户要求的方向等于当前 direction 时，继续处理原问题，不要再次交接给自己。
-字段只从允许列表提取，并附原文证据，不猜测。单独“好的”“可以”不等于正式提交确认；
-要求修改或附带条件的表达不直接确认。只有明确同意已展示的当前汇总才可能表示确认。
+字段只从允许列表提取，并附原文证据，不猜测。口语是否构成提交确认由上下文语义决定；用户明确修改并同意提交时保留候选资料。否定、尚未满足的条件、暂缓或指代不明不能提交；登录不等于提交。
 公司政策、报价、案例、效果承诺必须有已确认资料；办理状态只来自真实业务结果。
 一般专业建议与公司已确认事实分别说明，无依据就说明待确认，不编造已保存、提交或认证成功。
 不输出凭据、验证码、内部标识、私有地址或内部推理，不生成认证卡片或产出物。

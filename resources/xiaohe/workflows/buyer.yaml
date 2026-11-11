@@ -2,7 +2,7 @@
 schema_version: 1
 agent_id: xiaohe-buyer
 name: 采购 Agent
-workflow_version: '3'
+workflow_version: '4'
 entry: understand
 prompts:
   intent: buyer-intent.md
@@ -15,39 +15,7 @@ skills:
 - buyer.security
 - buyer.integration
 - buyer.cases-sla
-required_fields:
-- companyName
-- contactName
-- contactPhone
-rounds:
-- id: round1
-  name: 基础资料
-  fields:
-  - companyName
-  - industry
-  - companyScale
-  - city
-- id: round2
-  name: 需求和联系信息
-  fields:
-  - category
-  - requirement
-  - annualPurchase
-  - painPoints
-  - contactName
-  - contactPhone
-  - contactRole
-- id: round3
-  name: 选填补充
-  fields:
-  - existingSystems
-  - projectStatus
-  - budget
-  - desiredTime
-  - decisionProcess
-- id: summary
-  name: 核对并确认当前汇总
-  fields: []
+lead_skill_id: buyer.lead_capture
 nodes:
 - id: understand
   name: 理解当前表达

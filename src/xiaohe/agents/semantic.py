@@ -53,6 +53,9 @@ async def understand_turn(
         raise ServiceError("FORBIDDEN", 403)
     context = _safe_context(frame)
     prompt = bundle.resources["prompts/" + definition.prompts[prompt_key]]
+    if frame.model_context.role_guide:
+        prompt += "\n\n本轮适用的角色留资规范：\n" + frame.model_context.role_guide
+    context.pop("role_guide", None)
     from xiaohe.reception.skills import load_skill_materials
 
     context["available_topics"] = [
