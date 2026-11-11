@@ -29,6 +29,8 @@
 | Task 8 实际 admission→worker→graph 组合 | 三角色直接提交、新建／恢复面板标记、同一等待 Run 的下一轮交互换版、原键受理核对通过；附件增删冲突及中断同一 Command 后跨规范升级恢复也通过 |
 | 最终完整顶层业务回归 | **918 passed、5 skipped、10 deselected**，19 项已有依赖警告，耗时 736.98 秒；本功能没有剩余失败 |
 | 独立审阅 | 0 Critical、2 Important、0 Minor；两项重要问题已按 RED→GREEN 修复，另补审阅建议覆盖，最终完整回归通过 |
+| 门户回执全量验证 | 核对门户归档日志：624 单测、36 安全检查、typecheck、生产构建通过；30 项留资浏览器回归与 18 项协议桩 SSO 组合通过，审阅修复后相关 5 项 SSO 复跑通过（不作为额外独立用例累加） |
+| 本对话核收时复验 | 固定前端 SHA 下复跑 5 个相关单测文件，61 passed；前端工作区仍干净，前后端规则 fixture SHA256 一致 |
 
 首轮完整回归为 13 failed、887 passed、5 skipped：旧字段配置入口、旧话术、schema head、旧 Run 新轮次预期按已批准设计适配；另四项历史 443 SQL 迁移因专用库名称不在脚本白名单而拒绝。未放宽 SQL 保护，改在本轮同一临时容器的白名单测试库复验。
 
@@ -58,11 +60,32 @@
 
 门户交接：`C:/Users/70367/AppData/Local/Temp/xiaohe-role-lead-skills-portal-handoff-20261111.md`；精确协议见 [leadPolicy v1](../contracts/xiaohe-lead-policy-v1.md)。没有直接修改门户工程，也没有新增 Java 或 Runtime 开发依赖。
 
-- 门户 Agent 的实现 SHA、组件／浏览器测试、typecheck、build 待回执。
-- 新旧前后端组合、事件／读取乱序、未保存编辑与焦点、跨 owner 隔离待门户验证。
+2026-11-11 已收到并核收[门户原始回执](receipts/2026-11-11-role-lead-skills-portal.md)。固定组合为后端 `e19cac7ad510c8f45b2aba0e4754bdfe5943b967`（代码基准 `0fa7a1659e335b8d45cc2f19908e2ddff78731b4`）与门户 `9cdadb3dd74b97e073765938b05bd5ab7074b0f8`，均在各自 `dev-fengfeng` 本地提交，未部署。门户版本仍为 `0.1.27`。核收期间仓库另有标准 Skill／DeepAgents 的设计及依赖准备提交；本次不评估或覆盖这些工作，也不把当前 HEAD 等同于上述已验固定组合。
+
+核对内容：只在两个 GET 声明能力，写入／确认请求保持原结构；旧后端缺投影时兼容，显式 null 不继承旧规则；状态依据可信结果；采集标记等待匹配草稿和输入请求、按 owner／会话／消息去重；保留未保存输入及焦点。门户沿用前置提交 `f543a0f` 已有的单一“提交信息”入口，没有恢复额外按钮或给语义提交增加用户点击；资料总览仍可核对，确认绑定真实修订。
+
+前后端 `lead-policy-v1.json` 逐字节一致，文件 SHA256 为 `63363e25a49a05b9ca071801e45e8eb75ceaf10d8ab9e19b98b31276eda6788f`。回执日志位置：`C:/Users/70367/AppData/Local/Temp/xiaohe-role-lead-policy-portal-20261111-evidence/`。本对话读取全量验证日志并执行以下定向复验，未重跑门户全量浏览器或构建，也未跨工程修改代码：
+
+```powershell
+# 在 D:/Code/yunhezhiyuan-portal/frontend 执行
+.\node_modules\.bin\vitest.cmd run tests/unit/reception-lead-policy.test.ts tests/unit/reception-lead-status.test.ts tests/unit/reception-collection-notice.test.ts tests/unit/application-form.test.ts tests/unit/reception-presentation.test.ts --maxWorkers=4
+```
+
+| 组合 | 当前证据 | 尚未覆盖 |
+| --- | --- | --- |
+| 旧后端／新门户 | 门户旧形状协议桩、解析及原操作回归 | 实际旧后端与新门户共同运行 |
+| 新后端／新门户 | 同一三角色 fixture、字段／通知／状态及隔离浏览器协议桩 | 实际新 API／Runtime／数据库与新门户共同运行 |
+| 新后端／旧门户 | 后端 opt-in 默认旧响应形状及原客户端契约回归 | 实际旧门户运行组合 |
+
+据此 Task 7 开发交付及 Task 8 的证据汇总已完成，不能将协议桩兼容矩阵写为真实环境组合验收通过。后续未验项如下：
+
+- 新旧前后端实际运行组合；真实环境中的事件／读取乱序、账号切换和窗口恢复。已有协议桩证据可复用，不冒充真人证据。
 - 真实窗口中刷新／重开、附件原文件下载、真实业务受理及进展未在本轮重放。
 - 真实模型短口语意图质量、多语言自然表达尚未评测；确定性桩测试不能替代。
+- 未保存表单仍仅保留窗口内存；接待状态刷新／重连不覆盖当前输入，整页 F5 销毁后的未保存输入不承诺恢复。本轮没有新增个人资料持久化。
 - 保持现有部署与正式开关；未发送短信、创建真实账号、重放认证／归并或调用付费模型。
+
+门户原临时目录按回执保留；其自动审批拒绝删除属于来源记录，本对话未尝试删除或扩大清理范围。
 
 ## 实施调整与代价
 

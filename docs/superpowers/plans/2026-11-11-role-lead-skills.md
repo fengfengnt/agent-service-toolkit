@@ -146,9 +146,9 @@
 
 - [x] **Step 1：生成具体交接文档。** 引用定稿设计、Task 6 契约、固定后端 SHA 和旧／新 fixture；列明 UI 工作、依赖顺序及未授权操作。不传凭据／个人资料，不向其他 chat 自动发消息。
 - [x] **Step 2：交用户转交并暂停依赖门户的部分。** 后端独立测试可继续；不将“交接完成”记为“门户实现完成”。Java／Runtime 契约没有变化则不新增它们的开发任务。
-- [ ] **Step 3：由门户 Agent 先写失败测试。** `old_backend_without_projection_falls_back`；`new_policy_drives_role_fields`；`collection_notice_waits_for_matching_draft`；`replayed_notice_preserves_unsaved_input_and_focus`；`owner_change_does_not_reuse_another_users_form`。分别断言兼容、三角色字段、事件／读取乱序、重连去重与隔离。
-- [ ] **Step 4：由门户 Agent 实现并运行绿灯。** 表单集中填写；同草稿已有未保存修改时保留本地输入并提示状态更新，不自动覆盖或换草稿。使用门户项目现有测试／typecheck／build 命令，返回实际命令、结果和固定 SHA。
-- [ ] **Step 5：核对交接回执。** 确认无新请求协议、无伪造受理状态、无前端强制增加确认步骤；缺回执则标门户部分未验，不阻止记录后端已完成项。
+- [x] **Step 3：由门户 Agent 先写失败测试。** `old_backend_without_projection_falls_back`；`new_policy_drives_role_fields`；`collection_notice_waits_for_matching_draft`；`replayed_notice_preserves_unsaved_input_and_focus`；`owner_change_does_not_reuse_another_users_form`。分别断言兼容、三角色字段、事件／读取乱序、重连去重与隔离。
+- [x] **Step 4：由门户 Agent 实现并运行绿灯。** 表单集中填写；同草稿已有未保存修改时保留本地输入并提示状态更新，不自动覆盖或换草稿。使用门户项目现有测试／typecheck／build 命令，返回实际命令、结果和固定 SHA。
+- [x] **Step 5：核对交接回执。** 确认无新请求协议、无伪造受理状态、无前端强制增加确认步骤；缺回执则标门户部分未验，不阻止记录后端已完成项。
 
 ### Task 8：隔离组合验证、迁移演练与实施收口
 
@@ -160,14 +160,14 @@
 - [x] **Step 2：验证红灯并修复接线。** 运行 `.venv/Scripts/python.exe -m pytest tests/xiaohe/test_lead_integration.py -q`，预期首次只因跨层接线问题 FAIL；修复范围限本设计，不用重写外围架构解决。
 - [x] **Step 3：验证绿灯及相关回归。** 先运行该集成文件；再运行 `.venv/Scripts/python.exe -m pytest tests/xiaohe -m 'not minio' --ignore=tests/xiaohe/test_conversion_signals.py -q`，须提供专用 PG。不传真实模型评测开关；报告实际 PASS／FAIL／SKIP。使用 `.venv/Scripts/python.exe -m ruff check` 加本次变更的 Python 文件列表，不能顺带格式化全仓库。
 - [x] **Step 4：记录迁移／恢复演练。** 在隔离样本中验证迁移前后的旧草稿、旧提交、在途 Command 和文件引用。旧版二进制只承诺在未产生新版绑定／证据前回退；产生新版记录后须保留兼容读取能力的版本，不能直接回到不理解 nullable summary／新证据的旧代码。任何正式迁移、停流排空或生产切换另行安排，不在测试命令里执行。
-- [ ] **Step 5：汇总门户组合证据及未验项。** 等 Task 7 回执后核对旧后端／新前端、新后端／旧前端和新新组合；无真实窗口／模型授权时只记录未验。真实 LLM 对短口语的判断仍需后续独立评测；本阶段不声称已达到真实模型准确率。
+- [x] **Step 5：汇总门户组合证据及未验项。** 等 Task 7 回执后核对旧后端／新前端、新后端／旧前端和新新组合；无真实窗口／模型授权时只记录未验。真实 LLM 对短口语的判断仍需后续独立评测；本阶段不声称已达到真实模型准确率。
 - [x] **Step 6：审阅并提交本任务差异，更新完成状态。** 提交建议：`test(xiaohe): verify lead policy upgrades and submission recovery`。检查所有任务状态，留下固定 SHA、前端交接状态、测试结果、迁移限制及剩余未验项；未经后续指令不推送、不打包、不部署。
 
 ## 计划自检与实施入口
 
 设计 §5／§6 对应 Task 1、3；§7 对应 Task 4、5；§8 对应 Task 5；§9 对应 Task 2、3、8；§10 对应 Task 6、7；§11 对应 Task 1、2；§12 的十类验收均落入各任务及组合验证。版本存储、证据来源、函数命名和投影属性在上下游任务一致，未计划新增必填、知识检索或通用工作流平台。
 
-建议后续在本对话逐项实施：任务之间共享字段、证据和版本接口，顺序实现更容易保持一致；每项有独立测试和提交边界。也可选分任务子 Agent 实施及独立审阅。**用户已选择本对话逐项实施；后端 Task 1—6 完成，Task 7 已形成门户交接并等待其回执，Task 8 后端独立部分完成（918 passed、5 skipped、10 deselected），门户组合部分待回执。未授权推送或部署。**
+建议后续在本对话逐项实施：任务之间共享字段、证据和版本接口，顺序实现更容易保持一致；每项有独立测试和提交边界。也可选分任务子 Agent 实施及独立审阅。**用户已选择本对话逐项实施；后端 Task 1—6 完成，Task 7 门户开发及隔离证据已核收，Task 8 后端独立验证和协议桩兼容矩阵汇总完成。真实环境组合联调与真实模型语义评测仍未执行，不列为通过项。未授权推送或部署。**
 
 ## 实施中的调整
 
@@ -178,4 +178,14 @@
 
 ## 本轮实施结果
 
-实现与验证基准：`0fa7a1659e335b8d45cc2f19908e2ddff78731b4`。独立审阅两项重要问题已修复并通过完整顶层业务回归，详情见[验证记录](../../testing/xiaohe-lead-skills.md)。Task 7 的门户实现／回执及 Task 8 的门户组合验收仍未完成；暂停这些依赖项。本轮不推送、打包或部署。
+实现与验证基准：`0fa7a1659e335b8d45cc2f19908e2ddff78731b4`。独立审阅两项重要问题已修复并通过完整顶层业务回归，详情见[验证记录](../../testing/xiaohe-lead-skills.md)。Task 7 已核收门户固定 SHA `9cdadb3dd74b97e073765938b05bd5ab7074b0f8`；Task 8 已汇总兼容矩阵及未验项，收口范围为开发／隔离自动化阶段，真实环境组合验收仍未执行。本轮不推送、打包或部署。
+
+## 门户回执核收（2026-11-11）
+
+原始回执已归档至[门户交接回执](../../testing/receipts/2026-11-11-role-lead-skills-portal.md)。固定候选组合：AI 后端 `e19cac7ad510c8f45b2aba0e4754bdfe5943b967`、门户 `9cdadb3dd74b97e073765938b05bd5ab7074b0f8`。后续标准 Skill／DeepAgents 工作（含设计及依赖准备）不属于本次回执核收；本次仍以固定后端候选为准，不将当前 HEAD 的后续工作一并认证为已验。
+
+已核对门户源码、fixture 文件摘要和归档日志：624 单测、36 安全检查、typecheck／build、30 项留资浏览器、18 项协议桩 SSO 组合通过，相关 5 项 SSO 为审阅修复后的重复验证。本对话另复跑相关 61 项单测通过，门户工作区保持干净。
+
+41 个实施步骤已完成本轮交付与证据汇总；不将协议桩测试等同于真实前后端运行组合、真人账号或真实 LLM 验收。真实环境、原文件下载／业务受理、真实口语语义质量继续列在[未验记录](../../testing/xiaohe-lead-skills.md)，下一阶段另行安排。原有单一“提交信息”入口保持，不增设用户点击步骤；未保存内存输入不扩展为整页 F5 持久化恢复。
+
+保留当前分支与验证材料，不推送、不合并、不部署、不清理门户原临时目录；现有服务、正式开关不变。
