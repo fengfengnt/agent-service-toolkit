@@ -31,6 +31,8 @@
 
 测试数字对应不同范围，不能相加为独立测试总数。隔离 PG 使用本任务新建的专用 `test_xiaohe_knowledge`，未使用业务库或共享测试库；本任务临时容器和知识卷在结束后清理。
 
+临时验证镜像已清理。删除本任务 `.superpowers/sdd/2026-11-11-xiaohe-embedded-knowledge/` 记录目录时，自动审批审查返回 `blocked by policy`，未提供更具体原因；该目录保留，不影响已提交实现。
+
 ## 审阅与修复
 
 独立审阅范围为 `452716a..840ed8c`，发现 1 项 Important，无 Critical 或 Minor。问题为：完成标记保留但 SQLite 损坏时，同版本复用仍返回成功并导出候选清单。
