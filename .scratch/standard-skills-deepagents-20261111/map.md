@@ -18,7 +18,7 @@ Labels: wayfinder:map
 - 官方核对来源：[Skill 支持](https://docs.langchain.com/oss/python/deepagents/skills)、[subagent](https://docs.langchain.com/oss/python/deepagents/subagents)、[Agent Skills 规范](https://agentskills.io/specification)。自定义 subagent 的 skills 需显式配置；工具及业务权限另行核验。
 - 当前仅讨论和记录设计；不修改产品代码、安装依赖、迁移、部署、调用真实模型或发送短信。
 - 调研与审阅仅写本地图下的研究记录及设计文档，复用现有 checkout，避免与已提交留资基线及其他工作发生分支切换或推送干扰。
-- 已完成[完整设计草案](../../docs/superpowers/specs/2026-11-11-standard-skills-deepagents-design.md)及[独立审阅](builder-review.md)；整体确认见相应决策票，当前不进入实施计划或编码。
+- 已完成[定稿设计](../../docs/superpowers/specs/2026-11-11-standard-skills-deepagents-design.md)及[独立审阅](builder-review.md)；用户以“定稿”整体批准，接续制定实施计划，不开始编码。
 
 ## Decisions so far
 
@@ -29,10 +29,11 @@ Labels: wayfinder:map
 - [多份 Skill 的指令冲突处理](issues/06-skill-conflicts.md)：系统约束有效，当前留资 Skill 推进流程；配置冲突由维护者修正，运行中无法判定时暂停受影响动作并保留草稿。
 - [首版迁移与 subagent 接入范围](issues/04-migration-scope.md)：四 Agent 接入、二十一份 Skill 标准化、必要前后端适配及只读 subagent 配置验证；设计包含 workflow 精简。
 - [DeepAgents 官方能力与现有运行时的接入约束](issues/07-deepagents-compatibility.md)：固定候选与最小升级、只读 child 的工具／状态边界、独立推理线程及业务回执恢复均已核对；实际安装与集成未验证。
+- [标准 Skill 接入与 workflow 精简设计整体确认](issues/08-design-approval.md)：用户已定稿，后续制定实施计划；未授权产品编码、安装、迁移或部署。
 
 ## Not yet specified
 
-首版范围和关键技术约束已明确，独立审阅未提出必须补答的重要问题。当前等待完整设计的整体确认；此项已建立决策票，不再作为模糊范围重复记录。
+本地图的首版设计决策已全部关闭，完整设计已定稿。后续开发拆解见[九项实施计划](../../docs/superpowers/plans/2026-11-11-standard-skills-deepagents.md)，不继续在此创建实现任务；当前尚未开始实施。
 
 ## Out of scope
 
