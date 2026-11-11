@@ -5,9 +5,7 @@ import sys
 from pathlib import Path
 from uuid import uuid4
 
-from langchain_openai import OpenAIEmbeddings
-
-from xiaohe.knowledge.build import build_index, publish_index, write_atomic
+from xiaohe.knowledge.build import build_index, create_embeddings, publish_index, write_atomic
 from xiaohe.knowledge.sources import (
     KnowledgeChunk,
     embedding_identity,
@@ -17,22 +15,6 @@ from xiaohe.knowledge.sources import (
 )
 from xiaohe.settings import Settings
 from xiaohe.workflows.loader import load_bundle
-
-
-def create_embeddings(settings: Settings) -> OpenAIEmbeddings:
-    endpoint = settings.knowledge_embedding_base_url
-    model = settings.knowledge_embedding_model
-    key = settings.knowledge_embedding_api_key
-    if not endpoint or not model or not key or not settings.knowledge_embedding_dimensions:
-        raise ValueError("knowledge embedding configuration required")
-    return OpenAIEmbeddings(
-        base_url=endpoint,
-        model=model,
-        api_key=key.get_secret_value(),
-        max_retries=0,
-        request_timeout=1.5,
-        check_embedding_ctx_length=False,
-    )
 
 
 def main() -> None:

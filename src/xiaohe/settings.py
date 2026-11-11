@@ -81,7 +81,11 @@ class Settings(BaseSettings):
     def embedding_endpoint(cls, value):
         if value is None:
             return None
-        parsed = urlsplit(value)
+        try:
+            parsed = urlsplit(value)
+            parsed.port
+        except ValueError:
+            raise ValueError("invalid knowledge embedding endpoint") from None
         if (
             parsed.scheme not in ("http", "https")
             or not parsed.hostname
@@ -94,7 +98,6 @@ class Settings(BaseSettings):
             or any(char.isspace() for char in value)
         ):
             raise ValueError("invalid knowledge embedding endpoint")
-        parsed.port
         return value.rstrip("/")
 
     @field_validator("trusted_proxy_cidrs")

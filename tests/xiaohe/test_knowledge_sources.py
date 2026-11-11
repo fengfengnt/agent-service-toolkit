@@ -191,6 +191,7 @@ def test_empty_version_is_valid_and_no_manifest_is_legacy(tmp_path):
         "https://host/v1?a=1",
         "file:///tmp",
         "https://host/v1#secret",
+        "https://host:secret/v1",
     ],
 )
 def test_embedding_endpoint_credentials_are_rejected(url):

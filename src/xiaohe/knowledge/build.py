@@ -5,13 +5,33 @@ import os
 from collections.abc import Sequence
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from typing import cast
 
 from langchain_core.embeddings import Embeddings
 
 from xiaohe.knowledge.sources import KnowledgeChunk, KnowledgeManifest, read_manifest
+from xiaohe.settings import Settings
 from xiaohe.workflows.loader import MAX_RESOURCE_BYTES, _read_resource
 
 COLLECTION = "xiaohe_knowledge"
+
+
+def create_embeddings(settings: Settings):
+    from langchain_openai import OpenAIEmbeddings
+
+    endpoint = settings.knowledge_embedding_base_url
+    model = settings.knowledge_embedding_model
+    key = settings.knowledge_embedding_api_key
+    if not endpoint or not model or not key or not settings.knowledge_embedding_dimensions:
+        raise ValueError("knowledge embedding configuration required")
+    return OpenAIEmbeddings(
+        base_url=endpoint,
+        model=model,
+        api_key=key.get_secret_value(),
+        max_retries=0,
+        request_timeout=1.5,
+        check_embedding_ctx_length=False,
+    )
 
 
 def validate_vectors(vectors, count: int, dimensions: int) -> list[list[float]]:
@@ -55,7 +75,7 @@ def build_index(
     embeddings: Embeddings,
 ) -> None:
     import chromadb
-    from chromadb.api.types import Metadata
+    from chromadb.api.types import Metadata, PyEmbeddings
     from chromadb.config import Settings
 
     if {item.id for item in chunks} != set(manifest.entries) or len(chunks) != len(
@@ -95,7 +115,7 @@ def build_index(
         collection.add(
             ids=[item.id for item in batch],
             documents=[item.text for item in batch],
-            embeddings=vectors,
+            embeddings=cast(PyEmbeddings, vectors),
             metadatas=metadata,
         )
     result = collection.get(include=["documents"])
