@@ -1,0 +1,170 @@
+version: 1
+skills:
+  buyer-requirements:
+    path: skills/buyer-requirements
+    direction: buyer
+    legacy_id: buyer.requirements
+  buyer-analysis:
+    path: skills/buyer-analysis
+    direction: buyer
+    legacy_id: buyer.analysis
+  buyer-rfx:
+    path: skills/buyer-rfx
+    direction: buyer
+    legacy_id: buyer.rfx
+  buyer-sourcing:
+    path: skills/buyer-sourcing
+    direction: buyer
+    legacy_id: buyer.sourcing
+  buyer-security:
+    path: skills/buyer-security
+    direction: buyer
+    legacy_id: buyer.security
+  buyer-integration:
+    path: skills/buyer-integration
+    direction: buyer
+    legacy_id: buyer.integration
+  buyer-cases-sla:
+    path: skills/buyer-cases-sla
+    direction: buyer
+    legacy_id: buyer.cases-sla
+  organization-cooperation:
+    path: skills/organization-cooperation
+    direction: organization
+    legacy_id: organization.cooperation
+  organization-launch:
+    path: skills/organization-launch
+    direction: organization
+    legacy_id: organization.launch
+  organization-sample:
+    path: skills/organization-sample
+    direction: organization
+    legacy_id: organization.sample
+  organization-revenue:
+    path: skills/organization-revenue
+    direction: organization
+    legacy_id: organization.revenue
+  organization-effort:
+    path: skills/organization-effort
+    direction: organization
+    legacy_id: organization.effort
+  organization-sample-recommendation:
+    path: skills/organization-sample-recommendation
+    direction: organization
+    legacy_id: organization.sample-recommendation
+  organization-onboarding-materials:
+    path: skills/organization-onboarding-materials
+    direction: organization
+    legacy_id: organization.onboarding-materials
+  supplier-capability:
+    path: skills/supplier-capability
+    direction: supplier
+    legacy_id: supplier.capability
+  supplier-ontology-evolution:
+    path: skills/supplier-ontology-evolution
+    direction: supplier
+    legacy_id: supplier.ontology-evolution
+  supplier-negotiation:
+    path: skills/supplier-negotiation
+    direction: supplier
+    legacy_id: supplier.negotiation
+  supplier-security:
+    path: skills/supplier-security
+    direction: supplier
+    legacy_id: supplier.security
+  buyer-lead-capture:
+    path: skills/buyer-lead-capture
+    direction: buyer
+    legacy_id: buyer.lead_capture
+    requires_tools:
+    - prepare_lead
+    - compose_form
+    - save_lead
+    - submit_lead
+  organization-lead-capture:
+    path: skills/organization-lead-capture
+    direction: organization
+    legacy_id: organization.lead_capture
+    requires_tools:
+    - prepare_lead
+    - compose_form
+    - save_lead
+    - submit_lead
+  supplier-lead-capture:
+    path: skills/supplier-lead-capture
+    direction: supplier
+    legacy_id: supplier.lead_capture
+    requires_tools:
+    - prepare_lead
+    - compose_form
+    - save_lead
+    - submit_lead
+agents:
+  xiaohe-reception:
+    skills: []
+    flow_skill: null
+    tools:
+    - request_handoff
+    children: []
+  xiaohe-buyer:
+    skills:
+    - buyer-requirements
+    - buyer-analysis
+    - buyer-rfx
+    - buyer-sourcing
+    - buyer-security
+    - buyer-integration
+    - buyer-cases-sla
+    - buyer-lead-capture
+    flow_skill: buyer-lead-capture
+    tools:
+    - read_lead
+    - prepare_lead
+    - compose_form
+    - save_lead
+    - submit_lead
+    - query_progress
+    - request_handoff
+    children: []
+  xiaohe-organization:
+    skills:
+    - organization-cooperation
+    - organization-launch
+    - organization-sample
+    - organization-revenue
+    - organization-effort
+    - organization-sample-recommendation
+    - organization-onboarding-materials
+    - organization-lead-capture
+    flow_skill: organization-lead-capture
+    tools:
+    - read_lead
+    - prepare_lead
+    - compose_form
+    - save_lead
+    - submit_lead
+    - query_progress
+    - request_handoff
+    children: []
+  xiaohe-supplier:
+    skills:
+    - supplier-capability
+    - supplier-ontology-evolution
+    - supplier-negotiation
+    - supplier-security
+    - supplier-lead-capture
+    flow_skill: supplier-lead-capture
+    tools:
+    - read_lead
+    - prepare_lead
+    - compose_form
+    - save_lead
+    - submit_lead
+    - query_progress
+    - request_handoff
+    children: []
+field_policies:
+  buyer: skills/buyer-lead-capture/references/field-policy.yaml
+  organization: skills/organization-lead-capture/references/field-policy.yaml
+  supplier: skills/supplier-lead-capture/references/field-policy.yaml
+common_policy: deep-runtime/common-policy.yaml

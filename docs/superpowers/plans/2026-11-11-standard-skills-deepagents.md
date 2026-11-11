@@ -84,13 +84,13 @@
 
 **Interfaces:** `load_runtime_bundle(resource_root: Path) -> RuntimeBundle`；`select_binding(bundle: RuntimeBundle, actor: Actor, agent_id: AgentId) -> RuntimeBinding`；`skill_files(bundle: RuntimeBundle, binding: RuntimeBinding) -> dict[str, dict]`。`SkillSpec` 表达标准 name／description、入口与资源引用；`RuntimeBundle.skills` 是以标准名称为键的 SkillSpec 映射，另含排序资源、宿主绑定、角色字段配置和交互模板，bundle_id 的内容 hash 覆盖全部资源与配置。`RuntimeBinding` 包含 agent_id、允许 Skill 名称、活动留资 Skill、工具名称及 child 绑定，未授权身份得到相应受限集合。
 
-- [ ] **Step 1：写失败测试。** `test_twenty_one_standard_packages` 断言 manifest 中恰有 21 个标准包、name 与目录一致、三方向和答疑内容保持；`test_denied_skill_absent_from_listing_and_read` 断言未授权包不在投影及直接读取结果中；参数化重复 name、路径越界、符号链接逃逸、缺引用／依赖、错误 YAML 和同职责冲突；`test_reference_bytes_change_hash` 断言引用内容变化也改变 hash。
+- [x] **Step 1：写失败测试。** `test_twenty_one_standard_packages` 断言 manifest 中恰有 21 个标准包、name 与目录一致、三方向和答疑内容保持；`test_denied_skill_absent_from_listing_and_read` 断言未授权包不在投影及直接读取结果中；参数化重复 name、路径越界、符号链接逃逸、缺引用／依赖、错误 YAML 和同职责冲突；`test_reference_bytes_change_hash` 断言引用内容变化也改变 hash。
 
   固定断言：`assert len(bundle.skills) == 21`；`assert changed.bundle_id != original.bundle_id`。角色来自可信上下文，缺少授权不得由业务方向名称推断。
-- [ ] **Step 2：验证红灯。** `.venv/Scripts/python.exe -m pytest tests/xiaohe/test_deep_bundles.py -q`，预期目标加载器缺失。
-- [ ] **Step 3：实现加载与资源迁移。** 复用现有严格 YAML／资源大小限制。标准名使用 `buyer-lead-capture`、`buyer-security` 等唯一短横线名称；旧 dotted ID 用宿主兼容映射。三份 `FieldPolicy.skill_id` 保留既有内部 ID，不强改标准包格式。快照使用可持久化表示并对资源原字节求 hash；遇到首版不支持的必要资源编码或执行能力时明确不可用，禁止从 metadata import 任意模块。
-- [ ] **Step 4：验证绿灯及旧基线。** 重跑新测试和 `test_lead_skills.py`、`test_workflow_loader.py`；旧 bundle hash、字段基线及旧 catalog 路径保持。
-- [ ] **Step 5：审阅并提交。** 建议 `feat(xiaohe): add standard skill bundles and explicit bindings`。
+- [x] **Step 2：验证红灯。** `.venv/Scripts/python.exe -m pytest tests/xiaohe/test_deep_bundles.py -q`，预期目标加载器缺失。
+- [x] **Step 3：实现加载与资源迁移。** 复用现有严格 YAML／资源大小限制。标准名使用 `buyer-lead-capture`、`buyer-security` 等唯一短横线名称；旧 dotted ID 用宿主兼容映射。三份 `FieldPolicy.skill_id` 保留既有内部 ID，不强改标准包格式。快照使用可持久化表示并对资源原字节求 hash；遇到首版不支持的必要资源编码或执行能力时明确不可用，禁止从 metadata import 任意模块。
+- [x] **Step 4：验证绿灯及旧基线。** 重跑新测试和 `test_lead_skills.py`、`test_workflow_loader.py`；旧 bundle hash、字段基线及旧 catalog 路径保持。
+- [x] **Step 5：审阅并提交。** 建议 `feat(xiaohe): add standard skill bundles and explicit bindings`。
 
 ### Task 3：不可变快照、Command 选版与数据库兼容
 
@@ -210,4 +210,4 @@
 
 五项 Review Focus 均在所属任务设置具名测试。接口类型由 2—4 定义，后续任务只消费；未定义的业务类型优先复用现有模型。文件、步骤和命令按当前基线核对，执行前再检查迁移编号与包 API 漂移。
 
-计划审阅及实施方式确认之后才开始开发；本轮不执行以上安装、测试、迁移或提交产品代码的步骤。
+用户已选择本对话逐项实施，按任务记录开发与隔离验证；部署、真实模型及正式业务写入继续单独授权。
