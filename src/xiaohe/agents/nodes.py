@@ -16,6 +16,7 @@ from xiaohe.agents.contracts import (
 )
 from xiaohe.agents.semantic import compose_answer, understand_turn
 from xiaohe.contracts import Actor, AgentOutcome, ServiceError, TrustedSystem
+from xiaohe.lead_skills.notices import render_lead_notice
 from xiaohe.lead_skills.store import command_bundle_id, load_policy, resolve_draft_policy
 from xiaohe.models import Command, Conversation, Message, System, User
 from xiaohe.reception.contracts import CreateDraft
@@ -561,6 +562,11 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
                     if row.state == "submitting"
                     else "该需求已有受理回执，请在“我的进展”查看；另一项需求请明确新建。"
                 )
+                if frame.interaction_policy:
+                    text = render_lead_notice(frame.interaction_policy,
+                        "prepare" if row.state in ("collecting", "review") else
+                        "unknown" if row.state == "submitting" else "accepted",
+                        direction=row.direction)
             elif node.operation == "new_draft":
                 if run.user_id is None:
                     raise ServiceError("AUTH_REQUIRED", 401)
@@ -579,6 +585,8 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
                 row.definition_bundle_id = frame.bundle_id
                 flow.invitation_state = "accepted"
                 text = "已创建新的需求草稿。"
+                if frame.interaction_policy:
+                    text = render_lead_notice(frame.interaction_policy, "prepare", direction=row.direction)
             elif node.operation == "resume_draft":
                 action = command.payload.get("reception", {})
                 rows = (
@@ -636,8 +644,8 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
                         rules = await draft_definition(db, row)
                         missing = missing_required(row.direction, row.fields, definition=rules)
                         if missing:
-                            text = "正式提交还需：" + "、".join(
-                                field.label for field in frame.field_policy.fields if field.id in missing) + "。"
+                            text = render_lead_notice(frame.interaction_policy, "missing", direction=row.direction,
+                                missing_labels=[field.label for field in frame.field_policy.fields if field.id in missing])
                         else:
                             from xiaohe.agents.confirmation import payload_digest
 
@@ -715,6 +723,13 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
                             if fields
                             else "本轮资料已保存。您可以继续交流、补充其他资料，或查看汇总。"
                         )
+                    if frame.interaction_policy:
+                        policy = await resolve_draft_policy(db, row)
+                        missing = missing_required(row.direction, row.fields, definition=draft_rules)
+                        text = render_lead_notice(frame.interaction_policy, "saved", direction=row.direction)
+                        if missing:
+                            text += "\n" + render_lead_notice(frame.interaction_policy, "missing", direction=row.direction,
+                                missing_labels=[field.label for field in policy.fields if field.id in missing])
             elif node.operation in (
                 "record_organization_intent",
                 "start_onboarding",
@@ -736,13 +751,27 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
         return prepared_answer | {"operation_result": result}
 
     async def finish_submission(frame, submission_id):
-        receipt = await submit_confirmed(factory, frame.fence, submission_id, business_client)
+        try:
+            receipt = await submit_confirmed(factory, frame.fence, submission_id, business_client)
+        except ServiceError as error:
+            if not frame.interaction_policy or error.code not in (
+                "INPUT_INVALID", "DRAFT_CONFLICT", "SUBJECT_CONFLICT", "IDEMPOTENCY_CONFLICT",
+            ):
+                raise
+            result = {"text": render_lead_notice(frame.interaction_policy, "failed",
+                direction=frame.model_context.direction, public_guidance="请核对资料或查询当前进展。"), "wait": True}
+            async with factory.begin() as db:
+                _, command, _, _ = await _checked(db, frame)
+                _save_stage(command, frame.agent_id, operation_result=result)
+            return {"operation_result": result}
         result = {
                 "text": "入驻申请已记录，待后台审核。"
                 if receipt.kind == "onboarding"
                 else "需求已记录，请在进展中查看真实跟进状态。",
                 "wait": False,
         }
+        if frame.interaction_policy:
+            result["text"] = render_lead_notice(frame.interaction_policy, "accepted", direction=frame.model_context.direction)
         async with factory.begin() as db:
             _, command, _, _ = await _checked(db, frame)
             _save_stage(command, frame.agent_id, operation_result=result)
@@ -989,6 +1018,8 @@ async def _external_operation(factory, frame, decision, prepared, client):
             value = {
                 "text": "已保存原申请的修改草稿，并同步到右侧资料。您可以继续补充，查看汇总并确认后才会更新正式申请。"
             }
+            if frame.interaction_policy:
+                value["text"] = render_lead_notice(frame.interaction_policy, "saved", direction=draft.direction)
             _save_stage(command, frame.agent_id, external_result=value)
         return value
     elif name == "start_onboarding":

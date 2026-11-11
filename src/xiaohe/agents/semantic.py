@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -147,5 +148,10 @@ async def compose_answer(
     else:
         raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
     if set(answer.source_ids) - {item.source for item in materials}:
+        raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
+    if frame.interaction_policy and re.search(
+        r"(?:已(?:经)?|成功)(?:为您|帮您|替您)?(?:成功)?(?:保存|提交|受理|安排|转交|审核|开通|注册|登录|绑定)"
+        r"|(?:提交|受理|保存|审核|开通|注册|登录|绑定)(?:成功|完成|通过)", answer.text
+    ):
         raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
     return answer

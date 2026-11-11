@@ -14,6 +14,7 @@ from xiaohe.agents.nodes import (
     make_node_executors,
 )
 from xiaohe.contracts import AgentOutcome, ServiceError
+from xiaohe.lead_skills.notices import render_lead_notice
 from xiaohe.lead_skills.store import command_bundle_id, persist_policy
 from xiaohe.models import Conversation, Run
 from xiaohe.reception.models import ReceptionDraft
@@ -166,7 +167,12 @@ async def run_agent_turn(
                 parts=[
                     {
                         "type": "text",
-                        "text": "正式受理结果尚未确认，请稍后查询；系统将沿原提交核对，不重复创建。",
+                        "text": (
+                            render_lead_notice(
+                                frame.interaction_policy, "unknown", direction=frame.model_context.direction)
+                            if frame.interaction_policy else
+                            "正式受理结果尚未确认，请稍后查询；系统将沿原提交核对，不重复创建。"
+                        ),
                     }
                 ],
                 wait_for_input=False,
