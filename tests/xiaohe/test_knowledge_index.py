@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import subprocess
@@ -227,3 +228,78 @@ def test_cli_builds_candidate_but_does_not_publish_bundle(tmp_path):
         assert candidate.exists()
         assert not (root / "knowledge/manifest.json").exists()
         assert "fixture-private" not in result.stdout + result.stderr
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("state", ["healthy", "corrupt", "busy"])
+async def test_reuse_validates_real_index_offline_without_mutating_published_files(tmp_path, state):
+    pytest.importorskip("chromadb")
+    from xiaohe.knowledge.runtime import EmbeddedKnowledge
+    from xiaohe.settings import Settings
+
+    resources = write_test_bundle(tmp_path / "resources")
+    write_knowledge_source(resources / "knowledge", topics=("general",))
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(Path("src").resolve())
+    with embedding_server() as (endpoint, _):
+        env.update(
+            {
+                "XIAOHE_KNOWLEDGE_EMBEDDING_BASE_URL": endpoint,
+                "XIAOHE_KNOWLEDGE_EMBEDDING_MODEL": "fixture",
+                "XIAOHE_KNOWLEDGE_EMBEDDING_DIMENSIONS": "3",
+                "XIAOHE_KNOWLEDGE_EMBEDDING_API_KEY": "fixture-private",
+            }
+        )
+        root = tmp_path / "indexes"
+        candidate = tmp_path / "candidate.json"
+        command = [
+            sys.executable,
+            "-m",
+            "xiaohe.knowledge",
+            "build",
+            "--resources",
+            str(resources),
+            "--index-root",
+            str(root),
+            "--manifest-out",
+            str(candidate),
+        ]
+        first = await asyncio.to_thread(
+            subprocess.run, command, env=env, capture_output=True, text=True, timeout=45
+        )
+        assert first.returncode == 0, first.stderr
+        version = json.loads(candidate.read_text("utf-8"))["version"]
+        database = root / version / "chroma.sqlite3"
+        candidate.unlink()
+        owner = None
+        if state == "corrupt":
+            database.write_bytes(b"corrupted sqlite fixture")
+        elif state == "busy":
+            owner = EmbeddedKnowledge(
+                Settings(
+                    toolkit_base_url="http://localhost",
+                    auth_secret="fixture",
+                    knowledge_root=root,
+                    knowledge_embedding_base_url=endpoint,
+                    knowledge_embedding_model="fixture",
+                    knowledge_embedding_api_key="fixture-private",
+                    knowledge_embedding_dimensions=3,
+                )
+            )
+            await owner.start()
+            assert owner.enabled
+        before = database.read_bytes()
+        try:
+            second = await asyncio.to_thread(
+                subprocess.run, command, env=env, capture_output=True, text=True, timeout=60
+            )
+            if state == "healthy":
+                assert second.returncode == 0, second.stderr
+                assert candidate.exists()
+            else:
+                assert second.returncode != 0
+                assert not candidate.exists()
+            assert database.read_bytes() == before
+        finally:
+            if owner is not None:
+                await owner.aclose()

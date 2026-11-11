@@ -5,7 +5,13 @@ import sys
 from pathlib import Path
 from uuid import uuid4
 
-from xiaohe.knowledge.build import build_index, create_embeddings, publish_index, write_atomic
+from xiaohe.knowledge.build import (
+    build_index,
+    create_embeddings,
+    publish_index,
+    verify_index,
+    write_atomic,
+)
 from xiaohe.knowledge.sources import (
     KnowledgeChunk,
     embedding_identity,
@@ -29,8 +35,14 @@ def main() -> None:
     child = commands.add_parser("_build", help=argparse.SUPPRESS)
     child.add_argument("payload", type=Path)
     child.add_argument("directory", type=Path)
+    verify = commands.add_parser("_verify", help=argparse.SUPPRESS)
+    verify.add_argument("directory", type=Path)
+    verify.add_argument("manifest", type=Path)
     args = parser.parse_args()
     try:
+        if args.command == "_verify":
+            verify_index(args.directory, read_manifest(args.manifest.read_text("utf-8")))
+            return
         settings = Settings(toolkit_base_url="http://127.0.0.1", auth_secret="knowledge-build-only")
         if args.command == "_build":
             data = json.loads(args.payload.read_text("utf-8"))

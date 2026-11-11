@@ -2,10 +2,13 @@ import hashlib
 import json
 import math
 import os
+import shutil
+import subprocess
+import sys
 from collections.abc import Sequence
 from pathlib import Path
-from tempfile import NamedTemporaryFile
-from typing import cast
+from tempfile import NamedTemporaryFile, TemporaryDirectory
+from typing import IO, cast
 
 from langchain_core.embeddings import Embeddings
 
@@ -14,6 +17,122 @@ from xiaohe.settings import Settings
 from xiaohe.workflows.loader import MAX_RESOURCE_BYTES, _read_resource
 
 COLLECTION = "xiaohe_knowledge"
+_owners: dict[Path, IO[bytes]] = {}
+
+
+def claim_root(root: Path) -> None:
+    root = root.resolve()
+    if root in _owners:
+        raise BlockingIOError("knowledge root already owned")
+    root.mkdir(parents=True, exist_ok=True)
+    owner = (root / ".owner.lock").open("a+b")
+    try:
+        owner.seek(0)
+        if not owner.read(1):
+            owner.write(b"0")
+            owner.flush()
+        owner.seek(0)
+        if os.name == "nt":
+            import msvcrt
+
+            msvcrt.locking(owner.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(owner.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BaseException:
+        owner.close()
+        raise
+    # API readers retain this lock for the lifetime of their Chroma handles.
+    _owners[root] = owner
+
+
+def verify_index(directory: Path, manifest: KnowledgeManifest) -> None:
+    import chromadb
+    from chromadb.api.types import PyEmbeddings
+    from chromadb.config import Settings as ChromaSettings
+
+    check_complete(directory, manifest)
+    client = chromadb.PersistentClient(
+        path=str(directory), settings=ChromaSettings(anonymized_telemetry=False)
+    )
+    collection = client.get_collection(COLLECTION, embedding_function=None)
+    data = collection.get(include=["documents", "metadatas", "embeddings"])
+    documents, metadata = data["documents"], data["metadatas"]
+    if (
+        collection.count() != len(manifest.entries)
+        or len(data["ids"]) != len(manifest.entries)
+        or set(data["ids"]) != set(manifest.entries)
+        or documents is None
+        or metadata is None
+    ):
+        raise ValueError("knowledge records mismatch")
+    for key, text, fields in zip(data["ids"], documents, metadata):
+        entry = manifest.entries[key]
+        expected = {
+            "version": manifest.version,
+            **{"agent." + agent: True for agent in entry.agents},
+            **{"topic." + topic: True for topic in entry.topics},
+        }
+        if fields != expected or hashlib.sha256(text.encode()).hexdigest() != entry.text_sha256:
+            raise ValueError("knowledge content mismatch")
+    if not manifest.entries:
+        return
+    embeddings = data["embeddings"]
+    if embeddings is None:
+        raise ValueError("knowledge embeddings missing")
+    vectors = validate_vectors(
+        [[float(value) for value in vector] for vector in embeddings],
+        len(manifest.entries),
+        manifest.dimensions,
+    )
+    result = collection.query(
+        query_embeddings=cast(PyEmbeddings, [vectors[0]]),
+        n_results=len(manifest.entries),
+        include=["distances"],
+    )
+    distances = result["distances"]
+    if (
+        set(result["ids"][0]) != set(manifest.entries)
+        or distances is None
+        or not all(math.isfinite(value) for value in distances[0])
+    ):
+        raise ValueError("knowledge vector index mismatch")
+
+
+def verify_existing(directory: Path, root: Path, manifest: KnowledgeManifest) -> None:
+    root = root.resolve()
+    if directory.is_symlink() or not directory.resolve().is_relative_to(root):
+        raise ValueError("knowledge version escapes root")
+    claim_root(root)
+    try:
+        check_complete(directory, manifest)
+        if any(path.is_symlink() for path in directory.rglob("*")):
+            raise ValueError("linked knowledge storage")
+        # Verify a copy: Chroma may write even when only reading a damaged index.
+        with TemporaryDirectory(prefix=".verify-", dir=root) as temporary:
+            snapshot = Path(temporary).resolve()
+            if not snapshot.is_relative_to(root):
+                raise ValueError("knowledge snapshot escapes root")
+            copied = snapshot / manifest.version
+            shutil.copytree(directory, copied)
+            check_complete(copied, manifest)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "xiaohe.knowledge",
+                    "_verify",
+                    str(copied),
+                    str(copied / "manifest.json"),
+                ],
+                capture_output=True,
+                timeout=60,
+            )
+            if result.returncode:
+                raise ValueError("existing knowledge index failed validation")
+    finally:
+        _owners.pop(root).close()
 
 
 def create_embeddings(settings: Settings):
@@ -145,12 +264,14 @@ def publish_index(staging: Path, root: Path, manifest: KnowledgeManifest) -> Pat
         try:
             if target.is_symlink():
                 raise ValueError("linked knowledge version")
-            check_complete(target, manifest)
+            verify_existing(target, root, manifest)
         except (OSError, ValueError):
             raise ValueError("existing knowledge index is invalid") from None
         return target
     try:
         staging.rename(target)
-    except FileExistsError:
-        check_complete(target, manifest)
+    except OSError:
+        if not target.exists() or target.is_symlink():
+            raise
+        verify_existing(target, root, manifest)
     return target

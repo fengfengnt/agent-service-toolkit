@@ -3,20 +3,18 @@ import hashlib
 import json
 import logging
 import math
-import os
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import IO, Any
+from typing import Any
 
-from xiaohe.knowledge.build import COLLECTION, check_complete, validate_vectors
+from xiaohe.knowledge.build import COLLECTION, check_complete, claim_root, validate_vectors
 from xiaohe.knowledge.sources import KnowledgeMaterial, embedding_identity, manifest_from_bundle
 from xiaohe.settings import Settings
 from xiaohe.workflows.models import AgentId, WorkflowBundle
 
 logger = logging.getLogger(__name__)
 QUERY_TIMEOUT = 2.0
-_owners: dict[Path, IO[bytes]] = {}
 
 
 class EmbeddedKnowledge:
@@ -45,29 +43,9 @@ class EmbeddedKnowledge:
         root = settings.knowledge_root
         if root is None:
             return
-        owner = None
         try:
             self._root = root.resolve()
-            if self._root in _owners:
-                logger.warning("xiaohe_knowledge:owner_conflict")
-                return
-            self._root.mkdir(parents=True, exist_ok=True)
-            owner = (self._root / ".owner.lock").open("a+b")
-            owner.seek(0)
-            if not owner.read(1):
-                owner.write(b"0")
-                owner.flush()
-            owner.seek(0)
-            if os.name == "nt":
-                import msvcrt
-
-                msvcrt.locking(owner.fileno(), msvcrt.LK_NBLCK, 1)
-            else:
-                import fcntl
-
-                fcntl.flock(owner.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-            # Chroma handles live until process exit; retain the OS lock for the same lifetime.
-            _owners[self._root] = owner
+            claim_root(self._root)
             self._executor = ThreadPoolExecutor(
                 max_workers=1, thread_name_prefix="xiaohe-knowledge"
             )
@@ -84,8 +62,6 @@ class EmbeddedKnowledge:
                 return
             self.enabled = True
         except OSError:
-            if owner is not None:
-                owner.close()
             logger.warning("xiaohe_knowledge:owner_unavailable")
 
     async def query(
