@@ -62,7 +62,7 @@
 - 测试辅助 `write_knowledge_source(root: Path, *, id: str = "policy", agents: tuple[str, ...] = ("xiaohe-buyer",), topics: tuple[str, ...] = ("buyer.rfx",), text: str = "仅用于测试的虚构政策。") -> Path`；`DeterministicEmbeddings(Embeddings)` 支持三维同步/异步向量，不访问网络。
 - Settings 新字段为 `XIAOHE_KNOWLEDGE_ROOT`、`XIAOHE_KNOWLEDGE_EMBEDDING_BASE_URL`、`XIAOHE_KNOWLEDGE_EMBEDDING_MODEL`、`XIAOHE_KNOWLEDGE_EMBEDDING_API_KEY`、`XIAOHE_KNOWLEDGE_EMBEDDING_DIMENSIONS`；Python 属性为小写去掉 `XIAOHE_` 前缀，默认 None，key 使用 `SecretStr`。endpoint 允许 `/v1` 等路径，拒绝 URL 内凭据、query、fragment；配置的 dimensions 必须为正整数。所需字段不齐时不构建客户端，知识保持禁用，不隐式继承聊天模型配置。
 
-- [ ] **Step 1：写失败测试。** `test_knowledge_sources.py` 覆盖 front matter/重复 YAML 键/未知字段/非法 Agent/主题错配/重复 ID/空正文/路径与链接越界；单文件及序列化清单不超过现有 `MAX_RESOURCE_BYTES=1 MiB`。专业主题必须归属至少一个获授权 Agent，接待仅支持 `general`；共享文档的专业命中仍按当前 Agent 自身主题过滤。
+- [x] **Step 1：写失败测试。** `test_knowledge_sources.py` 覆盖 front matter/重复 YAML 键/未知字段/非法 Agent/主题错配/重复 ID/空正文/路径与链接越界；单文件及序列化清单不超过现有 `MAX_RESOURCE_BYTES=1 MiB`。专业主题必须归属至少一个获授权 Agent，接待仅支持 `general`；共享文档的专业命中仍按当前 Agent 自身主题过滤。
 
 ```python
 def test_content_acl_and_embedding_identity_change_version(tmp_path):
@@ -73,10 +73,10 @@ def test_content_acl_and_embedding_identity_change_version(tmp_path):
 
 另在 `test_workflow_loader.py` 固定无知识清单的 Bundle 摘要与旧值一致；添加/替换 `knowledge/manifest.json` 才改变 Bundle，单改 `.md` 不改变已发布 Bundle。伪造版本、路径和超大清单必须拒绝。
 
-- [ ] **Step 2：运行失败测试。** `uv run --frozen pytest tests/xiaohe/test_knowledge_sources.py tests/xiaohe/test_workflow_loader.py tests/xiaohe/test_triad_runtime.py -q`；预期因缺少知识模块/清单加载逻辑失败，不能接受环境导入失败替代行为失败。配置测试覆盖缺字段不启用、非法 endpoint/维度和凭据不泄露。
-- [ ] **Step 3：实现上述模型、配置及纯函数。** 复用已有 YAML 安全加载限制和资源路径校验，不重构公共加载器。按相对路径排序，正文只规范化 BOM/换行；使用 `langchain_text_splitters.RecursiveCharacterTextSplitter`，`chunk_size=1200, chunk_overlap=200`。知识版本为排除自身 `version` 字段后的规范 JSON SHA-256，包含每块正文摘要及全部授权/来源。`embedding_identity` 为无凭据的规范 endpoint 与 model 的摘要；同名模型换 endpoint 产生新版本。清单和 Chroma 都使用不含版本的 chunk ID，因此无摘要循环依赖；运行时引用 ID 再组合为 `kb:<version>:<document_id>:<chunk_index>`。空知识集允许生成合法的空版本，用于撤下全部资料。
-- [ ] **Step 4：复跑 Step 2，预期全部 PASS。** 验证旧 Bundle 序列化格式无需迁移，清单进入 `resources["knowledge/manifest.json"]`，未发布源文件不被自动加载。
-- [ ] **Step 5：仅暂存本任务自己的改动并提交。** 消息：`feat: add versioned knowledge source contracts`。
+- [x] **Step 2：运行失败测试。** `uv run --frozen pytest tests/xiaohe/test_knowledge_sources.py tests/xiaohe/test_workflow_loader.py tests/xiaohe/test_triad_runtime.py -q`；预期因缺少知识模块/清单加载逻辑失败，不能接受环境导入失败替代行为失败。配置测试覆盖缺字段不启用、非法 endpoint/维度和凭据不泄露。
+- [x] **Step 3：实现上述模型、配置及纯函数。** 复用已有 YAML 安全加载限制和资源路径校验，不重构公共加载器。按相对路径排序，正文只规范化 BOM/换行；使用 `langchain_text_splitters.RecursiveCharacterTextSplitter`，`chunk_size=1200, chunk_overlap=200`。知识版本为排除自身 `version` 字段后的规范 JSON SHA-256，包含每块正文摘要及全部授权/来源。`embedding_identity` 为无凭据的规范 endpoint 与 model 的摘要；同名模型换 endpoint 产生新版本。清单和 Chroma 都使用不含版本的 chunk ID，因此无摘要循环依赖；运行时引用 ID 再组合为 `kb:<version>:<document_id>:<chunk_index>`。空知识集允许生成合法的空版本，用于撤下全部资料。
+- [x] **Step 4：复跑 Step 2，预期全部 PASS。** 验证旧 Bundle 序列化格式无需迁移，清单进入 `resources["knowledge/manifest.json"]`，未发布源文件不被自动加载。
+- [x] **Step 5：仅暂存本任务自己的改动并提交。** 消息：`feat: add versioned knowledge source contracts`。
 
 ## Task 2：离线构建并原子发布内嵌索引
 
@@ -86,7 +86,7 @@ def test_content_acl_and_embedding_identity_change_version(tmp_path):
 
 维护命令确定为 `python -m xiaohe.knowledge build --resources resources/xiaohe --index-root <目录> --manifest-out <候选清单路径>`。源目录固定为 `--resources` 下的 `knowledge/`，输出候选清单不隐式覆盖活动 `manifest.json`。内部子命令 `_build` 只承载子进程构建，不作为业务接口。
 
-- [ ] **Step 1：写失败测试。** 用真实 Chroma 和确定性三维向量，验证持久化、相同版本复用校验、内容/授权变更、源文件删除、空资料版本、构建异常和无完成标记时不可发布、同名目录损坏时拒绝覆盖。子进程结束后再重命名目录；Windows、Linux 都验证构建句柄不会阻止发布。
+- [x] **Step 1：写失败测试。** 用真实 Chroma 和确定性三维向量，验证持久化、相同版本复用校验、内容/授权变更、源文件删除、空资料版本、构建异常和无完成标记时不可发布、同名目录损坏时拒绝覆盖。子进程结束后再重命名目录；Windows、Linux 都验证构建句柄不会阻止发布。
 
 ```python
 def test_failed_build_does_not_replace_published_version(tmp_path):
@@ -98,10 +98,10 @@ def test_failed_build_does_not_replace_published_version(tmp_path):
 
 测试 CLI 不打印源正文/凭据，不创建在线 API 所持有目录的客户端；维度错误、NaN/Inf、向量数不符在写入/发布前拒绝。
 
-- [ ] **Step 2：安装已选依赖并运行失败测试。** 仅到实施阶段运行 `uv sync --frozen --extra rag`，随后 `uv run --frozen --extra rag pytest tests/xiaohe/test_knowledge_index.py -q`；预期缺少构建实现导致 FAIL。缺 Chroma 时本文件可 `importorskip` 适配基础依赖测试，但本命令必须实际运行且无 SKIP。
-- [ ] **Step 3：实现构建及 CLI。** 用现有 `rag` extra 安装的 `chromadb.PersistentClient`，collection 名固定 `xiaohe_knowledge`、距离 `cosine`；显式提供向量，禁止默认模型下载。因直接导入 Chroma，向 `rag` extra 补充已锁定的直接依赖 `chromadb==1.5.9`，只更新锁文件对应元数据，不升级其他包。元数据使用 `version`、引用 ID，以及布尔键 `agent.<agent_id>` / `topic.<topic_id>`，避免依赖数组元数据能力。
-- [ ] **Step 4：实现独立 staging 与发布，再复跑 Step 2，预期 PASS。** CLI 父进程不打开 Chroma；子进程在 staging 中建库、检查 count/ID/正文摘要并写 `manifest.json`、`complete.json`，退出成功后父进程同文件系统原子改名到 `<root>/<version>`，最后原子写候选清单。两个构建者竞争同版本时只有一个发布成功，另一个验证已完成产物或报冲突，不能合并目录；禁止递归覆盖/删除在线版本。不要假设 Chroma 有可用的公开 `close()`；构建句柄通过子进程退出释放。
-- [ ] **Step 5：仅提交本任务改动。** 消息：`feat: build immutable embedded knowledge indexes`。
+- [x] **Step 2：安装已选依赖并运行失败测试。** 仅到实施阶段运行 `uv sync --frozen --extra rag`，随后 `uv run --frozen --extra rag pytest tests/xiaohe/test_knowledge_index.py -q`；预期缺少构建实现导致 FAIL。缺 Chroma 时本文件可 `importorskip` 适配基础依赖测试，但本命令必须实际运行且无 SKIP。
+- [x] **Step 3：实现构建及 CLI。** 用现有 `rag` extra 安装的 `chromadb.PersistentClient`，collection 名固定 `xiaohe_knowledge`、距离 `cosine`；显式提供向量，禁止默认模型下载。因直接导入 Chroma，向 `rag` extra 补充已锁定的直接依赖 `chromadb==1.5.9`，只更新锁文件对应元数据，不升级其他包。元数据使用 `version`、引用 ID，以及布尔键 `agent.<agent_id>` / `topic.<topic_id>`，避免依赖数组元数据能力。
+- [x] **Step 4：实现独立 staging 与发布，再复跑 Step 2，预期 PASS。** CLI 父进程不打开 Chroma；子进程在 staging 中建库、检查 count/ID/正文摘要并写 `manifest.json`、`complete.json`，退出成功后父进程同文件系统原子改名到 `<root>/<version>`，最后原子写候选清单。两个构建者竞争同版本时只有一个发布成功，另一个验证已完成产物或报冲突，不能合并目录；禁止递归覆盖/删除在线版本。不要假设 Chroma 有可用的公开 `close()`；构建句柄通过子进程退出释放。
+- [x] **Step 5：仅提交本任务改动。** 消息：`feat: build immutable embedded knowledge indexes`。
 
 ## Task 3：实现受控内嵌检索与失败降级
 
@@ -109,7 +109,7 @@ def test_failed_build_does_not_replace_published_version(tmp_path):
 
 **Interfaces:** `EmbeddedKnowledge(settings: Settings)`，提供 `async start() -> None`、`async query(bundle: WorkflowBundle, agent_id: AgentId, topics: Sequence[str]) -> list[KnowledgeMaterial]`、`async aclose() -> None`。query 不接收用户文本、collection、路径或任意 where。消费 Task 1 配置；未配置时 query 返回空列表，且不导入 Chroma/初始化 Embedding/创建线程或目录。
 
-- [ ] **Step 1：写失败测试。** 参数化四个 Agent，检索前验证过滤器，返回后注入错误 Agent/主题/版本/ID/正文摘要及缺失来源的伪造命中，均不得进入结果。覆盖缺配置、空清单、目录不存在、错误完成标记、损坏索引、不同模型/endpoint/维度、无命中，均降级为空且不查另一个版本。
+- [x] **Step 1：写失败测试。** 参数化四个 Agent，检索前验证过滤器，返回后注入错误 Agent/主题/版本/ID/正文摘要及缺失来源的伪造命中，均不得进入结果。覆盖缺配置、空清单、目录不存在、错误完成标记、损坏索引、不同模型/endpoint/维度、无命中，均降级为空且不查另一个版本。
 
 ```python
 async def test_timed_out_thread_keeps_admission_until_it_finishes():
@@ -122,10 +122,10 @@ async def test_timed_out_thread_keeps_admission_until_it_finishes():
 
 真实子进程测试验证第二个 API 宿主不能打开相同 root；旧进程退出后锁可重新获得。另验证取消、关闭与慢调用竞态，不提前释放所有权或无界排队。
 
-- [ ] **Step 2：运行失败测试。** `uv run --frozen --extra rag pytest tests/xiaohe/test_knowledge_runtime.py tests/xiaohe/test_triad_runtime.py -q`；预期新检索测试 FAIL，既有配置行为保持。
-- [ ] **Step 3：实现单宿主检索。** 使用标准库 Linux `fcntl` / Windows `msvcrt` 非阻塞文件锁，进程级排他占有 `<root>/.owner.lock`；同进程只建一个实例，旧 Bundle 复用它。锁冲突禁用本实例并记录原因，不再打开 Chroma。使用单线程 executor，不为每次请求建线程；2 秒调用期限、最多一项实际在途操作、繁忙立即返回空列表。超时通过 shield 保留后台操作的占用，实际完成后才允许下一次提交；取消不得排队或释放正在使用的索引所有权。进程锁在进程退出时释放，aclose 停止接收请求并等待实际在途操作完成，不调用私有 Chroma shutdown 接口。
-- [ ] **Step 4：实现范围、版本与元数据复核，复跑 Step 2，预期 PASS。** 各版本只打开清单指定的已完成目录，不自动创建缺失 collection；先取得/核对完成标记、清单和配置身份。专业查询取当前 Bundle 技能标题，接待固定查询词“平台介绍与服务方向”，不发送原话。query 的 topics 必须在当前 Agent 已授权技能中；无技能时仅查询 `general`。过滤器同时约束版本、Agent 与允许主题；query 后验证 Task 1 清单及正文 SHA-256。最多 3 条、每条不超过 `KnowledgeHit.text` 的 4000 字符；使用 cosine distance 最低要求 `<=0.5`，以正反例验证该初始门槛，不宣称真实效果已校准。错误只记录原因码，不记录源文/私密参数。Embedding 使用显式模型、`max_retries=0` 与有限 HTTP timeout；拒绝形状、维度和数值异常。
-- [ ] **Step 5：仅提交本任务改动。** 消息：`feat: enforce knowledge scope version and query limits`。
+- [x] **Step 2：运行失败测试。** `uv run --frozen --extra rag pytest tests/xiaohe/test_knowledge_runtime.py tests/xiaohe/test_triad_runtime.py -q`；预期新检索测试 FAIL，既有配置行为保持。
+- [x] **Step 3：实现单宿主检索。** 使用标准库 Linux `fcntl` / Windows `msvcrt` 非阻塞文件锁，进程级排他占有 `<root>/.owner.lock`；同进程只建一个实例，旧 Bundle 复用它。锁冲突禁用本实例并记录原因，不再打开 Chroma。使用单线程 executor，不为每次请求建线程；2 秒调用期限、最多一项实际在途操作、繁忙立即返回空列表。超时通过 shield 保留后台操作的占用，实际完成后才允许下一次提交；取消不得排队或释放正在使用的索引所有权。进程锁在进程退出时释放，aclose 停止接收请求并等待实际在途操作完成，不调用私有 Chroma shutdown 接口。
+- [x] **Step 4：实现范围、版本与元数据复核，复跑 Step 2，预期 PASS。** 各版本只打开清单指定的已完成目录，不自动创建缺失 collection；先取得/核对完成标记、清单和配置身份。专业查询取当前 Bundle 技能标题，接待固定查询词“平台介绍与服务方向”，不发送原话。query 的 topics 必须在当前 Agent 已授权技能中；无技能时仅查询 `general`。过滤器同时约束版本、Agent 与允许主题；query 后验证 Task 1 清单及正文 SHA-256。最多 3 条、每条不超过 `KnowledgeHit.text` 的 4000 字符；使用 cosine distance 最低要求 `<=0.5`，以正反例验证该初始门槛，不宣称真实效果已校准。错误只记录原因码，不记录源文/私密参数。Embedding 使用显式模型、`max_retries=0` 与有限 HTTP timeout；拒绝形状、维度和数值异常。
+- [x] **Step 5：仅提交本任务改动。** 消息：`feat: enforce knowledge scope version and query limits`。
 
 ## Task 4：接入实际 API 执行链及可追溯答复
 
@@ -133,7 +133,7 @@ async def test_timed_out_thread_keeps_admission_until_it_finishes():
 
 **Interfaces:** 为现有 `AgentRegistry`、`load_agent_registry`、`run_agent_turn`、`make_node_executors`、`build_graph` 增加可选关键字参数 `knowledge=None`，其余入参和默认行为不变；每个旧 Bundle 重建 registry 的分支都传同一个 `EmbeddedKnowledge`。保持 `compose_answer(model, frame, decision, materials, prompt)` 签名，接受 `KnowledgeHit` 及其 `KnowledgeMaterial` 子类。测试替身实现 Task 3 的 query 签名，保存调用范围。
 
-- [ ] **Step 1：写失败测试。** 新增纯回答/执行器测试覆盖三专业 Agent 的已授权主题、接待 `skills=[]` 的 general 知识、缺库的 Markdown 原答复；固定开场、离题、流程控制和 operation 节点断言 query 未调用。复用 `test_agent_semantics.py` 的 ScriptedModel 和当前 fixture，不改语义判定规则。
+- [x] **Step 1：写失败测试。** 新增纯回答/执行器测试覆盖三专业 Agent 的已授权主题、接待 `skills=[]` 的 general 知识、缺库的 Markdown 原答复；固定开场、离题、流程控制和 operation 节点断言 query 未调用。复用 `test_agent_semantics.py` 的 ScriptedModel 和当前 fixture，不改语义判定规则。
 
 ```python
 async def test_knowledge_citations_are_verified_and_rendered():
@@ -147,10 +147,10 @@ async def test_knowledge_citations_are_verified_and_rendered():
 
 对模型伪造 source ID 保持拒绝；未引用的知识不自动附会成回答依据，旧技能来源不被改写。新增 PG 测试验证同一运行重试/交接和旧草稿加载旧 Bundle，丢失旧索引时只用旧 Markdown，不能用新知识；API lifespan 关闭/启动失败时不会泄漏检索线程或第二实例。
 
-- [ ] **Step 2：先运行失败测试。** `uv run --frozen --extra rag pytest tests/xiaohe/test_knowledge_workflow.py tests/xiaohe/test_agent_semantics.py -m "not pg and not minio" -q`；新测试因缺装配/材料和引用信息 FAIL。PG 部分用最后的独占测试库命令单独运行。
-- [ ] **Step 3：实现装配与调用。** API lifespan 创建唯一检索器并 start，把它传入 registry 及 graph，确保关闭/异常路径调用 aclose。graph 对旧 Bundle/重试路径传递同一实例。回答节点先读取原技能资料，按受信 frame/decision 调 query，再调用 compose_answer；不能变更已有控制分支、路由、表单写入或确认。检索器故障不影响原回答；不能吞掉调用方取消和写入 fence 错误。
-- [ ] **Step 4：实现来源输出并复跑 Step 2，预期 PASS。** compose_answer 对知识材料增加 version/display_source 输入，继续校验 `source_ids`。answer 节点将实际引用的 `KnowledgeMaterial` 元数据存入当前 command/Agent 的阶段缓存 `knowledge_citations`，与已校验 answer 一起保存。result 节点从同一受信缓存读取并追加一个去重后的“资料依据” text part，包含展示来源、完整知识版本和适用条件；无引用不追加。保留现有 AnswerDraft/source_ids 格式和 4000 字符正文限制，不增加 LangGraph 状态字段或前端事件。outcome 阶段缓存保证重试不重复追加，测试包含最大长度正文。接待没有专业技能 Markdown 的情况沿用无依据说明，不捏造兜底资料。
-- [ ] **Step 5：运行 PG 版本/恢复测试并仅提交本任务改动。** 在独占测试库中执行最后的 PG 命令，预期 PASS；不具备隔离库时报告此项未验证，不能改用现有业务数据库。消息：`feat: integrate scoped knowledge into xiaohe answer workflow`。
+- [x] **Step 2：先运行失败测试。** `uv run --frozen --extra rag pytest tests/xiaohe/test_knowledge_workflow.py tests/xiaohe/test_agent_semantics.py -m "not pg and not minio" -q`；新测试因缺装配/材料和引用信息 FAIL。PG 部分用最后的独占测试库命令单独运行。
+- [x] **Step 3：实现装配与调用。** API lifespan 创建唯一检索器并 start，把它传入 registry 及 graph，确保关闭/异常路径调用 aclose。graph 对旧 Bundle/重试路径传递同一实例。回答节点先读取原技能资料，按受信 frame/decision 调 query，再调用 compose_answer；不能变更已有控制分支、路由、表单写入或确认。检索器故障不影响原回答；不能吞掉调用方取消和写入 fence 错误。
+- [x] **Step 4：实现来源输出并复跑 Step 2，预期 PASS。** compose_answer 对知识材料增加 version/display_source 输入，继续校验 `source_ids`。answer 节点将实际引用的 `KnowledgeMaterial` 元数据存入当前 command/Agent 的阶段缓存 `knowledge_citations`，与已校验 answer 一起保存。result 节点从同一受信缓存读取并追加一个去重后的“资料依据” text part，包含展示来源、完整知识版本和适用条件；无引用不追加。保留现有 AnswerDraft/source_ids 格式和 4000 字符正文限制，不增加 LangGraph 状态字段或前端事件。outcome 阶段缓存保证重试不重复追加，测试包含最大长度正文。接待没有专业技能 Markdown 的情况沿用无依据说明，不捏造兜底资料。
+- [x] **Step 5：运行 PG 版本/恢复测试并仅提交本任务改动。** 在独占测试库中执行最后的 PG 命令，预期 PASS；不具备隔离库时报告此项未验证，不能改用现有业务数据库。消息：`feat: integrate scoped knowledge into xiaohe answer workflow`。
 
 ## Task 5：提供持久化配置、维护说明与发布前检查
 
@@ -158,11 +158,11 @@ async def test_knowledge_citations_are_verified_and_rendered():
 
 **Interfaces:** 消费 Task 1 已定义的五个知识配置字段和 Task 2 的构建 CLI，在私有 runtime.env 中配置；这里仅增加示例与部署接线，不再定义第二套配置或独立开关。
 
-- [ ] **Step 1：写失败测试。** 验证 CLI 与运行环境消费相同配置、秘密不进入异常和回执，不读取或覆盖项目现有 `.env`。验证 Compose 只有 API 挂载可写知识卷、worker 无索引挂载；镜像以现有 UID/GID `10001:10001` 使用专用目录，根文件系统保持只读。
-- [ ] **Step 2：运行失败测试。** `uv run --frozen --extra rag pytest tests/xiaohe/test_knowledge_index.py tests/xiaohe/test_knowledge_runtime.py -q`；新增配置/容器边界测试应 FAIL。
-- [ ] **Step 3：实现部署文件和示例。** 小鹤 Dockerfile 安装 `--extra rag` 并预建有正确 owner 的 `/var/lib/xiaohe/knowledge`，为 API 单独增加持久化卷与对应 root 环境配置；worker 不打开卷。忽略 `.local/xiaohe-knowledge/`、staging 和本地锁文件，不把测试索引 COPY 进镜像。`.env.example` 仅放字段说明与占位符，不填真实凭据或未验证模型。构建 CLI 复用 Task 3 配置。基础测试保持不用 rag 可运行；CI 新增使用 `--extra rag` 的知识测试步骤，先 `python -c "import chromadb"`，不允许以全部 SKIP 通过。
-- [ ] **Step 4：编写运维说明并复跑 Step 2，预期 PASS。** 提供一份明确标为测试用的 front matter 示例放在文档中，不向正式知识目录加入虚构事实。说明新增/修改/删除 MD、候选清单和活动清单的区别、按 Agent 显式共享、审阅样例、源文件不自动生效、空版本撤下全部资料、相同 embedding 配置可重建。发布顺序明确：处理在途执行、暂停 worker 新调度、将新索引与清单配套发布、重启 API、确认就绪、恢复 worker；回退保留老目录与 Bundle，停 API 才能做索引文件备份。Compose 发布方式保留现有部署技能/流程，不在实施时实际重启任何环境。
-- [ ] **Step 5：执行下方最终检查并仅提交本任务改动。** 消息：`docs: add embedded knowledge maintenance and release checks`。每项如失败，区分本次回归和执行前已有问题；不修改无关代码来清理基线。
+- [x] **Step 1：写失败测试。** 验证 CLI 与运行环境消费相同配置、秘密不进入异常和回执，不读取或覆盖项目现有 `.env`。验证 Compose 只有 API 挂载可写知识卷、worker 无索引挂载；镜像以现有 UID/GID `10001:10001` 使用专用目录，根文件系统保持只读。
+- [x] **Step 2：运行失败测试。** `uv run --frozen --extra rag pytest tests/xiaohe/test_knowledge_index.py tests/xiaohe/test_knowledge_runtime.py -q`；新增配置/容器边界测试应 FAIL。
+- [x] **Step 3：实现部署文件和示例。** 小鹤 Dockerfile 安装 `--extra rag` 并预建有正确 owner 的 `/var/lib/xiaohe/knowledge`，为 API 单独增加持久化卷与对应 root 环境配置；worker 不打开卷。忽略 `.local/xiaohe-knowledge/`、staging 和本地锁文件，不把测试索引 COPY 进镜像。`.env.example` 仅放字段说明与占位符，不填真实凭据或未验证模型。构建 CLI 复用 Task 3 配置。基础测试保持不用 rag 可运行；CI 新增使用 `--extra rag` 的知识测试步骤，先 `python -c "import chromadb"`，不允许以全部 SKIP 通过。
+- [x] **Step 4：编写运维说明并复跑 Step 2，预期 PASS。** 提供一份明确标为测试用的 front matter 示例放在文档中，不向正式知识目录加入虚构事实。说明新增/修改/删除 MD、候选清单和活动清单的区别、按 Agent 显式共享、审阅样例、源文件不自动生效、空版本撤下全部资料、相同 embedding 配置可重建。发布顺序明确：处理在途执行、暂停 worker 新调度、将新索引与清单配套发布、重启 API、确认就绪、恢复 worker；回退保留老目录与 Bundle，停 API 才能做索引文件备份。Compose 发布方式保留现有部署技能/流程，不在实施时实际重启任何环境。
+- [x] **Step 5：执行下方最终检查并仅提交本任务改动。** 消息：`docs: add embedded knowledge maintenance and release checks`。每项如失败，区分本次回归和执行前已有问题；不修改无关代码来清理基线。
 
 ## 最终验证与证据
 
