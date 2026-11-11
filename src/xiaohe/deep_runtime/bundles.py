@@ -17,6 +17,8 @@ from xiaohe.lead_skills.models import CommonPolicy, FieldPolicy, InteractionPoli
 from xiaohe.workflows.loader import MAX_DEFINITION_BYTES, MAX_RESOURCE_BYTES, DefinitionLoader
 from xiaohe.workflows.models import AGENT_IDS, AgentId, WorkflowValidationError
 
+RECEPTION_POLICY = "deep-runtime/reception-policy.md"
+
 
 def _read(root: Path, reference: str) -> str:
     relative = PurePosixPath(reference)
@@ -79,7 +81,10 @@ def _validate_binding(bundle: RuntimeBundle, binding: RuntimeBinding) -> None:
 
 def load_runtime_bundle(resource_root: Path) -> RuntimeBundle:
     root = resource_root.resolve()
-    resources = {"deep-runtime.yaml": _read(root, "deep-runtime.yaml")}
+    resources = {
+        "deep-runtime.yaml": _read(root, "deep-runtime.yaml"),
+        RECEPTION_POLICY: _read(root, RECEPTION_POLICY),
+    }
     try:
         config = _yaml(resources["deep-runtime.yaml"])
         if (

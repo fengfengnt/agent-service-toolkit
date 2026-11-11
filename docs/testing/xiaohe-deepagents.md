@@ -1,12 +1,12 @@
 # 小鹤标准 Skill 与 DeepAgents 验证记录
 
-状态：后端实现及隔离验收通过，最终审阅待完成；门户／前后端组合待维护者回执；未部署。最终测试结果见本文末尾。
+状态：后端实现及隔离验收通过，独立审阅问题已修复；门户／前后端组合待维护者回执；未部署。最终测试结果见本文末尾。
 
 ## 实现与入口
 
 依赖固定为 DeepAgents 0.7.32、LangChain 1.4.7、langchain-core 1.7.0、LangGraph 1.2.16；保留 14 天冷却和 uv.lock。默认 `XIAOHE_DEEPAGENTS_ENABLED=false`。本次没有修改 VERSION、部署脚本或任何现有环境数据库。
 
-外层客服图与 await_input 保留。业务图固定 `prepare_context → business_agent → finalize`，内部主 Agent 使用原生 DeepAgents。主 Agent 的七个受控工具复用正式业务校验与提交服务。child 显式绑定、只读，只返回结果，不能继承文件写入、Shell、业务写工具、父业务状态或再次委派。
+外层客服图与 await_input 保留。业务图固定 `prepare_context → business_agent → finalize`，内部主 Agent 使用原生 DeepAgents。主 Agent 的七个受控工具复用正式业务校验与提交服务。child 显式绑定、只读，首版只允许 read_lead，只返回结果，不能继承文件写入、Shell、业务写工具、父业务状态或再次委派。
 
 二十一份标准包位于 `resources/xiaohe/skills/<role-prefixed-name>/SKILL.md`，绑定在 `resources/xiaohe/deep-runtime.yaml`；三份留资包与十八份答疑包已纳入。旧嵌套 skill、旧 lead-skills、legacy／dsl-v1 编译器保留用于旧数据恢复。字段与正式后端接口没有扩大。
 
@@ -16,7 +16,7 @@
 2. 在 manifest 登记包及方向、认证限制、required tools，并在指定业务节点绑定 skills；一个节点可绑定多份 Skill。活动留资流程每个角色只能有一份，确定性加载；其他正文由原生技能发现按需读取。
 3. 不从 metadata 导入任意 Python 模块或执行 scripts。外部依赖先审核、显式绑定可用工具；无法支持的必要能力拒绝加载。
 4. 更新分组／说明时可复用现有字段。字段规则、API 或界面变更仍需对应后端／门户修改。不要把 Markdown 当成授权、字段门槛或业务回执。
-5. 启动发布不可变快照，新 Command 选新版本；已执行 Command 和出站请求不换版。首版通过正常服务启动发布，没有热重载 API。旧草稿固定字段规则，下一轮引导读取已有资料与可核对的完成记录。
+5. 启用新选版时在启动阶段发布不可变快照，新 Command 选新版本；已执行 Command 和出站请求不换版。首版通过正常服务启动发布，没有热重载 API。旧草稿固定字段规则，下一轮引导读取已有资料与可核对的完成记录。
 
 配置开启前必须安装锁定依赖、迁移到 0014，并验证已登记旧快照完整。不要在缺快照时替换为最新包。
 
@@ -64,4 +64,15 @@ uv lock --check
 - 首轮完整非 MinIO 集合：995 passed、15 skipped、10 deselected、5 failed。一个失败是旧测试写死 0013（已更新为 0014）；四个来自一次性部署迁移脚本的精确测试库名白名单。未放松或修改这些生产脚本。
 - 同一专有容器中新建 test_xiaohe_agent 隔离库后，历史迁移专项 6 passed，portal origin 迁移随最终专项通过。
 - 最终业务／v2／强杀／origin 专项 26 passed；依赖升级相关 Agent／流式接口 38 passed；uv lock --check 和改动范围 ruff 通过。
-- 新库完整非 MinIO 回归：1005 passed、15 skipped、10 deselected，耗时 621.68 秒；最终独立审阅待补记。
+- 新库完整非 MinIO 回归：1005 passed、15 skipped、10 deselected，耗时 621.68 秒；这是审阅前结果，修复后结果见下一节。
+
+
+## 最终独立审阅与修复
+
+审阅基点 67c16a8，独立 reviewer 为 gpt-6-astra。无 Critical／Minor，5 项 Important 均进入同一轮 TDD 修复：近期可见对话及待答问题、写入后坏候选的真实回执收尾、关闭新选版时不加载损坏新包、child 移除可补发提交的 query_progress、接待事实与保守边界纳入不可变快照。接待显式登录意图继续产生服务端认证卡片。
+
+11 个新回归先全部 RED，修复后相关集合 41 passed／1 skipped；等待中 Run 的坏快照校验也经 RED→GREEN；另补意外内层 interrupt 不得被写入回执掩盖的边界检查，专用回归文件共 13 passed。接待真实模型的语义效果仍待单独授权验证。第一版 child 不能查询业务进度，主 Agent 保留查询和核对；以后如需委派，先提供不会补发或更新正式业务的读取适配。
+
+修复后完整非 MinIO 回归：**1018 passed、15 skipped、10 deselected**，耗时 596.21 秒；真实子进程强杀恢复再次验证 **1 passed**；上游 Agent／流式接口 **38 passed**。uv lock、ruff、格式及契约／交接／测试文档链接检查通过。
+
+本轮按一次独立审阅＋TDD 修复流程，以失败复现及最终完整绿灯验证修复，未另发第二次审阅。无延后 Minor。仍不表示门户／真实模型／正式业务／MinIO 或部署验收完成。

@@ -14,7 +14,7 @@ from langchain_core.tools import BaseTool
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph.state import CompiledStateGraph
 
-from xiaohe.deep_runtime.bundles import skill_files
+from xiaohe.deep_runtime.bundles import RECEPTION_POLICY, skill_files
 from xiaohe.deep_runtime.models import (
     READ_TOOLS,
     ChildResult,
@@ -126,6 +126,8 @@ def build_business_agent(
         "仅在用户明确要求切换方向时调用交接工具；需要用户补充时结束本轮并等待。"
         "只返回 DeepTurnResult，普通回答使用 AnswerDraft 的来源口径，不输出可信状态块。"
     )
+    if binding.agent_id == "xiaohe-reception":
+        prompt += "\n\n" + bundle.resources.get(RECEPTION_POLICY, "")
     if binding.flow_skill:
         spec = bundle.skills[binding.flow_skill]
         prompt += "\n\n本轮已选留资 Skill：\n" + bundle.resources[spec.path + "/SKILL.md"]

@@ -3,7 +3,7 @@ import json
 from typing import TypedDict
 from uuid import uuid5
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
 from sqlalchemy import select, text
 
@@ -17,9 +17,10 @@ from xiaohe.deep_runtime.models import DeepExecution, DeepTurnResult
 from xiaohe.deep_runtime.tools import ToolContext, execute_effect, make_business_tools
 from xiaohe.graph import _safe_model_text
 from xiaohe.lead_skills.notices import render_lead_notice
-from xiaohe.models import Command, Conversation, Message, System
+from xiaohe.models import Command, Conversation, Message, Run, System
 from xiaohe.reception.models import ReceptionDraft
 from xiaohe.reception.store import locked_flow
+from xiaohe.runs import TERMINAL
 
 
 class BusinessState(TypedDict, total=False):
@@ -45,9 +46,16 @@ def _persist(command, execution, **updates):
 async def publish_runtime(factory, resource_root, *, enabled):
     from xiaohe.deep_runtime.bundles import load_runtime_bundle, persist_runtime_bundle
 
-    bundle = load_runtime_bundle(resource_root)
+    bundle = load_runtime_bundle(resource_root) if enabled else None
     async with factory.begin() as db:
-        await persist_runtime_bundle(db, bundle)
+        if bundle is not None:
+            await persist_runtime_bundle(db, bundle)
+        for bundle_id in await db.scalars(
+            select(Run.deep_runtime_bundle_id)
+            .where(Run.deep_runtime_bundle_id.is_not(None), Run.status.not_in(TERMINAL))
+            .distinct()
+        ):
+            await load_runtime_bundle_record(db, bundle_id)
         for command in await db.scalars(select(Command).where(Command.completed_at.is_(None))):
             if previous := command.payload.get("deepExecution"):
                 await load_runtime_bundle_record(
@@ -55,10 +63,8 @@ async def publish_runtime(factory, resource_root, *, enabled):
                 )
     factory.configure(
         info=factory.kw.get("info", {})
-        | {
-            "deepagents_enabled": enabled,
-            "deep_runtime_bundle_id": bundle.bundle_id,
-        }
+        | {"deepagents_enabled": enabled}
+        | ({"deep_runtime_bundle_id": bundle.bundle_id} if bundle is not None else {})
     )
 
 
@@ -162,10 +168,35 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
                 if row
                 else None,
                 "effects": current.effects,
+                "pending_request": command.question,
             }
+            recent = list(
+                await db.scalars(
+                    select(Message)
+                    .where(
+                        Message.conversation_id == conversation.id,
+                        Message.system_id == run.system_id,
+                        Message.tenant_id == run.tenant_id,
+                        Message.id != message.id,
+                        Message.created_at <= message.created_at,
+                    )
+                    .order_by(Message.created_at.desc(), Message.id.desc())
+                    .limit(20)
+                )
+            )
+            from xiaohe.graph import visible_text
+
+            history = [
+                (HumanMessage if item.role == "user" else AIMessage)(
+                    id=str(item.id), content=_safe_model_text(visible_text(item.parts))
+                )
+                for item in reversed(recent)
+                if visible_text(item.parts)
+            ]
             initial = {
                 "messages": [
                     SystemMessage(content=_safe_model_text(json.dumps(facts, ensure_ascii=False))),
+                    *history,
                     HumanMessage(id=str(message.id), content=_safe_model_text(original)),
                 ],
                 "files": skill_files(bundle, binding),
@@ -173,6 +204,26 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
         return {"candidate": None}
 
     async def business_agent(state):
+        from xiaohe.graph import _auth_intent
+
+        if context.binding.agent_id == "xiaohe-reception" and (
+            intent := _auth_intent(context.text)
+        ):
+            from xiaohe.deep_runtime.models import ToolResult
+            from xiaohe.deep_runtime.tools import _save_execution
+
+            async with factory.begin() as db:
+                _, command = await _command(db, fence)
+                current = DeepExecution.model_validate(command.payload["deepExecution"])
+                _save_execution(
+                    command,
+                    current,
+                    "request_auth",
+                    ToolResult(
+                        operation="request_auth", status="auth", data={"auth_intent": intent}
+                    ),
+                )
+            return {"candidate": None}
         if (
             action.get("control") in ("accept_invitation", "start_collection")
             and context.binding.agent_id != "xiaohe-reception"
@@ -234,6 +285,12 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
             try:
                 async with asyncio.timeout(90):
                     result = await agent.ainvoke(value, config=config, durability="sync")
+                snapshot = await agent.aget_state(config)
+                if any(task.interrupts for task in snapshot.tasks):
+                    raise ServiceError("INVALID_WAIT_STATE", 502)
+                candidate = DeepTurnResult.model_validate(result.get("structured_response"))
+            except ServiceError:
+                raise
             except Exception:
                 async with factory.begin() as db:
                     _, command = await _command(db, fence)
@@ -244,10 +301,6 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
                     ):
                         raise
                 return {"candidate": None}
-            snapshot = await agent.aget_state(config)
-            if any(task.interrupts for task in snapshot.tasks):
-                raise ServiceError("INVALID_WAIT_STATE", 502)
-            candidate = DeepTurnResult.model_validate(result.get("structured_response"))
             return {"candidate": candidate.model_dump(mode="json")}
 
     async def finalize(state):
@@ -260,6 +313,8 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
             conversation = await db.get(Conversation, run.conversation_id)
             flow = await locked_flow(db, conversation)
             effects = list(current.effects.values())
+            submitted = [effect for effect in effects if effect["operation"] == "submit_lead"]
+            saved = [effect for effect in effects if effect["operation"] == "save_lead"]
             parts = []
             if candidate and candidate.answer:
                 answer = candidate.answer
@@ -267,16 +322,17 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
                     bundle.skills[name].legacy_id for name in context.binding.skills
                 }
                 if _claims_business_success(answer.text) or set(answer.source_ids) - source_ids:
-                    raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
-                parts.append(
-                    {
-                        "type": "text",
-                        "text": ("一般建议：" if answer.basis == "general_advice" else "")
-                        + answer.text,
-                    }
-                )
-            submitted = [effect for effect in effects if effect["operation"] == "submit_lead"]
-            saved = [effect for effect in effects if effect["operation"] == "save_lead"]
+                    if not submitted and not saved:
+                        raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
+                    candidate = None
+                else:
+                    parts.append(
+                        {
+                            "type": "text",
+                            "text": ("一般建议：" if answer.basis == "general_advice" else "")
+                            + answer.text,
+                        }
+                    )
             if submitted or saved:
                 notice = (
                     "accepted"
@@ -313,7 +369,19 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
                     parts.append({"type": "text", "text": effect["data"]["text"]})
             auth = any(e["status"] == "auth" for e in effects)
             if auth:
-                parts.append({"type": "auth_request", "intent": "lead"})
+                intent = next(
+                    (e["data"]["auth_intent"] for e in effects if e["operation"] == "request_auth"),
+                    "lead",
+                )
+                parts.extend(
+                    [
+                        {
+                            "type": "text",
+                            "text": "请在认证卡片中继续，手机号和验证码无需发送到聊天。",
+                        },
+                        {"type": "auth_request", "intent": intent},
+                    ]
+                )
             if run.user_id and any(e.get("data", {}).get("collection") for e in effects):
                 from xiaohe.reception.flow import COLLECTION_NOTICE
 

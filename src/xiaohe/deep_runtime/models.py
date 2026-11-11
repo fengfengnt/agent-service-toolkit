@@ -18,7 +18,8 @@ TOOLS = frozenset(
         "request_handoff",
     }
 )
-READ_TOOLS = frozenset({"read_lead", "query_progress"})
+# shortcut: query_progress 可能重提 pending；提供独立只读适配后再向 child 开放。
+READ_TOOLS = frozenset({"read_lead"})
 
 
 class SkillSpec(DefinitionModel):
