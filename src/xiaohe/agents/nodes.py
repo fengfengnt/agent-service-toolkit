@@ -32,7 +32,7 @@ from xiaohe.runs import require_write
 from xiaohe.workflows.compiler import ORGANIZATION_OPERATIONS, NodeExecutor
 from xiaohe.workflows.definitions import draft_definition
 from xiaohe.workflows.loader import workflow_for
-from xiaohe.workflows.models import DecideNode, NodeType, OperationName, RouteEvent
+from xiaohe.workflows.models import AnswerNode, DecideNode, NodeType, OperationName, RouteEvent
 
 ROLE_DIRECTIONS: dict[str, AgentDirection] = {
     "xiaohe-reception": "unknown",
@@ -346,19 +346,25 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
                 action="consultation" if control == "switch_direction" else "accept_invitation"
             )
         else:
-            if model is None:
-                from xiaohe.graph import reception_model
+            from xiaohe.reception.flow import collection_shortcut
 
-                turn_model = reception_model()
+            topic = collection_shortcut(frame.model_context.direction, frame.model_context.text)
+            if topic and topic in frame.model_context.eligible_topics and frame.draft_id is None:
+                decision = SemanticDecision(action="accept_invitation", topics=[topic])
             else:
-                turn_model = model
-            decision = await understand_turn(
-                turn_model,
-                frame,
-                workflow_for(bundle, frame.agent_id),
-                bundle,
-                prompt_key=node.prompt,
-            )
+                if model is None:
+                    from xiaohe.graph import reception_model
+
+                    turn_model = reception_model()
+                else:
+                    turn_model = model
+                decision = await understand_turn(
+                    turn_model,
+                    frame,
+                    workflow_for(bundle, frame.agent_id),
+                    bundle,
+                    prompt_key=node.prompt,
+                )
         async with factory.begin() as db:
             _, command, _, _ = await _checked(db, frame)
             _save_stage(
@@ -408,6 +414,8 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
             _, command, _, _ = await _checked(db, frame)
             if cached := _stage(command, frame.agent_id).get("answer"):
                 return {"answer": cached}
+            if command.payload.get("receptionControl") in ("accept_invitation", "start_collection"):
+                return {}
             partner_entry = command.payload.get("receptionControl") == "switch_direction"
         if partner_entry:
             from xiaohe.reception.flow import LABELS, OPENERS
@@ -463,6 +471,19 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
         )
         if decision.action not in OPERATION_EVENTS[node.operation] and not editing_confirmation:
             raise ServiceError("INPUT_INVALID", 422)
+        # 旧挂起流程仍可能直接走 auth；复用答疑回执，确保建草稿前已完成回答。
+        prepared_answer = (
+            await answer(
+                AnswerNode(
+                    id="conversion_answer", name="回答转化问题", type="answer",
+                    prompt="answer", next=node.id,
+                ),
+                state,
+                config,
+            )
+            if node.operation == "request_auth"
+            else {}
+        )
         submission_id = None
         async with factory.begin() as db:
             run, command, conversation, flow = await _checked(db, frame)
@@ -470,7 +491,7 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
             if stage.get("decision") != decision.model_dump(mode="json"):
                 raise ServiceError("INPUT_INVALID", 422)
             if cached := stage.get("operation_result"):
-                return {"operation_result": cached}
+                return prepared_answer | {"operation_result": cached}
             await _activate_pending(db, frame, command, conversation, flow)
             row = (
                 await db.get(ReceptionDraft, flow.active_draft_id) if flow.active_draft_id else None
@@ -484,7 +505,7 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
             if node.operation == "request_auth":
                 flow.invitation_state = "accepted"
                 if run.user_id is None:
-                    return {
+                    return prepared_answer | {
                         "operation_result": {
                             "text": "请通过认证卡片注册或登录。",
                             "auth": True,
@@ -492,20 +513,43 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
                         }
                     }
                 if row is None:
-                    view = await create_draft(
-                        db,
-                        frame.actor,
-                        frame.conversation_id,
-                        CreateDraft(
-                            client_draft_id="invitation:" + str(command.id),
-                            kind="service",
-                            direction=conversation.direction,
-                        ),
-                        definition_bundle_id=frame.bundle_id,
-                    )
-                    row = await db.get(ReceptionDraft, UUID(view.id))
-                    row.definition_bundle_id = frame.bundle_id
-                text = "已准备需求草稿，请填写当前资料；最后核对汇总后再确认提交。"
+                    drafts = (
+                        await db.scalars(
+                            select(ReceptionDraft).where(
+                                ReceptionDraft.conversation_id == frame.conversation_id,
+                                ReceptionDraft.direction == conversation.direction,
+                                ReceptionDraft.state.in_(["collecting", "review", "submitting"]),
+                            )
+                        )
+                    ).all()
+                    if len(drafts) > 1:
+                        result = {"text": "该方向已有多份草稿，请先选择要继续的一份。", "wait": True}
+                        _save_stage(command, frame.agent_id, operation_result=result)
+                        return prepared_answer | {"operation_result": result}
+                    if drafts:
+                        row = drafts[0]
+                        flow.active_draft_id = row.id
+                    else:
+                        view = await create_draft(
+                            db,
+                            frame.actor,
+                            frame.conversation_id,
+                            CreateDraft(
+                                client_draft_id="invitation:" + str(command.id),
+                                kind="service",
+                                direction=conversation.direction,
+                            ),
+                            definition_bundle_id=frame.bundle_id,
+                        )
+                        row = await db.get(ReceptionDraft, UUID(view.id))
+                        row.definition_bundle_id = frame.bundle_id
+                text = (
+                    "已准备需求草稿，请填写当前资料；最后核对汇总后再确认提交。"
+                    if row.state in ("collecting", "review")
+                    else "该需求正在核实受理结果，请稍后查询进展。"
+                    if row.state == "submitting"
+                    else "该需求已有受理回执，请在“我的进展”查看；另一项需求请明确新建。"
+                )
             elif node.operation == "new_draft":
                 if run.user_id is None:
                     raise ServiceError("AUTH_REQUIRED", 401)
@@ -651,6 +695,8 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
                     db, node.operation, frame, decision, row, command, run
                 )
             result = {"text": text, "wait": submission_id is None}
+            if node.operation == "request_auth" and row.state in ("collecting", "review"):
+                result["collection"] = True
             if submission_id is not None:
                 _save_stage(command, frame.agent_id, submission_id=str(submission_id))
             else:
@@ -666,7 +712,7 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
             async with factory.begin() as db:
                 _, command, _, _ = await _checked(db, frame)
                 _save_stage(command, frame.agent_id, operation_result=result)
-        return {"operation_result": result}
+        return prepared_answer | {"operation_result": result}
 
     async def _external_prepared(db, operation_name, frame, decision, row, command, run):
         if run.user_id is None:
@@ -782,6 +828,7 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
                 and command.payload.get("receptionControl") != "switch_direction"
                 and flow.active_draft_id is None
                 and flow.invitation_state == "none"
+                and run.user_id is None
                 and answer_value
                 and state.get("event") in ("consultation", "consultation_with_details")
             )
@@ -789,6 +836,10 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
                 flow.invitation_state = "offered"
                 text += "\n\n是否愿意登录并登记需求，方便后续跟进？也可以继续咨询或暂缓。"
             parts = [{"type": "text", "text": text}]
+            if operation_value.get("collection") and run.user_id is not None:
+                from xiaohe.reception.flow import COLLECTION_NOTICE
+
+                parts.append({"type": "system_notice", "text": COLLECTION_NOTICE})
             if operation_value.get("auth") or (offered and run.user_id is None):
                 parts.append({"type": "auth_request", "intent": "lead"})
             if wait:

@@ -161,9 +161,8 @@ async def run_organization_step(factory, fence, client):
         )
         command_id = command.id
     if application_id is None:
-        answer = "可以先登记组织合作申请，受理后在“我的进展”查看或修改。"
-        if kind == "sample_demo":
-            answer = (await sample_answer()).text + "\n\n" + answer
+        # 未有正式申请的明确意向交给通用采集路径，按登录状态准备组织草稿或认证。
+        return None
     elif starting:
         answer = "合作与入驻已统一为一份申请，无需再次提交入驻资料。请在“我的进展”查看/修改原申请；审核通过与已完成入驻会分别显示。"
     else:
@@ -177,24 +176,11 @@ async def run_organization_step(factory, fence, client):
             raise ServiceError("ACTION_STALE", 409)
         conversation = await db.get(Conversation, run.conversation_id)
         flow = await locked_flow(db, conversation)
-        offered = (
-            application_id is None
-            and flow.active_draft_id is None
-            and flow.invitation_state == "none"
-        )
-        if offered:
-            flow.invitation_state = "offered"
-            answer += "\n\n是否愿意登录并登记需求，方便后续跟进？也可以继续咨询或暂缓。"
         request_id = uuid5(command.id, "organization.input")
         flow.pending_request_id = request_id
         result = AgentOutcome(
             parts=[
                 {"type": "text", "text": answer},
-                *(
-                    [{"type": "auth_request", "intent": "lead"}]
-                    if offered and run.user_id is None
-                    else []
-                ),
                 {
                     "type": "input_request",
                     "requestId": str(request_id),

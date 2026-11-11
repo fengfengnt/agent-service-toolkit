@@ -2,7 +2,7 @@
 schema_version: 1
 agent_id: xiaohe-organization
 name: 社群组织 Agent
-workflow_version: '2'
+workflow_version: '3'
 entry: understand
 prompts:
   intent: organization-intent.md
@@ -66,7 +66,7 @@ nodes:
     consultation: answer
     provide_details: collect
     consultation_with_details: answer_details
-    accept_invitation: auth
+    accept_invitation: answer_auth
     defer_invitation: answer
     save_round: save
     skip_optional: summary
@@ -96,6 +96,11 @@ nodes:
   type: operation
   operation: collect_details
   next: result
+- id: answer_auth
+  name: 回答转化问题后开始留资
+  type: answer
+  prompt: answer
+  next: auth
 - id: auth
   name: 登录或准备草稿
   type: operation

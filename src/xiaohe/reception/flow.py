@@ -27,6 +27,7 @@ from xiaohe.runs import require_write
 from xiaohe.workflows.definitions import draft_definition
 
 LABELS = {"buyer": "采购商", "organization": "社群组织", "supplier": "供应商"}
+COLLECTION_NOTICE = "开始填写需求资料"
 ALIASES = {
     "buyer": r"采购商|采购方|买方|采购总监|供应链负责人|寻源工程师|数字化负责人",
     "organization": r"社群组织|行业协会|协会|商会|校友会|产业联盟|组织机构",
@@ -70,6 +71,17 @@ ACTION_TEXT = {
     "confirm": "确认提交当前汇总",
     "resume": "继续所选草稿",
 }
+
+
+def collection_shortcut(direction, text):
+    # 只接管当前采购入口已展示的精确选项，其他表述仍按各角色语义理解。
+    if direction == "buyer":
+        return {
+            "寻源慢": "buyer.sourcing",
+            "难比价": "buyer.rfx",
+            "想看效果": "buyer.analysis",
+        }.get(text.strip())
+    return None
 
 
 def recognize_direction(text: str) -> str | None:
@@ -565,10 +577,14 @@ async def _prepare_reception_step(
 
 
 async def _advance(db, conversation, flow, command, run, text, extracted, snapshot, skill):
+    from xiaohe.reception.organization import intent_from_text
+
     request_id = uuid5(command.id, "reception.input")
 
-    def reply(answer, *, suggestions=None, wait=True, auth=False):
+    def reply(answer, *, suggestions=None, wait=True, auth=False, collection=False):
         body = [{"type": "text", "text": answer}]
+        if collection and run.user_id is not None:
+            body.append({"type": "system_notice", "text": COLLECTION_NOTICE})
         if auth:
             body.append({"type": "auth_request", "intent": "lead"})
         if suggestions:
@@ -676,7 +692,22 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
                 return reply("请先选择一份要继续的草稿，也可以明确要求新建需求。")
             flow.active_draft_id = match[0].id
     accepted = command.payload.get("receptionControl") == "accept_invitation" or bool(
-        re.fullmatch(
+        collection_shortcut(current, text)
+        or re.fullmatch(
+            r"\s*(?:(?:我|我们)?(?:想|要|希望|愿意))?(?:合作|预约演示|试用|对接顾问|联系顾问|申请服务|怎么合作)[。！!\s]*",
+            text,
+        )
+        or (
+            current == "organization"
+            and (
+                intent_from_text(text)
+                or re.fullmatch(
+                    r"(?:我要|我想|请帮我)?(?:开始入驻|提交入驻资料|补充入驻资料|入驻)[。！!\s]*",
+                    text,
+                )
+            )
+        )
+        or re.fullmatch(
             r"\s*(?:好的[，,]\s*)?(?:(?:我|我们)(?:愿意|要|想|希望)(?:现在|先)?(?:登记|留资|注册|登录|开始)(?:需求|资料|信息|接待|服务)?|(?:我|我们)?(?:同意|接受|愿意)(?:登记|留资|邀请)?)[。！!\s]*",
             text,
         )
@@ -685,7 +716,8 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
     )
     if (
         re.search(r"暂时?不|稍后|以后|再说|不用|不愿|不想|不同意|不接受", text)
-        and flow.invitation_state == "offered"
+        and flow.invitation_state in ("none", "offered", "accepted")
+        and flow.active_draft_id is None
     ):
         flow.invitation_state = "deferred"
         return reply("好的，先继续咨询。需要登记时您再主动告诉我即可。")
@@ -695,7 +727,9 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
     if flow.invitation_state == "accepted" and not flow.active_draft_id:
         if run.user_id is None:
             outcome = reply(
-                "请在认证卡片完成注册或登录，手机号与验证码无需发送到聊天。", wait=False
+                (skill.text + "\n\n" if skill else "")
+                + "请在认证卡片完成注册或登录，手机号与验证码无需发送到聊天。",
+                wait=False,
             )
             return AgentOutcome(
                 parts=[*outcome.parts, {"type": "auth_request", "intent": "lead"}],
@@ -779,7 +813,8 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
                     if missing
                     else ""
                 )
-                + "请核对右侧当前资料汇总；可以修改，确认无误后再明确提交。"
+                + "请核对右侧当前资料汇总；可以修改，确认无误后再明确提交。",
+                collection=bool(accepted or command.payload.get("receptionControl") == "start_collection"),
             )
         if row.state == "submitting":
             return reply(
@@ -805,7 +840,8 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
                 + "信息。您也可以跳过。"
                 if row.step != "files"
                 else "可以选填上传企业材料，也可以直接查看汇总。"
-            )
+            ),
+            collection=bool(accepted or command.payload.get("receptionControl") == "start_collection"),
         )
     answer = (
         skill.text
@@ -814,7 +850,7 @@ async def _advance(db, conversation, flow, command, run, text, extracted, snapsh
         if chosen == current
         else "我可以回答当前方向的服务问题，请说明您的业务需求。其他内容暂无法协助。"
     )
-    offered = flow.invitation_state == "none" and re.search(
+    offered = run.user_id is None and flow.invitation_state == "none" and re.search(
         r"价格|收费|付费|多少钱|演示|怎么开始|如何开始|多久上线|怎么合作|看效果|商机多少|交什么资料",
         text,
     )
