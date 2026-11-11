@@ -1,3 +1,7 @@
+import json
+import threading
+from contextlib import contextmanager
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import yaml
@@ -38,3 +42,49 @@ class DeterministicEmbeddings(Embeddings):
         if "无关" in text:
             return [0.0, 1.0, 0.0]
         return [1.0, 0.0, 0.0]
+
+
+@contextmanager
+def embedding_server():
+    requests = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            request = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            requests.append(request)
+            texts = request["input"]
+            if isinstance(texts, str):
+                texts = [texts]
+            response = json.dumps(
+                {
+                    "object": "list",
+                    "model": "fixture",
+                    "data": [
+                        {
+                            "object": "embedding",
+                            "index": index,
+                            "embedding": DeterministicEmbeddings().embed_query(text),
+                        }
+                        for index, text in enumerate(texts)
+                    ],
+                    "usage": {"prompt_tokens": 1, "total_tokens": 1},
+                }
+            ).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(response)))
+            self.end_headers()
+            self.wfile.write(response)
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}/v1", requests
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()

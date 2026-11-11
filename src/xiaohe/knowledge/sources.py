@@ -178,7 +178,7 @@ def prepare_manifest(
         chunk_overlap=200,
         entries=entries,
     )
-    manifest = KnowledgeManifest(version=digest(payload), **payload)
+    manifest = KnowledgeManifest.model_validate({"version": digest(payload), **payload})
     if len(manifest.model_dump_json().encode()) > MAX_RESOURCE_BYTES:
         raise ValueError("knowledge manifest too large")
     return manifest, chunks
