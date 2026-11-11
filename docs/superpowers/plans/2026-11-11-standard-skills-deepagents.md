@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- 2026-11-11 用户以“定稿”批准整体设计。本文件仅规划；尚未授权产品编码、依赖安装、数据库迁移或部署，实施方式待用户确定。
+- 2026-11-11 用户批准整体设计并选择“本对话逐项实施”，授权按本计划开发、安装兼容依赖与隔离测试；不包含现有环境迁移、部署或真实模型／短信／正式业务写入。
 - 复用合适的现有 checkout；执行前检查分支、staged／unstaged 和迁移 head，保留 VERSION、配置示例及其他任务的工作，不使用 `git add .`。
 - 固定候选 `deepagents==0.7.32`；最低依赖 `langchain>=1.4.7`、`langchain-core>=1.7.0`、`langsmith>=0.14.12`，保留 `exclude-newer = "14 days"`。可按验证需要更新 LangGraph，不能把主线文档当成固定版保证。
 - 四个业务角色及现有十八份答疑、三份留资纳入首版；接待不自动获得专业业务权限；现有字段、类型、必填和私有材料边界不扩大。
@@ -70,13 +70,13 @@
 
 **Interfaces:** 测试用 `DeepScriptModel` 能按脚本返回真实 `AIMessage.tool_calls` 并记录收到的工具，不访问网络；`make_script_model(messages: list[AIMessage]) -> BaseChatModel`。生产代码继续用现有 `get_model`／`reception_model`。
 
-- [ ] **Step 1：写能力测试。** `test_native_skill_read_and_tool_loop` 实际调用固定版 `create_deep_agent`，断言先读取命中的 SKILL.md 再调用提供的测试工具，最终返回结果；`test_supported_native_exports` 核对 CompiledSubAgent、profile、文件中间件和异步 saver 的公开接口。
+- [x] **Step 1：写能力测试。** `test_native_skill_read_and_tool_loop` 实际调用固定版 `create_deep_agent`，断言先读取命中的 SKILL.md 再调用提供的测试工具，最终返回结果；`test_supported_native_exports` 核对 CompiledSubAgent、profile、文件中间件和异步 saver 的公开接口。
 
   该场景的调用轨迹及答复固定断言：`assert trace == ["read_file", "probe"]`；`assert answer == "probe-result"`。
-- [ ] **Step 2：记录红灯或既有能力。** 运行 `.venv/Scripts/python.exe -m pytest tests/xiaohe/test_deep_native.py -q`；缺库或目标公开 API 不存在是可用红灯，记录实际原因。
-- [ ] **Step 3：更新兼容组合。** 加入固定候选，调整 core 声明及必要关联锁版本，运行 `uv lock`、`uv sync --frozen`；保持冷却规则。更换候选需先复核研究中默认工具／状态传递与恢复约束，不静默采用浮动 latest。
-- [ ] **Step 4：验证。** 重跑能力测试及 `tests/agents`；核对 `uv lock --check`。预期全 PASS，锁内版本满足约束；不把仅导入成功当成原生工具循环通过。
-- [ ] **Step 5：审阅并提交。** 仅依赖和能力测试，建议提交 `build: add verified DeepAgents dependency set`。
+- [x] **Step 2：记录红灯或既有能力。** 运行 `.venv/Scripts/python.exe -m pytest tests/xiaohe/test_deep_native.py -q`；缺库或目标公开 API 不存在是可用红灯，记录实际原因。
+- [x] **Step 3：更新兼容组合。** 加入固定候选，调整 core 声明及必要关联锁版本，运行 `uv lock`、`uv sync --frozen`；保持冷却规则。更换候选需先复核研究中默认工具／状态传递与恢复约束，不静默采用浮动 latest。
+- [x] **Step 4：验证。** 重跑能力测试及 `tests/agents`；核对 `uv lock --check`。预期全 PASS，锁内版本满足约束；不把仅导入成功当成原生工具循环通过。
+- [x] **Step 5：审阅并提交。** 仅依赖和能力测试，建议提交 `build: add verified DeepAgents dependency set`。
 
 ### Task 2：二十一份标准包与受限绑定
 
