@@ -40,10 +40,10 @@ async def test_formal_payload_and_draft_api_use_same_bound_definition(pg_factory
         )
         row = await db.get(ReceptionDraft, UUID(view.id))
         original = row.definition_bundle_id
-    data = yaml.safe_load((root / "workflows/buyer.yaml").read_text("utf-8"))
+    data = yaml.safe_load((root / "lead-skills/buyer/policy.yaml").read_text("utf-8"))
     data["required_fields"] = ["companyName", "contactName", "contactPhone", "city"]
     data["rounds"][0], data["rounds"][1] = data["rounds"][1], data["rounds"][0]
-    (root / "workflows/buyer.yaml").write_text(yaml.safe_dump(data), "utf-8")
+    (root / "lead-skills/buyer/policy.yaml").write_text(yaml.safe_dump(data), "utf-8")
     latest = load_bundle(root)
     async with pg_factory.begin() as db:
         await persist_bundle(db, latest)
@@ -112,7 +112,8 @@ def test_business_layout_is_rejected_before_startup(invalid):
     from xiaohe.workflows.loader import parse_workflow
     from xiaohe.workflows.models import WorkflowValidationError
 
-    data = yaml.safe_load((RESOURCE_ROOT / "workflows/buyer.yaml").read_text("utf-8"))
+    data = workflow_for(load_bundle(RESOURCE_ROOT), "xiaohe-buyer").model_dump()
+    data.pop("lead_skill_id", None)
     if invalid == "empty":
         data.update(rounds=[], required_fields=[])
     elif invalid == "no_summary":
@@ -143,7 +144,7 @@ async def test_fresh_install_can_start_changed_workflow_without_legacy_snapshot(
 
     root = tmp_path / "resources"
     copytree(RESOURCE_ROOT, root)
-    path = root / "workflows/buyer.yaml"
+    path = root / "lead-skills/buyer/policy.yaml"
     data = yaml.safe_load(path.read_text("utf-8"))
     data["rounds"][0], data["rounds"][1] = data["rounds"][1], data["rounds"][0]
     path.write_text(yaml.safe_dump(data), "utf-8")
@@ -172,7 +173,7 @@ async def test_legacy_draft_still_requires_original_snapshot(pg_factory, tmp_pat
 
     root = tmp_path / "resources"
     copytree(RESOURCE_ROOT, root)
-    path = root / "workflows/buyer.yaml"
+    path = root / "lead-skills/buyer/policy.yaml"
     data = yaml.safe_load(path.read_text("utf-8"))
     data["rounds"][0], data["rounds"][1] = data["rounds"][1], data["rounds"][0]
     path.write_text(yaml.safe_dump(data), "utf-8")

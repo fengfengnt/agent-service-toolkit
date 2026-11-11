@@ -223,7 +223,7 @@ async def test_pending_submission_query_reconciles_without_reconfirmation(
         row = await db.get(ReceptionDraft, UUID(view.id))
         row.step, row.state, row.summary_version = "summary", "review", row.revision
     message, view = await talk(pg_factory, runtime_env, who, conversation, "就按这份资料提交吧")
-    assert view.active_draft.state == "submitting" and "尚未确认" in message.model_dump_json()
+    assert view.active_draft.state == "submitting" and "正在核实提交结果，请稍后查询，无需重复提交。" in message.model_dump_json()
     message, view = await talk(pg_factory, runtime_env, who, conversation, "查询原提交的结果")
-    assert view.active_draft.state == "accepted" and "已核实" in message.model_dump_json()
+    assert view.active_draft.state == "accepted" and "本次需求已受理，可在“我的进展”查看状态。" in message.model_dump_json()
     assert backend.creates == 1

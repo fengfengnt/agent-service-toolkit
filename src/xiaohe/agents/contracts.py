@@ -42,6 +42,9 @@ class ModelContext(StrictAgentModel):
     eligible_topics: list[str] = Field(default_factory=list)
     allowed_actions: list[RouteEvent] = Field(default_factory=list)
     role_guide: str | None = None
+    authenticated: bool = False
+    required_fields: list[str] = Field(default_factory=list)
+    field_labels: dict[str, str] = Field(default_factory=dict)
 
 
 class AgentFrame(InternalModel):

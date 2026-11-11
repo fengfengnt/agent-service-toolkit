@@ -125,6 +125,9 @@ async def build_agent_frame(factory, fence, agent_id, bundle):
 
         draft_rules = await draft_definition(db, row) if row else definition
         field_policy = await resolve_draft_policy(db, row) if row else None
+        if field_policy is None and definition.lead_skill_id:
+            from xiaohe.lead_skills.loader import parse_lead_skills
+            field_policy = parse_lead_skills(bundle.resources).field_policies[ROLE_DIRECTIONS[agent_id]]
         interaction_policy = await load_policy(db, command.interaction_policy_id) if command.interaction_policy_id else None
         allowed = [key for group in draft_rules.rounds for key in group.fields] if row else []
         return AgentFrame(
@@ -143,6 +146,9 @@ async def build_agent_frame(factory, fence, agent_id, bundle):
             pending_request_id=flow.pending_request_id,
             invitation_state=cast(InvitationState, flow.invitation_state),
             model_context=ModelContext(
+                authenticated=actor.user_id is not None,
+                required_fields=field_policy.required_fields if field_policy else draft_rules.required_fields,
+                field_labels={item.id: item.label for item in field_policy.fields} if field_policy else {},
                 text=_safe_model_text(visible_text(message.parts)),
                 direction=ROLE_DIRECTIONS[agent_id],
                 recent_turns=[
@@ -514,6 +520,7 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
             ):
                 raise ServiceError("DRAFT_CONFLICT", 409)
             text = ""
+            collection = False
             if node.operation == "request_auth":
                 flow.invitation_state = "accepted"
                 if run.user_id is None:
@@ -567,6 +574,7 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
                         "prepare" if row.state in ("collecting", "review") else
                         "unknown" if row.state == "submitting" else "accepted",
                         direction=row.direction)
+                collection = row.state in ("collecting", "review")
             elif node.operation == "new_draft":
                 if run.user_id is None:
                     raise ServiceError("AUTH_REQUIRED", 401)
@@ -585,6 +593,7 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
                 row.definition_bundle_id = frame.bundle_id
                 flow.invitation_state = "accepted"
                 text = "已创建新的需求草稿。"
+                collection = True
                 if frame.interaction_policy:
                     text = render_lead_notice(frame.interaction_policy, "prepare", direction=row.direction)
             elif node.operation == "resume_draft":
@@ -615,6 +624,8 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
                     text = "请在草稿列表选择要继续的一份。"
                 else:
                     flow.active_draft_id = matches[0].id
+                    row = matches[0]
+                    collection = True
                     text = "已恢复所选草稿。"
             elif node.operation in (
                 "collect_details",
@@ -638,6 +649,11 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
                     text = "该需求已有受理回执；新需求请新建草稿。"
                 elif node.operation == "confirm_submission":
                     if frame.interaction_policy:
+                        if run.user_id is None:
+                            flow.invitation_state = "accepted"
+                            result = {"text": "请通过认证卡片注册或登录。", "auth": True, "wait": False}
+                            _save_stage(command, frame.agent_id, operation_result=result)
+                            return {"operation_result": result}
                         if decision.candidates:
                             await patch_locked_draft(db, row, frame.draft_revision,
                                 {key: item.value for key, item in decision.candidates.items()})
@@ -740,7 +756,7 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
                     db, node.operation, frame, decision, row, command, run
                 )
             result = {"text": text, "wait": submission_id is None}
-            if node.operation == "request_auth" and row.state in ("collecting", "review"):
+            if collection and row is not None and row.state in ("collecting", "review"):
                 result["collection"] = True
             if submission_id is not None:
                 _save_stage(command, frame.agent_id, submission_id=str(submission_id))
@@ -948,6 +964,8 @@ async def _external_operation(factory, frame, decision, prepared, client):
                     factory, frame.fence, UUID(prepared["submission_id"]), client
                 )
                 value = {"text": "已核实原提交的受理回执，请在进展中查看真实跟进。", "wait": False}
+                if frame.interaction_policy:
+                    value["text"] = render_lead_notice(frame.interaction_policy, "accepted", direction=frame.model_context.direction)
             except ServiceError as error:
                 if error.code != "SUBMISSION_UNKNOWN":
                     raise
@@ -955,6 +973,8 @@ async def _external_operation(factory, frame, decision, prepared, client):
                     "text": "正式受理结果仍待核实；稍后会沿原提交核对，不重复创建。",
                     "wait": False,
                 }
+                if frame.interaction_policy:
+                    value["text"] = render_lead_notice(frame.interaction_policy, "unknown", direction=frame.model_context.direction)
         else:
             page = await client.progress(actor, {"cursor": None})
             value = {

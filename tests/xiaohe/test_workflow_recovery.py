@@ -87,7 +87,9 @@ async def test_hard_kill_after_source_binding_recovers_target_once(pg_factory, j
     from xiaohe.agents.nodes import build_agent_frame
 
     model = AgentSequenceModel(result={}, decisions=[{"action": "consultation"}])
-    registry = await load_agent_registry(pg_factory, RESOURCE_ROOT, model, None)
+    root = tmp_path / "resources"
+    copytree(RESOURCE_ROOT, root)
+    registry = await load_agent_registry(pg_factory, root, model, None)
     who, conversation = await visitor(pg_factory)
     async with pg_factory.begin() as db:
         accepted = await send_in_db(db, who, conversation, "我想了解采购服务")
@@ -95,11 +97,19 @@ async def test_hard_kill_after_source_binding_recovers_target_once(pg_factory, j
         fence = await acquire_run(db, UUID(accepted.run.id))
     frame = await build_agent_frame(pg_factory, fence, "xiaohe-reception", registry.bundle)
     await kill_at_committed_phase(tmp_path, frame, "source")
+    (root / "lead-skills/buyer/SKILL.md").write_text("新版引导哨兵", "utf-8")
+    newer = await load_agent_registry(pg_factory, root, model, None)
+    assert newer.bundle.bundle_id != registry.bundle.bundle_id
     async with pg_factory.begin() as db:
         fence = await acquire_run(db, fence.run_id, recover=True)
-    result = await run_agent_turn(pg_factory, fence, bundle=registry.bundle, model=model)
+    result = await run_agent_turn(pg_factory, fence, bundle=registry.bundle, model=model, registry=newer)
     assert result.wait_for_input and len(model.agent_calls) == 1
     assert "采购 Agent" in model.agent_calls[0]
+    assert "新版引导哨兵" not in str(model.requests)
+    async with pg_factory() as db:
+        command = await db.get(Command, frame.command_id)
+        assert command.completed_at is None and command.interaction_policy_id == frame.interaction_policy.policy_id
+        assert command.payload["agentExecution"]["bundleId"] == registry.bundle.bundle_id
 
 
 async def test_hard_kill_after_backend_success_reconciles_without_new_submission(
@@ -155,7 +165,7 @@ async def test_hard_kill_after_backend_success_reconciles_without_new_submission
         )
 
 
-async def test_wait_restart_uses_original_bundle_and_target(
+async def test_wait_restart_keeps_run_shell_and_new_command_uses_latest_bundle(
     pg_factory, runtime_env, monkeypatch, tmp_path
 ):
     root = tmp_path / "resources"
@@ -180,15 +190,13 @@ async def test_wait_restart_uses_original_bundle_and_target(
 
     await install(pg_factory, runtime_env, monkeypatch, model=model)
     await talk(pg_factory, runtime_env, who, conversation, "计费方式呢")
-    assert "新版本提示词哨兵" not in str(model.requests)
+    assert "新版本提示词哨兵" in str(model.requests)
     async with pg_factory() as db:
         run = await db.scalar(select(Run).where(Run.conversation_id == conversation))
         assert run.workflow_bundle_id == registry.bundle.bundle_id
         commands = (await db.scalars(select(Command).where(Command.run_id == run.id))).all()
-        assert all(
-            item.payload["agentExecution"]["bundleId"] == registry.bundle.bundle_id
-            for item in commands
-        )
+        assert {item.payload["agentExecution"]["bundleId"] for item in commands} == {
+            registry.bundle.bundle_id, newer.bundle.bundle_id}
 
 
 async def test_recovery_after_source_saved_does_not_repeat_reception(

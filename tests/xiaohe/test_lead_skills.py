@@ -52,8 +52,8 @@ def test_skill_binding_is_separate_from_qa_topics(tmp_path):
     for role in bundle.field_policies:
         path = tmp_path / f"resources/workflows/{role}.yaml"
         data = yaml.safe_load(path.read_text("utf-8"))
-        data.pop("rounds")
-        data.pop("required_fields")
+        data.pop("rounds", None)
+        data.pop("required_fields", None)
         data["lead_skill_id"] = role + ".lead_capture"
         path.write_text(yaml.safe_dump(data, allow_unicode=True), "utf-8")
     workflow = load_bundle(tmp_path / "resources")
@@ -65,7 +65,7 @@ def test_skill_binding_is_separate_from_qa_topics(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "change", ["role", "field", "action", "template", "alias", "duplicate", "path"]
+    "change", ["role", "field", "scope", "action", "template", "alias", "duplicate", "path"]
 )
 def test_invalid_skill_configuration_is_rejected(tmp_path, change):
     skills()
@@ -76,6 +76,8 @@ def test_invalid_skill_configuration_is_rejected(tmp_path, change):
         data["direction"] = "other"
     elif change == "field":
         data["fields"][0]["id"] = "unknown"
+    elif change == "scope":
+        data["fields"][0]["scope"] = "request"
     elif change == "action":
         data["execute"] = "python"
     elif change == "path":

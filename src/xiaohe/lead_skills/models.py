@@ -5,7 +5,7 @@ from typing import Literal, Self
 
 from pydantic import Field, model_validator
 
-from xiaohe.reception.fields import ALLOWED_FIELDS
+from xiaohe.reception.fields import ALLOWED_FIELDS, PUBLIC_FIELDS
 from xiaohe.workflows.models import DefinitionModel, RoundDefinition
 
 Direction = Literal["buyer", "organization", "supplier"]
@@ -75,6 +75,11 @@ class FieldPolicy(DefinitionModel):
             raise ValueError("role skill mismatch")
         if len(ids) != len(set(ids)) or set(ids) - set(ALLOWED_FIELDS[self.direction]):
             raise ValueError("unsupported role field")
+        if any(
+            (item.scope == "public") != (item.id in PUBLIC_FIELDS[self.direction])
+            for item in self.fields
+        ):
+            raise ValueError("field storage scope cannot be changed by policy")
         if set(grouped) - set(ids) or len(grouped) != len(set(grouped)):
             raise ValueError("grouped fields must have unique definitions")
         if len({r.id for r in self.rounds}) != len(self.rounds):

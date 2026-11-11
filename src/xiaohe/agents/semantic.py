@@ -15,6 +15,41 @@ from xiaohe.workflows.models import WorkflowBundle, WorkflowDefinition
 MODEL_TIMEOUT = 30
 
 
+def _claims_business_success(text: str) -> bool:
+    # shortcut: 覆盖常见状态声明；真实模型评测发现新句式时补充，不能替代语义评测。
+    def quoted(match):
+        prefix, suffix = text[max(0, match.start() - 24) : match.start()], text[match.end() :]
+        if re.search(r"示例|例如|比如|样例|引用|原话|example", prefix, re.I) or re.match(
+            r"\s*(?:不代表|并不表示|的意思|是指)", suffix
+        ):
+            return ""
+        return match.group()
+
+    text = re.sub(r'“[^”]*”|‘[^’]*’|"[^"\n]*"|「[^」]*」', quoted, text)
+    pattern = re.compile(
+        r"(?:已(?:经)?|成功)(?:(?:为您|帮您|替您|成功|正式|被)\s*){0,3}"
+        r"(?:保存|提交|受理|安排|转交|审核|开通|注册|登录|绑定|通过)"
+        r"|(?:提交|受理|保存|审核|开通|注册|登录|绑定)(?:成功|完成|通过)"
+        r"|\b(?:has|have|is|are)\s+(?:now\s+)?(?:been\s+)?"
+        r"(?:accepted|approved|submitted|saved|enabled|registered|assigned)\b",
+        re.I,
+    )
+    for clause in re.split(r"[。！？；，,!?;\n]", text):
+        for match in pattern.finditer(clause):
+            prefix, suffix = clause[: match.start()], clause[match.end() :]
+            if re.search(
+                r"(?:尚未|未|没有|并未|不代表|不能|不会|并非|还没|如果|假设|例如|比如|当|若).{0,16}$",
+                prefix,
+            ):
+                continue
+            if re.search(r"\b(?:if|unless|not|never|example)\b.{0,60}$", prefix, re.I):
+                continue
+            if re.match(r"(?:后|时|才能|才可)|(?:用户|会员|企业)(?:可|能|应|需|通常)", suffix):
+                continue
+            return True
+    return False
+
+
 def _safe_context(frame: AgentFrame) -> dict:
     context = frame.model_context.model_dump(mode="json")
     context["text"] = _safe_model_text(context["text"])
@@ -122,8 +157,12 @@ async def compose_answer(
     materials: list[KnowledgeHit],
     prompt: str,
 ) -> AnswerDraft:
+    if frame.model_context.role_guide:
+        prompt += "\n\n本轮适用的角色留资规范：\n" + frame.model_context.role_guide
+    context = _safe_context(frame)
+    context.pop("role_guide", None)
     payload = {
-        "context": _safe_context(frame),
+        "context": context,
         "topics": decision.topics,
         "materials": [
             {
@@ -149,9 +188,6 @@ async def compose_answer(
         raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
     if set(answer.source_ids) - {item.source for item in materials}:
         raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
-    if frame.interaction_policy and re.search(
-        r"(?:已(?:经)?|成功)(?:为您|帮您|替您)?(?:成功)?(?:保存|提交|受理|安排|转交|审核|开通|注册|登录|绑定)"
-        r"|(?:提交|受理|保存|审核|开通|注册|登录|绑定)(?:成功|完成|通过)", answer.text
-    ):
+    if frame.interaction_policy and _claims_business_success(answer.text):
         raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
     return answer

@@ -64,12 +64,49 @@ def test_direct_evidence_does_not_forge_summary():
 async def test_expand_migration_preserves_legacy_submissions(pg_factory, pg_url, job_app):
     from test_reception_submission import confirmed
 
-    from xiaohe.reception.models import ReceptionSubmission
+    from xiaohe.reception.models import ReceptionDraft, ReceptionFile, ReceptionSubmission
 
     assert "confirmation_evidence" in ReceptionSubmission.__table__.columns, (
         "expand migration missing"
     )
     _, submission = await confirmed(pg_factory)
+    async with pg_factory.begin() as db:
+        draft = await db.get(ReceptionDraft, submission.draft_id)
+        file_id = uuid4()
+        db.add(
+            ReceptionFile(
+                id=file_id,
+                draft_id=draft.id,
+                conversation_id=draft.conversation_id,
+                system_id=draft.system_id,
+                tenant_id=draft.tenant_id,
+                client_upload_id="migration-file",
+                upload_request={},
+                category="product_manual",
+                filename="合成测试.pdf",
+                media_type="application/pdf",
+                bytes=5,
+                sha256="d" * 64,
+                status="ready",
+                object_key="fixture/lead-file",
+                object_keys=["fixture/lead-file"],
+                detached=False,
+            )
+        )
+        record = await db.get(ReceptionSubmission, submission.id)
+        record.payload = record.payload | {
+            "files": [
+                {
+                    "id": str(file_id),
+                    "category": "product_manual",
+                    "filename": "合成测试.pdf",
+                    "mediaType": "application/pdf",
+                    "bytes": 5,
+                    "sha256": "d" * 64,
+                    "status": "ready",
+                }
+            ]
+        }
     engine = create_engine(pg_url, hide_parameters=True)
     try:
         with engine.connect() as connection:
@@ -88,6 +125,12 @@ async def test_expand_migration_preserves_legacy_submissions(pg_factory, pg_url,
                     .scalars()
                     .all()
                 )
+                retained = {
+                    table: connection.execute(text(f"SELECT row_to_json(t) FROM xiaohe.{table} t"))
+                    .scalars()
+                    .all()
+                    for table in ("users", "sessions", "reception_files")
+                }
                 command.upgrade(config, "head")
                 after = connection.execute(
                     text("SELECT row_to_json(s) FROM xiaohe.reception_submissions s")
@@ -103,6 +146,13 @@ async def test_expand_migration_preserves_legacy_submissions(pg_factory, pg_url,
                 assert [
                     {k: d[k] for k in old} for d, old in zip(actual, drafts, strict=True)
                 ] == drafts
+                for table, rows in retained.items():
+                    assert (
+                        connection.execute(text(f"SELECT row_to_json(t) FROM xiaohe.{table} t"))
+                        .scalars()
+                        .all()
+                        == rows
+                    )
                 connection.execute(
                     text(
                         "INSERT INTO xiaohe.lead_policies (policy_id,kind,payload) VALUES (:id,'fields','{}')"

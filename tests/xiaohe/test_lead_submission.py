@@ -1,3 +1,5 @@
+from uuid import UUID
+
 import pytest
 from sqlalchemy import select
 from test_agent_operations import cache_decision, prepare
@@ -210,3 +212,88 @@ async def test_forged_direct_evidence_is_rejected(pg_factory, job_app, tmp_path,
                 db, row, row.revision, None, frame.message_id, frame.actor.user_id, evidence=proof
             )
     assert len(client.payloads) == 1
+
+
+@pytest.mark.parametrize("change", ["attach", "detach"])
+async def test_attachment_revision_change_rejects_semantic_submit(
+    pg_factory, job_app, tmp_path, change
+):
+    from xiaohe.reception.contracts import InitFile
+    from xiaohe.reception.files import detach_file, init_file
+
+    bundle, frame = await lead_prepare(pg_factory, tmp_path, role="supplier")
+    async with pg_factory.begin() as db:
+        upload = await init_file(
+            db,
+            frame.actor,
+            frame.draft_id,
+            InitFile(
+                client_upload_id="race-file",
+                category="product_manual",
+                filename="合成测试.pdf",
+                media_type="application/pdf",
+                bytes=5,
+                expected_revision=frame.draft_revision,
+            ),
+        )
+    if change == "detach":
+        frame = await build_agent_frame(pg_factory, frame.fence, frame.agent_id, bundle)
+        async with pg_factory.begin() as db:
+            await detach_file(
+                db, frame.actor, frame.draft_id, UUID(upload.file.id), frame.draft_revision
+            )
+    client = Business()
+    with pytest.raises(ServiceError, match="DRAFT_CONFLICT"):
+        await submit(pg_factory, bundle, frame, client)
+    assert not client.payloads
+
+
+async def test_guest_submission_requests_auth_without_submitting(pg_factory, job_app):
+    from test_admission import visitor
+    from test_lead_skills import ROOT
+    from test_reception_flow import send_in_db
+
+    from xiaohe.reception.contracts import CreateDraft
+    from xiaohe.reception.store import create_draft
+    from xiaohe.runs import acquire_run
+    from xiaohe.workflows.loader import load_bundle
+    from xiaohe.workflows.store import bind_run_bundle, persist_bundle
+
+    bundle = load_bundle(ROOT)
+    who, conversation = await visitor(pg_factory)
+    async with pg_factory.begin() as db:
+        await persist_bundle(db, bundle)
+        draft = await create_draft(
+            db,
+            who,
+            conversation,
+            CreateDraft(client_draft_id="guest-lead", kind="service", direction="buyer"),
+        )
+        await patch_draft(
+            db,
+            who,
+            draft.id,
+            draft.revision,
+            {
+                "companyName": "虚构访客公司",
+                "contactName": "测试联系人",
+                "contactPhone": "测试总台",
+            },
+        )
+        accepted = await send_in_db(db, who, conversation, "可以")
+        await bind_run_bundle(db, UUID(accepted.run.id), bundle.bundle_id)
+        command = await db.scalar(
+            select(Command).where(Command.message_id == UUID(accepted.message.id))
+        )
+        await bind_command_policy(
+            db, command, skills().interaction_policy, workflow_bundle_id=bundle.bundle_id
+        )
+    async with pg_factory.begin() as db:
+        fence = await acquire_run(db, UUID(accepted.run.id))
+    frame = await build_agent_frame(pg_factory, fence, "xiaohe-buyer", bundle)
+    client = Business()
+    result = await submit(pg_factory, bundle, frame, client)
+    assert result["operation_result"]["auth"] is True
+    async with pg_factory() as db:
+        assert await db.scalar(select(ReceptionSubmission)) is None
+    assert not client.payloads

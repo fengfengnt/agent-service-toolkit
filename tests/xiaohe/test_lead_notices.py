@@ -152,3 +152,88 @@ async def test_login_is_not_submission_consent(pg_factory, job_app, tmp_path):
     assert result["operation_result"]["collection"] is True
     async with pg_factory() as db:
         assert await db.scalar(select(ReceptionSubmission)) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "text",
+    [
+        "您的申请已被受理，请等待联系。",
+        "审核已经通过，可以使用服务了。",
+        "Your application has been accepted.",
+        "Your account is now enabled.",
+    ],
+)
+async def test_model_passive_and_inverted_success_claims_are_rejected(tmp_path, text):
+    from test_agent_semantics import ScriptedModel, prepared
+
+    from xiaohe.agents.contracts import SemanticDecision
+    from xiaohe.agents.semantic import compose_answer
+    from xiaohe.contracts import ServiceError
+
+    _, _, frame = prepared(tmp_path)
+    frame = frame.model_copy(update={"interaction_policy": skills().interaction_policy})
+    model = ScriptedModel(
+        result={},
+        responses={"AnswerDraft": {"text": text, "basis": "general_advice", "source_ids": []}},
+    )
+    with pytest.raises(ServiceError):
+        await compose_answer(model, frame, SemanticDecision(action="consultation"), [], "答疑")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "text",
+    [
+        "如果审核通过，您可以在我的进展中查看。",
+        "申请尚未受理，请以实际结果为准。",
+        "目前尚未提交成功，请检查资料。",
+        "示例提示“已受理”不代表您的申请状态。",
+        "已注册用户可以在我的进展查询申请。",
+        "If the application is approved, you can use the service.",
+        "The application has not been accepted.",
+    ],
+)
+async def test_model_can_explain_conditional_quoted_and_negative_status(tmp_path, text):
+    from test_agent_semantics import ScriptedModel, prepared
+
+    from xiaohe.agents.contracts import SemanticDecision
+    from xiaohe.agents.semantic import compose_answer
+
+    _, _, frame = prepared(tmp_path)
+    frame = frame.model_copy(update={"interaction_policy": skills().interaction_policy})
+    model = ScriptedModel(
+        result={},
+        responses={"AnswerDraft": {"text": text, "basis": "general_advice", "source_ids": []}},
+    )
+    answer = await compose_answer(model, frame, SemanticDecision(action="consultation"), [], "答疑")
+    assert answer.text == text
+
+
+@pytest.mark.pg
+@pytest.mark.asyncio
+async def test_model_receives_trusted_authentication_fields_and_role_guide(
+    pg_factory, job_app, tmp_path
+):
+    from test_agent_semantics import ScriptedModel
+    from test_lead_submission import lead_prepare
+
+    from xiaohe.agents.contracts import SemanticDecision
+    from xiaohe.agents.semantic import compose_answer
+
+    _, frame = await lead_prepare(pg_factory, tmp_path)
+    assert getattr(frame.model_context, "authenticated", False) is True
+    assert frame.model_context.required_fields == frame.field_policy.required_fields
+    assert frame.model_context.field_labels["contactPhone"] == "联系电话"
+    model = ScriptedModel(
+        result={},
+        responses={
+            "AnswerDraft": {
+                "text": "请在资料面板填写企业及联系信息。",
+                "basis": "general_advice",
+                "source_ids": [],
+            }
+        },
+    )
+    await compose_answer(model, frame, SemanticDecision(action="consultation"), [], "依据规范答疑")
+    assert frame.model_context.role_guide in model.requests[0][0].content
