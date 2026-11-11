@@ -142,6 +142,7 @@ async def create_draft(
     *,
     source=None,
     definition_bundle_id=None,
+    field_policy=None,
 ) -> DraftView:
     flow = await flow_record(db, actor, conversation_id)
     existing = await db.scalar(
@@ -171,6 +172,12 @@ async def create_draft(
         creation_request=request.model_dump(mode="json", by_alias=True, exclude_none=True),
         **request.model_dump(),
     )
+    if field_policy is not None:
+        from xiaohe.lead_skills.store import persist_policy
+
+        if field_policy.direction != request.direction:
+            raise ServiceError("INPUT_INVALID", 422)
+        row.field_policy_id = await persist_policy(db, field_policy)
     if source is not None:
         if request.source_application_id:
             if (

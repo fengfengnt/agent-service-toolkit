@@ -128,13 +128,13 @@
 
 工具名称固定为 `read_lead`、`prepare_lead`、`compose_form`、`save_lead`、`submit_lead`、`query_progress`、`request_handoff`，按绑定／授权只返回子集。prepare_lead 复用现有认证、唯一／多草稿、新建／恢复行为。`compose_form(context: ToolContext, field_groups: list[list[str]], *, prompt: str) -> FormViewV2`；FormViewV2 在 models.py 定义 version=2、scope（draft／application）、direction、fieldRuleVersion、interactionVersion、formId、draftRevision、applicationRevision、fields、groups、pending、actions；两个 revision 依 scope 互斥，groups 为含 id／name／fields 的列表。核心仅组合可编辑字段并签发服务端 formId，Task 7 扩展其读取投影与进度。
 
-- [ ] **Step 1：写失败测试。** 覆盖匿名认证、角色隔离、原文证据、字段保留、过期修订、取消 fence、口语语境确认、同轮改资料提交、实际汇总按钮和结果未知。显式加入 Review Focus 1 的 `test_same_effect_new_tool_call_id_returns_receipt` 与 `test_two_distinct_saves_in_one_command_both_apply`。
+- [x] **Step 1：写失败测试。** 覆盖匿名认证、角色隔离、原文证据、字段保留、过期修订、取消 fence、口语语境确认、同轮改资料提交、实际汇总按钮和结果未知。显式加入 Review Focus 1 的 `test_same_effect_new_tool_call_id_returns_receipt` 与 `test_two_distinct_saves_in_one_command_both_apply`。
 
   固定断言：`assert repeated.receipt_id == first.receipt_id`；`assert business_calls == 1`。连续合法修改场景另断言 `assert saved_revisions == [base_revision + 1, base_revision + 2]`，不能用同一断言吞掉第二次修改。
-- [ ] **Step 2：验证红灯。** `.venv/Scripts/python.exe -m pytest tests/xiaohe/test_deep_tools.py tests/xiaohe/test_deep_effects.py -q`，预期 native 工具适配／effects 缺失。
-- [ ] **Step 3：实现授权适配。** 将准备／恢复草稿、读取、form 组合、保存、确认提交、真实进展与交接接入现有服务。prepare_lead 创建草稿时显式使用本轮 bundle 的字段 policy 并持久化其引用，不能重新读取后来变化的 live 文件；旧调用者仍沿原路径。共用提取保持旧校验及报错；接待不提供专业写工具，child 不提供写工具。语义确认候选绑定可信 Command／原消息及最终资料，不能把 submit 调用本身当确认证据。
-- [ ] **Step 4：实现幂等记录。** `payload.deepExecution.effects` 在现有锁序和短事务内持久化动作。稳定身份覆盖 Command、角色、操作、草稿、预期修订及规范化业务载荷，不使用 tool_call_id／attempt。相同动作先返回原回执，其他载荷按当前 revision 校验，避免吞掉合法连续修改。正式提交继续复用原 submission 键和不可变载荷，未知结果查询原请求。
-- [ ] **Step 5：验证并提交。** 新测试以及 `test_agent_operations.py`、`test_lead_submission.py`、`test_reception_lock_order.py` 全 PASS；检查无模型／网络等待持数据库事务。建议 `feat(xiaohe): expose guarded business tools with stable receipts`。
+- [x] **Step 2：验证红灯。** `.venv/Scripts/python.exe -m pytest tests/xiaohe/test_deep_tools.py tests/xiaohe/test_deep_effects.py -q`，预期 native 工具适配／effects 缺失。
+- [x] **Step 3：实现授权适配。** 将准备／恢复草稿、读取、form 组合、保存、确认提交、真实进展与交接接入现有服务。prepare_lead 创建草稿时显式使用本轮 bundle 的字段 policy 并持久化其引用，不能重新读取后来变化的 live 文件；旧调用者仍沿原路径。共用提取保持旧校验及报错；接待不提供专业写工具，child 不提供写工具。语义确认候选绑定可信 Command／原消息及最终资料，不能把 submit 调用本身当确认证据。
+- [x] **Step 4：实现幂等记录。** `payload.deepExecution.effects` 在现有锁序和短事务内持久化动作。稳定身份覆盖 Command、角色、操作、草稿、预期修订及规范化业务载荷，不使用 tool_call_id／attempt。相同动作先返回原回执，其他载荷按当前 revision 校验，避免吞掉合法连续修改。正式提交继续复用原 submission 键和不可变载荷，未知结果查询原请求。
+- [x] **Step 5：验证并提交。** 新测试以及 `test_agent_operations.py`、`test_lead_submission.py`、`test_reception_lock_order.py` 全 PASS；检查无模型／网络等待持数据库事务。建议 `feat(xiaohe): expose guarded business tools with stable receipts`。
 
 ### Task 6：三节点运行时、checkpoint 与旧引擎并存
 

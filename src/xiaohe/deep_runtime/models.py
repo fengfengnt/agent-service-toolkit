@@ -3,6 +3,7 @@ from typing import Literal, Self
 from pydantic import Field, model_validator
 
 from xiaohe.agents.contracts import AnswerDraft, FieldCandidate
+from xiaohe.contracts import WireModel
 from xiaohe.lead_skills.models import FieldPolicy, InteractionPolicy, policy_digest
 from xiaohe.workflows.models import AgentId, DefinitionModel, Identifier
 
@@ -86,3 +87,55 @@ class ChildResult(DefinitionModel):
 class DeepTurnResult(DefinitionModel):
     answer: AnswerDraft | None = None
     wait_for_input: bool = True
+
+
+class SubmitIntent(DefinitionModel):
+    confirmed: bool
+    evidence: str = Field(min_length=1, max_length=10000)
+    negated: bool = False
+    deferred: bool = False
+    conditional: bool = False
+    needs_clarification: bool = False
+
+
+class ToolResult(DefinitionModel):
+    operation: str
+    status: Literal["ok", "unknown", "auth", "choice", "error"] = "ok"
+    revision: int | None = None
+    receipt_id: str | None = None
+    data: dict = Field(default_factory=dict)
+    error_code: str | None = None
+
+
+class FormGroup(WireModel):
+    id: str
+    name: str
+    fields: list[str]
+
+
+class FormViewV2(WireModel):
+    version: Literal[2] = 2
+    scope: Literal["draft", "application"]
+    direction: Literal["buyer", "organization", "supplier"]
+    field_rule_version: str
+    interaction_version: str
+    skill_version: str
+    form_id: str
+    draft_revision: int | None = None
+    application_revision: int | None = None
+    fields: list[dict]
+    groups: list[FormGroup]
+    pending: list[str] = Field(default_factory=list)
+    actions: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def scoped_revision(self) -> Self:
+        if self.scope == "draft" and (
+            self.draft_revision is None or self.application_revision is not None
+        ):
+            raise ValueError("draft revision required")
+        if self.scope == "application" and (
+            self.application_revision is None or self.draft_revision is not None
+        ):
+            raise ValueError("application revision required")
+        return self

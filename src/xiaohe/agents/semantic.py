@@ -115,6 +115,13 @@ async def understand_turn(
         or set(decision.candidates) - set(frame.model_context.allowed_fields)
     ):
         raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
+    return validate_candidates(decision, frame)
+
+
+def validate_candidates(decision: SemanticDecision, frame: AgentFrame) -> SemanticDecision:
+    context = _safe_context(frame)
+    if set(decision.candidates) - set(frame.model_context.allowed_fields):
+        raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
     for key, candidate in decision.candidates.items():
         if key == "memberSize" and candidate.value is not None:
             normalized = map_member_size(candidate.evidence)
