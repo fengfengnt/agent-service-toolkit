@@ -112,6 +112,31 @@ class ConfirmationEvidence(InternalModel):
         )
 
 
+class LeadConfirmationEvidence(InternalModel):
+    version: Literal[1] = 1
+    source: Literal["semantic_direct", "semantic_reviewed", "button"]
+    command_id: UUID
+    run_id: UUID
+    message_id: UUID
+    user_id: str
+    draft_id: UUID
+    revision: int = Field(ge=1)
+    agent_id: AgentId
+    summary_version: int | None = Field(default=None, ge=1)
+    field_policy_id: str = Field(pattern=r"^[a-f0-9]{64}$")
+    interaction_policy_id: str = Field(pattern=r"^[a-f0-9]{64}$")
+    payload_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+    @model_validator(mode="after")
+    def true_confirmation_source(self) -> Self:
+        if self.source == "semantic_direct":
+            if self.summary_version is not None:
+                raise ValueError("direct confirmation does not assert a viewed summary")
+        elif self.summary_version != self.revision:
+            raise ValueError("reviewed confirmation requires current summary")
+        return self
+
+
 class AnswerDraft(StrictAgentModel):
     text: str = Field(min_length=1, max_length=4000)
     basis: Literal["general_advice", "confirmed_material", "needs_confirmation"]

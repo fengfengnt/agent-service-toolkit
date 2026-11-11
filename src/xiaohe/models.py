@@ -33,6 +33,18 @@ class WorkflowDefinitionRecord(Base):
     )
 
 
+class LeadPolicyRecord(Base):
+    __tablename__ = "lead_policies"
+    __table_args__ = (CheckConstraint("kind IN ('fields','interaction')"),)
+
+    policy_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    kind: Mapped[str]
+    payload: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.clock_timestamp()
+    )
+
+
 class System(Base):
     __tablename__ = "systems"
     __table_args__ = (
@@ -376,6 +388,7 @@ class Run(Base):
 class Command(Base):
     __tablename__ = "commands"
     __table_args__ = (
+        ForeignKeyConstraint(["interaction_policy_id"], ["xiaohe.lead_policies.policy_id"]),
         ForeignKeyConstraint(
             ["conversation_id", "system_id", "tenant_id"],
             [
@@ -411,6 +424,7 @@ class Command(Base):
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    interaction_policy_id: Mapped[str | None] = mapped_column(String(64))
     conversation_id: Mapped[UUID]
     system_id: Mapped[str]
     tenant_id: Mapped[int] = mapped_column(BigInteger)

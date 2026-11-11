@@ -45,6 +45,7 @@ class ReceptionFlow(Base):
 class ReceptionDraft(Base):
     __tablename__ = "reception_drafts"
     __table_args__ = (
+        ForeignKeyConstraint(["field_policy_id"], ["xiaohe.lead_policies.policy_id"]),
         _conversation_fk(),
         ForeignKeyConstraint(
             ["definition_bundle_id"],
@@ -72,6 +73,7 @@ class ReceptionDraft(Base):
     kind: Mapped[str]
     direction: Mapped[str]
     definition_bundle_id: Mapped[str | None] = mapped_column(String(64))
+    field_policy_id: Mapped[str | None] = mapped_column(String(64))
     subject_id: Mapped[str | None]
     source_application_id: Mapped[str | None]
     source_onboarding_id: Mapped[str | None]
@@ -111,7 +113,8 @@ class ReceptionSubmission(Base):
     system_id: Mapped[str]
     tenant_id: Mapped[int] = mapped_column(BigInteger)
     draft_revision: Mapped[int] = mapped_column(BigInteger)
-    summary_version: Mapped[int] = mapped_column(BigInteger)
+    summary_version: Mapped[int | None] = mapped_column(BigInteger)
+    confirmation_evidence: Mapped[dict | None] = mapped_column(JSONB(none_as_null=True))
     confirmation_message_id: Mapped[UUID]
     submission_key: Mapped[str] = mapped_column(unique=True)
     payload: Mapped[dict] = mapped_column(JSONB)
