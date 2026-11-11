@@ -171,7 +171,7 @@
 
 **Interfaces:** Task 7 的已实现 v2 fixture／契约、formId 冲突语义及原保存／正式提交边界。门户只呈现服务端已有字段组合，Skill 名称、工具策略和内部 checkpoint 不作为用户操作项。
 
-- [ ] **Step 1：编写可转交文档。** 附精确响应、v2 保存请求、旧后端回退、真实状态提示和验收命令。保留门户当前 v1 适配与未提交工作；交用户转交，不自动发消息或跨仓编码。
+- [x] **Step 1：编写可转交文档。** 附精确响应、v2 保存请求、旧后端回退、真实状态提示和验收命令。保留门户当前 v1 适配与未提交工作；交用户转交，不自动发消息或跨仓编码。
 - [ ] **Step 2：由门户维护者写红灯。** `reception-lead-policy-v2.test.ts` 固定协议解析与 3→4 组合；`reception-form-rebase.test.ts` 固定 owner／角色变化和未保存输入；浏览器 `reception-lead-policy-v2.spec.ts` 验证聚焦、冲突后保留输入及面板去重。
 
   门户场景固定断言：`expect(editor.values).toEqual(unsavedValues)`；`expect(serverSubmissionCount).toBe(1)`；`expect(activeFieldGroups).toHaveLength(4)`。
