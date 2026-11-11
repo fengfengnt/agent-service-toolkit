@@ -9,6 +9,7 @@ from xiaohe.api import _actor, _body
 from xiaohe.contracts import ServiceError
 from xiaohe.identity import CSRF_HEADER, require_session
 from xiaohe.models import User
+from xiaohe.lead_skills.views import supports_lead_policy_v2
 from xiaohe.reception.contracts import (
     ApplicationFormQuery,
     CreateDraft,
@@ -110,7 +111,12 @@ def create_reception_router(factory, business_client=None):
             lead_policy_view,
             supports_lead_policy,
         )
-        if supports_lead_policy(request):
+        if supports_lead_policy_v2(request):
+            from xiaohe.deep_runtime.forms import application_policy_v2
+            async with factory.begin() as db:
+                actor = await _actor(request, db)
+                data["leadPolicy"] = (await application_policy_v2(db, actor, view)).model_dump(mode="json", by_alias=True)
+        elif supports_lead_policy(request):
             from xiaohe.reception.forms import form_field_policy
             policy = form_field_policy(view.direction, expected_bundle_id=view.definition_bundle_id)
             async with factory.begin() as db:
@@ -122,7 +128,8 @@ def create_reception_router(factory, business_client=None):
     @router.post("/application-form/submissions")
     async def form_submit(request: Request):
         from xiaohe.reception.forms import submit_application_form
-        body = await _body(request, FormSubmissionInput, max_bytes=512 * 1024)
+        from xiaohe.reception.contracts import FormSubmissionV2
+        body = await _body(request, FormSubmissionV2 if supports_lead_policy_v2(request) else FormSubmissionInput, max_bytes=512 * 1024)
         result = await submit_application_form(factory, await form_actor(request), body, business_client)
         return result.model_dump(mode="json", by_alias=True)
 
@@ -182,7 +189,12 @@ def create_reception_router(factory, business_client=None):
                 lead_policy_view,
                 supports_lead_policy,
             )
-            if supports_lead_policy(request):
+            if supports_lead_policy_v2(request):
+                from xiaohe.deep_runtime.forms import lead_policy_v2
+                data["leadPolicy"] = None
+                if view.active_draft is not None:
+                    data["leadPolicy"] = (await lead_policy_v2(db, await _actor(request, db), UUID(view.active_draft.id))).model_dump(mode="json", by_alias=True)
+            elif supports_lead_policy(request):
                 data["leadPolicy"] = None
                 if view.active_draft is not None:
                     from xiaohe.lead_skills.store import resolve_draft_policy
@@ -223,6 +235,16 @@ def create_reception_router(factory, business_client=None):
             view = await patch_draft(
                 db, await _actor(request, db), draft_id, body.expected_revision, body.fields
             )
+            return view.model_dump(mode="json", by_alias=True, exclude_none=True)
+
+    @router.patch("/drafts/{draft_id}/form")
+    async def dynamic_form_patch(draft_id: UUID, request: Request):
+        from xiaohe.reception.contracts import PatchForm
+        from xiaohe.deep_runtime.forms import patch_form
+        body = await _body(request, PatchForm, max_bytes=512 * 1024)
+        async with factory.begin() as db:
+            view = await patch_form(db, await _actor(request, db), draft_id,
+                form_id=body.form_id, expected_revision=body.expected_revision, fields=body.fields)
             return view.model_dump(mode="json", by_alias=True, exclude_none=True)
 
     @router.post("/drafts/{draft_id}/actions", status_code=202)

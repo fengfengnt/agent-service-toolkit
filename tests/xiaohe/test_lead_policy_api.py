@@ -56,7 +56,7 @@ async def test_legacy_read_shape_is_unchanged(pg_factory):
             "draftRefs": [],
             "activeDraft": None,
         }
-        for headers in ({}, {HEADER: "2"}, [(HEADER, "1"), (HEADER, "1")]):
+        for headers in ({}, {HEADER: "3"}, [(HEADER, "1"), (HEADER, "1")]):
             assert (await client.get(path, headers=headers)).json() == expected
 
 

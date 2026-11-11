@@ -117,6 +117,9 @@ class RunWorker:
                 )
                 # Flush content under the same locked fence before the terminal transition.
                 await db.flush()
+                from xiaohe.deep_runtime.forms import record_published_guidance
+
+                await record_published_guidance(db, command, message)
                 await require_write(db, fence)
                 run.outcome = outcome
                 run.pending_request = questions[0] if event.outcome.wait_for_input else None

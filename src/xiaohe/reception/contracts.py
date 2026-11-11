@@ -189,6 +189,14 @@ class FormSubmissionInput(ApplicationFormQuery):
         return self
 
 
+class FormSubmissionV2(FormSubmissionInput):
+    policy_form_id: Id
+
+
+class PatchForm(PatchDraft):
+    form_id: Id
+
+
 class DraftView(WireModel):
     id: Id
     kind: DraftKind

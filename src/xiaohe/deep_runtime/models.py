@@ -127,6 +127,8 @@ class FormViewV2(WireModel):
     groups: list[FormGroup]
     pending: list[str] = Field(default_factory=list)
     actions: list[str] = Field(default_factory=list)
+    required_fields: list[str] = Field(default_factory=list)
+    notices: dict[str, str] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def scoped_revision(self) -> Self:

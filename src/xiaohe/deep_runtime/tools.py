@@ -160,6 +160,11 @@ async def execute_effect(
         return await _progress(context)
     if operation == "prepare_lead" and payload.get("mode") == "edit":
         return await _edit_draft(context)
+    if operation == "compose_form":
+        async with context.factory.begin() as db:
+            _, _, _, flow = await checked_context(db, context, operation)
+            row = await active_draft(db, context, flow)
+            draft_id, expected_revision = row.id, row.revision
     identity = json.dumps(
         [
             str(context.command_id),
@@ -318,6 +323,8 @@ async def execute_effect(
             elif operation == "compose_form":
                 from xiaohe.deep_runtime.forms import compose_locked_form
 
+                if row.revision != expected_revision:
+                    raise ServiceError("DRAFT_CONFLICT", 409)
                 view = await compose_locked_form(
                     db, context, row, payload["field_groups"], payload["prompt"]
                 )

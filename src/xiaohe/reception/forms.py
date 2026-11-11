@@ -109,6 +109,12 @@ async def submit_application_form(factory, actor, payload, client):
         view = await read_application_form(factory, actor, payload.source_application_id, payload.mode, client)
         if view.expected_application_revision != payload.expected_application_revision or view.definition_bundle_id != payload.definition_bundle_id:
             raise ServiceError("DRAFT_CONFLICT", 409)
+        if getattr(payload, "policy_form_id", None):
+            from xiaohe.deep_runtime.forms import application_policy_v2
+            async with factory.begin() as db:
+                projected = await application_policy_v2(db, actor, view)
+            if projected.form_id != payload.policy_form_id:
+                raise ServiceError("ACTION_STALE", 409)
         policy = form_field_policy(view.direction, expected_bundle_id=view.definition_bundle_id)
         fields = validate_fields(view.direction, view.fields | payload.fields, policy=policy)
         if missing_required(view.direction, fields, policy=policy):

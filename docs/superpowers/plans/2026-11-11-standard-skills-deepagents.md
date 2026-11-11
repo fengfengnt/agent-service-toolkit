@@ -156,14 +156,14 @@
 
 **Interfaces:** 消费 Task 5 的 compose_form／FormViewV2；产生 `lead_policy_v2(db: AsyncSession, actor: Actor, draft_id: UUID) -> FormViewV2`、`application_policy_v2(db: AsyncSession, actor: Actor, view: ApplicationFormView) -> FormViewV2`、`record_published_guidance(db: AsyncSession, command: Command, message: Message) -> None`。展示及进度持久化到 `guidance_progress`，不改变字段 policy_id；旧 DraftView.step 保留旧协议值，新引导不再复用 round1—round3 枚举。
 
-- [ ] **Step 1：写失败测试。** 三步改四步／合并和重排既有字段，不新增固定枚举；旧字段门槛不变，只读保留字段不能编辑。`test_nonfield_step_requires_published_evidence` 断言未落库的解释候选不是完成记录，已发布消息或真实回执才可作为依据。两个原有 GET 的 v1、重复头、未知值继续旧形状；独立申请表单的 v2 读取不新建聊天草稿或调用模型。
+- [x] **Step 1：写失败测试。** 三步改四步／合并和重排既有字段，不新增固定枚举；旧字段门槛不变，只读保留字段不能编辑。`test_nonfield_step_requires_published_evidence` 断言未落库的解释候选不是完成记录，已发布消息或真实回执才可作为依据。两个原有 GET 的 v1、重复头、未知值继续旧形状；独立申请表单的 v2 读取不新建聊天草稿或调用模型。
 
   固定断言：`assert old_draft.field_policy_id == original_policy_id`；`assert len(view.groups) == 4`；`assert not unpublished_step.completed`；`assert legacy_response == original_v1_fixture`。
-- [ ] **Step 2：验证红灯。** `.venv/Scripts/python.exe -m pytest tests/xiaohe/test_deep_forms.py tests/xiaohe/test_deep_progress.py tests/xiaohe/test_lead_policy_v2.py -q`，预期 v2 投影与进度缺失。
-- [ ] **Step 3：实现数据投影。** 两个原有 GET 恰好一个 `X-Xiaohe-Lead-Policy: 2` 才返回 v2；1 仍 v1，其他保持原兼容。聊天无活动草稿时仍 null；独立表单按现有 ApplicationFormView 和规则确定性投影，不在 GET 调模型。formId 由服务器绑定 scope、主体、修订、交互及展示组合；读取／校验不得产生新的业务草稿。
-- [ ] **Step 4：实现显式 v2 保存边界。** 聊天采用 `PATCH /ai-api/v1/reception/drafts/{draft_id}/form`，输入 `formId`、`expectedRevision`、`fields`。独立表单原 POST `/application-form` 在声明 v2 时采用扩展请求模型，在原请求上增加 formId，仍校验原 definitionBundleId／expectedApplicationRevision 后复用现有服务。旧请求不新增必填键、正式业务后端载荷不变。formId 失效返回 ACTION_STALE，修订冲突返回 DRAFT_CONFLICT；会话、CSRF 和归属检查保持。
-- [ ] **Step 5：实现接续及完成依据。** 读取同草稿已有资料和已完成事项，在新 Command 按新 Skill 判断待办；新步骤不机械沿用旧 round 编号。最终解释由 worker 的既有消息落库事务调用 record_published_guidance；引用真实 Message／回执而非模型自报。保存修订变化后旧 form 返回冲突，保留客户端输入；完整精确 JSON 与错误码写进契约及 fixture。
-- [ ] **Step 6：验证并提交。** 新测试及 `test_lead_policy_api.py`、`test_reception_drafts.py`、`test_event_recovery.py` 全 PASS；对比旧 fixture，未知字段、清空、缺项与部分保存不丢资料。建议 `feat(xiaohe): project flexible forms and evidence based guidance`。
+- [x] **Step 2：验证红灯。** `.venv/Scripts/python.exe -m pytest tests/xiaohe/test_deep_forms.py tests/xiaohe/test_deep_progress.py tests/xiaohe/test_lead_policy_v2.py -q`，预期 v2 投影与进度缺失。
+- [x] **Step 3：实现数据投影。** 两个原有 GET 恰好一个 `X-Xiaohe-Lead-Policy: 2` 才返回 v2；1 仍 v1，其他保持原兼容。聊天无活动草稿时仍 null；独立表单按现有 ApplicationFormView 和规则确定性投影，不在 GET 调模型。formId 由服务器绑定 scope、主体、修订、交互及展示组合；读取／校验不得产生新的业务草稿。
+- [x] **Step 4：实现显式 v2 保存边界。** 聊天采用 `PATCH /ai-api/v1/reception/drafts/{draft_id}/form`，输入 `formId`、`expectedRevision`、`fields`。独立表单原 POST `/application-form` 在声明 v2 时采用扩展请求模型，在原请求上增加 formId，仍校验原 definitionBundleId／expectedApplicationRevision 后复用现有服务。旧请求不新增必填键、正式业务后端载荷不变。formId 失效返回 ACTION_STALE，修订冲突返回 DRAFT_CONFLICT；会话、CSRF 和归属检查保持。
+- [x] **Step 5：实现接续及完成依据。** 读取同草稿已有资料和已完成事项，在新 Command 按新 Skill 判断待办；新步骤不机械沿用旧 round 编号。最终解释由 worker 的既有消息落库事务调用 record_published_guidance；引用真实 Message／回执而非模型自报。保存修订变化后旧 form 返回冲突，保留客户端输入；完整精确 JSON 与错误码写进契约及 fixture。
+- [x] **Step 6：验证并提交。** 新测试及 `test_lead_policy_api.py`、`test_reception_drafts.py`、`test_event_recovery.py` 全 PASS；对比旧 fixture，未知字段、清空、缺项与部分保存不丢资料。建议 `feat(xiaohe): project flexible forms and evidence based guidance`。
 
 ### Task 8：门户配套交接与兼容验收
 

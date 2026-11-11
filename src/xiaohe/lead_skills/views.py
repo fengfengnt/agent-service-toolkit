@@ -13,6 +13,10 @@ def supports_lead_policy(request) -> bool:
     return request.headers.getlist("X-Xiaohe-Lead-Policy") == ["1"]
 
 
+def supports_lead_policy_v2(request) -> bool:
+    return request.headers.getlist("X-Xiaohe-Lead-Policy") == ["2"]
+
+
 async def current_interaction_policy(db, conversation_id=None) -> InteractionPolicy:
     policy_id = None
     if conversation_id is not None:
