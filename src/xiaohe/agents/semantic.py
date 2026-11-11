@@ -7,6 +7,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from xiaohe.agents.contracts import AgentFrame, AnswerDraft, SemanticDecision
 from xiaohe.contracts import ServiceError
 from xiaohe.graph import _safe_model_text
+from xiaohe.knowledge.sources import KnowledgeMaterial
 from xiaohe.reception.contracts import KnowledgeHit
 from xiaohe.reception.fields import map_member_size, validate_fields
 from xiaohe.workflows.models import WorkflowBundle, WorkflowDefinition
@@ -125,6 +126,11 @@ async def compose_answer(
                 "source": item.source,
                 "text": _safe_model_text(item.text),
                 "conditions": item.conditions,
+                **(
+                    {"version": item.version, "display_source": item.display_source}
+                    if isinstance(item, KnowledgeMaterial)
+                    else {}
+                ),
             }
             for item in materials
         ],

@@ -12,6 +12,7 @@ from xiaohe.api import create_public_router, install_error_handlers
 from xiaohe.artifacts import ArtifactService
 from xiaohe.database import create_database_engine
 from xiaohe.graph import build_graph
+from xiaohe.knowledge.runtime import EmbeddedKnowledge
 from xiaohe.reception.api import create_reception_file_router, create_reception_router
 from xiaohe.reception.business_client import ReceptionBusinessClient
 from xiaohe.settings import Settings
@@ -43,17 +44,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise RuntimeError("only one xiaohe app may own the upstream registry per process")
         _active_app = app
         previous = agents.get("xiaohe")
+        knowledge = EmbeddedKnowledge(settings)
         try:
             from xiaohe.agents.runtime import load_agent_registry
             from xiaohe.workflows.definitions import RESOURCE_ROOT
 
             # 后续独立部署只替换宿主认证和 BusinessBackend 装配；本期共用进程。
-            registry = await load_agent_registry(factory, RESOURCE_ROOT, None, reception_client)
+            await knowledge.start()
+            app.state.xiaohe_knowledge = knowledge
+            registry = await load_agent_registry(
+                factory, RESOURCE_ROOT, None, reception_client, knowledge=knowledge
+            )
             app.state.xiaohe_agent_registry = registry
             agents["xiaohe"] = Agent(
                 description="小鹤执行与暂停外壳",
                 graph_like=build_graph(
-                    factory=factory, business_client=reception_client, agent_registry=registry
+                    factory=factory,
+                    business_client=reception_client,
+                    agent_registry=registry,
+                    knowledge=knowledge,
                 ),
             )
             async with AsyncExitStack() as stack:
@@ -88,8 +97,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             else:
                 agents["xiaohe"] = previous
             _active_app = None
-            await app.state.xiaohe_artifacts.close()
-            await engine.dispose()
+            try:
+                await knowledge.aclose()
+            finally:
+                await app.state.xiaohe_artifacts.close()
+                await engine.dispose()
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.xiaohe_settings = settings

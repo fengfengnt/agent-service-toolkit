@@ -25,10 +25,15 @@ from xiaohe.workflows.store import load_persisted_bundle, persist_bundle
 
 
 class AgentRegistry(dict):
-    def __init__(self, bundle, factory, model, business_client):
+    def __init__(self, bundle, factory, model, business_client, *, knowledge=None):
         self.bundle = bundle
+        self.knowledge = knowledge
         executors = make_node_executors(
-            factory, model=model, business_client=business_client, bundle=bundle
+            factory,
+            model=model,
+            business_client=business_client,
+            bundle=bundle,
+            knowledge=knowledge,
         )
         super().__init__(
             {
@@ -38,9 +43,9 @@ class AgentRegistry(dict):
         )
 
 
-async def load_agent_registry(factory, resource_root, model, business_client):
+async def load_agent_registry(factory, resource_root, model, business_client, *, knowledge=None):
     bundle = load_bundle(resource_root)
-    registry = AgentRegistry(bundle, factory, model, business_client)
+    registry = AgentRegistry(bundle, factory, model, business_client, knowledge=knowledge)
     async with factory.begin() as db:
         legacy_draft = await db.scalar(
             select(ReceptionDraft.id).where(ReceptionDraft.definition_bundle_id.is_(None)).limit(1)
@@ -61,7 +66,7 @@ async def load_agent_registry(factory, resource_root, model, business_client):
         ).all()
         for bundle_id in ids:
             previous = await load_persisted_bundle(db, bundle_id)
-            AgentRegistry(previous, factory, model, business_client)
+            AgentRegistry(previous, factory, model, business_client, knowledge=knowledge)
     factory.configure(info=factory.kw.get("info", {}) | {"workflow_bundle_id": bundle.bundle_id})
     return registry
 
@@ -82,7 +87,15 @@ async def _select_direction(db, conversation, flow, agent_id):
 
 
 async def run_agent_turn(
-    factory, fence, *, bundle, entry_agent=None, model=None, business_client=None, registry=None
+    factory,
+    fence,
+    *,
+    bundle,
+    entry_agent=None,
+    model=None,
+    business_client=None,
+    registry=None,
+    knowledge=None,
 ):
     if entry_agent is not None and entry_agent not in AGENT_IDS:
         raise ServiceError("FORBIDDEN", 403)
@@ -121,8 +134,10 @@ async def run_agent_turn(
             entry_agent and binding["entry"] != entry_agent
         ):
             raise ServiceError("ACTION_STALE", 409)
+    if knowledge is None and registry is not None:
+        knowledge = registry.knowledge
     if registry is None or registry.bundle.bundle_id != bundle.bundle_id:
-        registry = AgentRegistry(bundle, factory, model, business_client)
+        registry = AgentRegistry(bundle, factory, model, business_client, knowledge=knowledge)
     while True:
         active = binding["active"]
         async with factory.begin() as db:

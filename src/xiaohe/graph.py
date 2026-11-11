@@ -274,6 +274,7 @@ def build_graph(
     handlers=None,
     business_client=None,
     agent_registry=None,
+    knowledge=None,
 ):
     async def respond(state: GraphState, config: RunnableConfig):
         if handler is None:
@@ -313,6 +314,7 @@ def build_graph(
                         model=model,
                         business_client=business_client,
                         registry=agent_registry,
+                        knowledge=knowledge,
                     )
             else:
                 async with factory.begin() as db:

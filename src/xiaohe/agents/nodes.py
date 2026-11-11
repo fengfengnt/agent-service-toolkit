@@ -1,3 +1,4 @@
+import logging
 from typing import cast, get_args
 from uuid import UUID, uuid5
 
@@ -15,6 +16,7 @@ from xiaohe.agents.contracts import (
 )
 from xiaohe.agents.semantic import compose_answer, understand_turn
 from xiaohe.contracts import Actor, AgentOutcome, ServiceError, TrustedSystem
+from xiaohe.knowledge.sources import KnowledgeMaterial
 from xiaohe.models import Command, Conversation, Message, System, User
 from xiaohe.reception.contracts import CreateDraft
 from xiaohe.reception.fields import CHANNELS, FIELD_LABELS, ORG_ENUMS, missing_required
@@ -317,7 +319,9 @@ def validate_confirmation_evidence(evidence, row, command, run, message_id, user
             raise ServiceError("ACTION_STALE", 409)
 
 
-def make_node_executors(factory, *, model, business_client, bundle) -> dict[NodeType, NodeExecutor]:
+def make_node_executors(
+    factory, *, model, business_client, bundle, knowledge=None
+) -> dict[NodeType, NodeExecutor]:
     async def understand(node, state, config):
         frame = AgentFrame.model_validate(state["frame"])
         async with factory.begin() as db:
@@ -400,11 +404,19 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
     async def answer(node, state, config):
         frame = AgentFrame.model_validate(state["frame"])
         decision = SemanticDecision.model_validate(state["decision"])
+        material_bundle = bundle
         async with factory.begin() as db:
             _, command, _, _ = await _checked(db, frame)
             if cached := _stage(command, frame.agent_id).get("answer"):
                 return {"answer": cached}
             partner_entry = command.payload.get("receptionControl") == "switch_direction"
+            if knowledge is not None and frame.draft_id is not None:
+                row = await db.get(ReceptionDraft, frame.draft_id)
+                if row is not None and row.definition_bundle_id is not None:
+                    from xiaohe.workflows.store import load_persisted_bundle
+
+                    material_bundle = await load_persisted_bundle(db, row.definition_bundle_id)
+        citations = []
         if partner_entry:
             from xiaohe.reception.flow import LABELS, OPENERS
 
@@ -417,7 +429,25 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
             )
             result = AnswerDraft(text=text, basis="needs_confirmation")
         else:
-            materials = load_skill_materials(bundle, frame.agent_id, decision.topics)
+            material_topics = [
+                topic
+                for topic in decision.topics
+                if topic in material_bundle.definitions[frame.agent_id].skills
+            ]
+            materials = load_skill_materials(material_bundle, frame.agent_id, material_topics)
+            if knowledge is not None and state.get("event", decision.action) in (
+                "consultation",
+                "consultation_with_details",
+                "unclear",
+            ):
+                try:
+                    materials += await knowledge.query(
+                        material_bundle, frame.agent_id, material_topics
+                    )
+                except ServiceError:
+                    raise
+                except Exception:
+                    logging.getLogger(__name__).warning("xiaohe_knowledge:unavailable")
             definition = workflow_for(bundle, frame.agent_id)
             if model is None:
                 from xiaohe.graph import reception_model
@@ -432,9 +462,19 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
                 materials,
                 bundle.resources["prompts/" + definition.prompts[node.prompt]],
             )
+            citations = [
+                material.model_dump(mode="json", exclude={"text"})
+                for material in materials
+                if isinstance(material, KnowledgeMaterial) and material.source in result.source_ids
+            ]
         async with factory.begin() as db:
             _, command, _, _ = await _checked(db, frame)
-            _save_stage(command, frame.agent_id, answer=result.model_dump(mode="json"))
+            _save_stage(
+                command,
+                frame.agent_id,
+                answer=result.model_dump(mode="json"),
+                knowledge_citations=citations,
+            )
         return {"answer": result.model_dump()}
 
     async def operation(node, state, config):
@@ -785,6 +825,17 @@ def make_node_executors(factory, *, model, business_client, bundle) -> dict[Node
                 flow.invitation_state = "offered"
                 text += "\n\n是否愿意登录并登记需求，方便后续跟进？也可以继续咨询或暂缓。"
             parts = [{"type": "text", "text": text}]
+            if answer_value:
+                citations = _stage(command, frame.agent_id).get("knowledge_citations", [])
+                lines = [
+                    f"{item['display_source']}（版本：{item['version']}）\n适用条件：{item['conditions']}"
+                    for item in citations
+                    if item["source"] in answer_value.source_ids
+                ]
+                if lines:
+                    parts.append(
+                        {"type": "text", "text": "资料依据：\n" + "\n".join(dict.fromkeys(lines))}
+                    )
             if operation_value.get("auth") or (offered and run.user_id is None):
                 parts.append({"type": "auth_request", "intent": "lead"})
             if wait:
@@ -903,7 +954,9 @@ async def _external_operation(factory, frame, decision, prepared, client):
             _save_stage(command, frame.agent_id, external_result=value)
         return value
     elif name == "start_onboarding":
-        value = {"text": "合作与入驻已统一为一份申请，无需再次提交入驻资料。请在“我的进展”查看/修改原申请；审核通过与已完成入驻会分别显示。"}
+        value = {
+            "text": "合作与入驻已统一为一份申请，无需再次提交入驻资料。请在“我的进展”查看/修改原申请；审核通过与已完成入驻会分别显示。"
+        }
     elif not application_id:
         value = {"text": "请先完成组织合作申请，受理后可在我的进展查看或修改。"}
     elif name == "record_organization_intent":
