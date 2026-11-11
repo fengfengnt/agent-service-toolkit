@@ -60,6 +60,22 @@ async def main():
                     )
                 await stopped()
 
+        if data["phase"] == "deep":
+            from xiaohe.deep_runtime.bundles import load_runtime_bundle_record, select_binding
+            from xiaohe.deep_runtime.tools import ToolContext, execute_effect
+            from xiaohe.models import Command
+
+            async with factory() as db:
+                command = await db.get(Command, frame.command_id)
+                native = await load_runtime_bundle_record(db, command.payload["deepExecution"]["bundle_id"])
+            context = ToolContext(factory, frame.actor, frame.fence, frame.command_id,
+                frame.conversation_id, select_binding(native, frame.actor, frame.agent_id),
+                native, frame.model_context.text, Backend())
+            await execute_effect(context, "submit_lead", draft_id=frame.draft_id,
+                expected_revision=frame.draft_revision,
+                payload={"confirmation": {"confirmed": True, "evidence": frame.model_context.text}})
+            return
+
         nodes = make_node_executors(factory, model=None, business_client=Backend(), bundle=bundle)
         node = OperationNode(
             id="submit", name="提交", type="operation", operation="confirm_submission", next="done"

@@ -98,3 +98,52 @@ async def test_standalone_v2_has_no_chat_side_effects_and_keeps_upload_form_id(p
         )
         assert response.status_code == 200, response.text
         assert backend.created == 1 and await counts(pg_factory) == before
+
+
+async def test_standalone_v2_cannot_edit_preserved_hidden_field(pg_factory, monkeypatch):
+    from xiaohe.reception import forms
+
+    original = forms.form_field_policy
+
+    def limited_policy(direction, *, expected_bundle_id):
+        policy = original(direction, expected_bundle_id=expected_bundle_id)
+        return policy.model_copy(
+            update={
+                "rounds": [
+                    r.model_copy(
+                        update={"fields": [k for k in r.fields if k != "productDescription"]}
+                    )
+                    for r in policy.rounds
+                ]
+            }
+        )
+
+    monkeypatch.setattr(forms, "form_field_policy", limited_policy)
+    _, token = await login(pg_factory)
+    backend = FormBackend()
+    async with client_for(pg_factory) as (client, app):
+        app.include_router(create_reception_router(pg_factory, backend))
+        client.cookies.set(SESSION_COOKIE, token)
+        await session(client)
+        view = (
+            await client.get(
+                "/ai-api/v1/reception/application-form?sourceApplicationId=10&mode=edit",
+                headers={HEADER: "2"},
+            )
+        ).json()
+        body = {
+            "formId": str(uuid4()),
+            "policyFormId": view["leadPolicy"]["formId"],
+            "clientSubmissionId": "hidden-field",
+            "sourceApplicationId": "10",
+            "mode": "edit",
+            "expectedApplicationRevision": 3,
+            "definitionBundleId": view["definitionBundleId"],
+            "fields": {"productDescription": "不允许修改保留字段"},
+            "files": [],
+        }
+        response = await client.post(
+            "/ai-api/v1/reception/application-form/submissions", headers={HEADER: "2"}, json=body
+        )
+        assert response.status_code == 422, response.text
+        assert backend.created == 0

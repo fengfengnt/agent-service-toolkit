@@ -207,7 +207,11 @@ async def execute_effect(
                         )
                     )
                 )
-                requested = payload.get("draft_id")
+                if not rows and payload.get("mode", "resume") != "new" and flow.active_draft_id:
+                    active = await require_draft(db, context.actor, flow.active_draft_id)
+                    if active.direction == role and active.state == "accepted":
+                        rows = [active]
+                requested = str(draft_id) if draft_id else payload.get("draft_id")
                 if requested:
                     action = command.payload.get("reception", {})
                     if (action.get("action"), action.get("draftId")) != ("resume", requested):
@@ -301,26 +305,7 @@ async def execute_effect(
                         "required_fields": (await resolve_draft_policy(db, row)).required_fields,
                     },
                 )
-            if operation == "query_progress":
-                submission = await db.scalar(
-                    select(ReceptionSubmission).where(
-                        ReceptionSubmission.draft_id == row.id,
-                        ReceptionSubmission.status == "pending",
-                    )
-                )
-                if submission:
-                    submission_id = submission.id
-                    result = ToolResult(
-                        operation=operation,
-                        status="unknown",
-                        receipt_id=str(submission_id),
-                        revision=row.revision,
-                    )
-                else:
-                    result = ToolResult(
-                        operation=operation, revision=row.revision, data={"state": row.state}
-                    )
-            elif operation == "compose_form":
+            if operation == "compose_form":
                 from xiaohe.deep_runtime.forms import compose_locked_form
 
                 if row.revision != expected_revision:
@@ -447,9 +432,11 @@ async def execute_effect(
 
 async def _progress(context):
     async with context.factory.begin() as db:
-        run, _, _, flow = await checked_context(db, context, "query_progress")
+        run, command, _, flow = await checked_context(db, context, "query_progress")
         if run.user_id is None:
-            return ToolResult(operation="query_progress", status="auth", data={"auth": True})
+            result = ToolResult(operation="query_progress", status="auth", data={"auth": True})
+            _record_progress(command, result)
+            return result
         actor = actor_from_user(await db.get(User, run.user_id))
         pending = await db.scalar(
             select(ReceptionSubmission).where(
@@ -468,15 +455,27 @@ async def _progress(context):
         except ServiceError as error:
             if error.code != "SUBMISSION_UNKNOWN":
                 raise
-            return ToolResult(
+            result = ToolResult(
                 operation="query_progress", status="unknown", receipt_id=str(pending_id)
             )
+            async with context.factory.begin() as db:
+                _, command, _, _ = await checked_context(db, context, "query_progress")
+                _record_progress(command, result)
+            return result
     page = await context.business_client.progress(actor, {"cursor": None})
     async with context.factory.begin() as db:
-        await checked_context(db, context, "query_progress")
-    return ToolResult(
-        operation="query_progress", data={"progress": page.model_dump(mode="json", by_alias=True)}
-    )
+        _, command, _, _ = await checked_context(db, context, "query_progress")
+        result = ToolResult(
+            operation="query_progress",
+            data={"progress": page.model_dump(mode="json", by_alias=True)},
+        )
+        _record_progress(command, result)
+        return result
+
+
+def _record_progress(command, result):
+    execution = DeepExecution.model_validate(command.payload["deepExecution"])
+    _save_execution(command, execution, "query_progress", result)
 
 
 async def _edit_draft(context):

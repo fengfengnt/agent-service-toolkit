@@ -8,8 +8,8 @@ from pydantic import TypeAdapter, ValidationError
 from xiaohe.api import _actor, _body
 from xiaohe.contracts import ServiceError
 from xiaohe.identity import CSRF_HEADER, require_session
-from xiaohe.models import User
 from xiaohe.lead_skills.views import supports_lead_policy_v2
+from xiaohe.models import User
 from xiaohe.reception.contracts import (
     ApplicationFormQuery,
     CreateDraft,
@@ -127,8 +127,8 @@ def create_reception_router(factory, business_client=None):
 
     @router.post("/application-form/submissions")
     async def form_submit(request: Request):
-        from xiaohe.reception.forms import submit_application_form
         from xiaohe.reception.contracts import FormSubmissionV2
+        from xiaohe.reception.forms import submit_application_form
         body = await _body(request, FormSubmissionV2 if supports_lead_policy_v2(request) else FormSubmissionInput, max_bytes=512 * 1024)
         result = await submit_application_form(factory, await form_actor(request), body, business_client)
         return result.model_dump(mode="json", by_alias=True)
@@ -239,8 +239,8 @@ def create_reception_router(factory, business_client=None):
 
     @router.patch("/drafts/{draft_id}/form")
     async def dynamic_form_patch(draft_id: UUID, request: Request):
-        from xiaohe.reception.contracts import PatchForm
         from xiaohe.deep_runtime.forms import patch_form
+        from xiaohe.reception.contracts import PatchForm
         body = await _body(request, PatchForm, max_bytes=512 * 1024)
         async with factory.begin() as db:
             view = await patch_form(db, await _actor(request, db), draft_id,

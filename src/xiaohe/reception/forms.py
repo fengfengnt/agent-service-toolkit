@@ -115,6 +115,9 @@ async def submit_application_form(factory, actor, payload, client):
                 projected = await application_policy_v2(db, actor, view)
             if projected.form_id != payload.policy_form_id:
                 raise ServiceError("ACTION_STALE", 409)
+            editable = {key for group in projected.groups for key in group.fields}
+            if payload.fields.keys() - editable:
+                raise ServiceError("INPUT_INVALID", 422)
         policy = form_field_policy(view.direction, expected_bundle_id=view.definition_bundle_id)
         fields = validate_fields(view.direction, view.fields | payload.fields, policy=policy)
         if missing_required(view.direction, fields, policy=policy):

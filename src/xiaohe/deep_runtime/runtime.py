@@ -131,6 +131,7 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
                 business_client,
             )
             action = command.payload.get("reception", {})
+            action = action | {"control": command.payload.get("receptionControl")}
             reference_key = f"{active}:{fence.attempt}:{fence.ownership_epoch}"
             reference = current.threads.get(reference_key) or {
                 "id": str(uuid5(command.id, bundle.bundle_id + reference_key)),
@@ -172,6 +173,18 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
         return {"candidate": None}
 
     async def business_agent(state):
+        if (
+            action.get("control") in ("accept_invitation", "start_collection")
+            and context.binding.agent_id != "xiaohe-reception"
+        ):
+            await execute_effect(
+                context,
+                "prepare_lead",
+                draft_id=None,
+                expected_revision=None,
+                payload={"mode": "resume"},
+            )
+            return {"candidate": None}
         if action.get("action") == "confirm":
             await execute_effect(
                 context,
@@ -180,6 +193,18 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
                 expected_revision=action.get("expectedRevision"),
                 payload={"confirmation": {"confirmed": True, "evidence": context.text}},
             )
+            return {"candidate": None}
+        if action.get("action") == "resume":
+            await execute_effect(
+                context,
+                "prepare_lead",
+                draft_id=action.get("draftId"),
+                expected_revision=None,
+                payload={"mode": "resume"},
+            )
+            return {"candidate": None}
+        if action.get("action") in ("save_round", "skip_optional", "show_summary"):
+            await _legacy_button(context, action)
             return {"candidate": None}
         from xiaohe.graph import reception_model
 
@@ -268,6 +293,24 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
                         ),
                     }
                 )
+            if any(e["operation"] == "query_progress" and e["status"] == "ok" for e in effects):
+                parts.append({"type": "text", "text": "已查询真实进展，请在“我的进展”查看记录。"})
+            for effect in effects:
+                if effect["operation"] == "prepare_lead" and effect.get("data", {}).get(
+                    "state"
+                ) in ("accepted", "submitting"):
+                    notice = "accepted" if effect["data"]["state"] == "accepted" else "unknown"
+                    parts.append(
+                        {
+                            "type": "text",
+                            "text": render_lead_notice(
+                                bundle.interaction_policy, notice, direction=conversation.direction
+                            ),
+                        }
+                    )
+            for effect in effects:
+                if effect["operation"] == "legacy_button":
+                    parts.append({"type": "text", "text": effect["data"]["text"]})
             auth = any(e["status"] == "auth" for e in effects)
             if auth:
                 parts.append({"type": "auth_request", "intent": "lead"})
@@ -319,3 +362,56 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
         if result["outcome"]:
             return AgentOutcome.model_validate(result["outcome"])
     raise ServiceError("INVALID_WAIT_STATE", 502)
+
+
+async def _legacy_button(context, action):
+    from xiaohe.deep_runtime.models import ToolResult
+    from xiaohe.deep_runtime.tools import _save_execution, active_draft, checked_context
+    from xiaohe.lead_skills.store import resolve_draft_policy
+    from xiaohe.reception.fields import missing_required
+
+    async with context.factory.begin() as db:
+        _, command, _, flow = await checked_context(db, context, "read_lead")
+        execution = DeepExecution.model_validate(command.payload["deepExecution"])
+        key = "legacy_button"
+        if key in execution.effects:
+            return
+        row = await active_draft(db, context, flow, action["draftId"])
+        if row.revision != action["expectedRevision"] or row.state not in ("collecting", "review"):
+            raise ServiceError("DRAFT_CONFLICT", 409)
+        policy = await resolve_draft_policy(db, row)
+        if action["action"] == "save_round":
+            steps = [group.id for group in policy.rounds]
+            target = (
+                steps[min(steps.index(row.step) + 1, len(steps) - 1)]
+                if row.step in steps
+                else row.step
+            )
+        else:
+            target = "summary"
+        if row.step != target:
+            row.step, row.revision, row.summary_version = target, row.revision + 1, None
+        notice = render_lead_notice(
+            context.bundle.interaction_policy, "saved", direction=row.direction
+        )
+        if target == "summary":
+            row.state, row.summary_version = "review", row.revision
+            missing = missing_required(row.direction, row.fields, policy=policy)
+            if missing:
+                notice += "\n" + render_lead_notice(
+                    context.bundle.interaction_policy,
+                    "missing",
+                    direction=row.direction,
+                    missing_labels=[field.label for field in policy.fields if field.id in missing],
+                )
+            notice += "\n请核对当前汇总，确认无误后再提交。"
+        _save_execution(
+            command,
+            execution,
+            key,
+            ToolResult(
+                operation="legacy_button",
+                revision=row.revision,
+                data={"text": notice, "collection": True},
+            ),
+        )
