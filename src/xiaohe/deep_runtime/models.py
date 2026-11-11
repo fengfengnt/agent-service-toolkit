@@ -2,6 +2,7 @@ from typing import Literal, Self
 
 from pydantic import Field, model_validator
 
+from xiaohe.agents.contracts import AnswerDraft, FieldCandidate
 from xiaohe.lead_skills.models import FieldPolicy, InteractionPolicy, policy_digest
 from xiaohe.workflows.models import AgentId, DefinitionModel, Identifier
 
@@ -70,3 +71,18 @@ class DeepExecution(DefinitionModel):
     threads: dict[str, dict] = Field(default_factory=dict)
     effects: dict[str, dict] = Field(default_factory=dict)
     result: dict | None = None
+
+
+class ChildTask(DefinitionModel):
+    text: str = Field(min_length=1, max_length=10000)
+
+
+class ChildResult(DefinitionModel):
+    summary: str = Field(min_length=1, max_length=4000)
+    candidates: dict[str, FieldCandidate] = Field(default_factory=dict)
+    missing_fields: list[str] = Field(default_factory=list)
+
+
+class DeepTurnResult(DefinitionModel):
+    answer: AnswerDraft | None = None
+    wait_for_input: bool = True

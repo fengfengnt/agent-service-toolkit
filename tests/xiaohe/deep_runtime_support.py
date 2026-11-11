@@ -7,6 +7,11 @@ from pydantic import Field
 
 class DeepScriptModel(FakeMessagesListChatModel):
     bound_tool_names: list[str] = Field(default_factory=list)
+    requests: list[list] = Field(default_factory=list)
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        self.requests.append(list(messages))
+        return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
 
     def bind_tools(self, tools, *, tool_choice=None, **kwargs):
         self.bound_tool_names = [convert_to_openai_tool(tool)["function"]["name"] for tool in tools]

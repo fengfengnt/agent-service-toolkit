@@ -112,13 +112,13 @@
 
 **Interfaces:** `build_business_agent(bundle: RuntimeBundle, execution: DeepExecution, binding: RuntimeBinding, *, model: BaseChatModel, tools: list[BaseTool], checkpointer: BaseCheckpointSaver) -> CompiledStateGraph`。`ChildTask` 只含授权任务文本和只读资料快照；`ChildResult` 只含 summary、候选资料和缺项建议；`build_readonly_child(bundle: RuntimeBundle, binding: RuntimeBinding, *, model: BaseChatModel) -> CompiledSubAgent`。`DeepTurnResult` 含校验后的 AnswerDraft 候选和等待／交接建议，不能含可信受理状态。
 
-- [ ] **Step 1：写失败测试。** 真实 native 图执行两 Skill 组合，活动留资 Skill 必定载入，其余正文未命中不读取。`test_child_cannot_merge_business_state` 让 child 尝试返回 files、自定义状态、Command.update 和伪造受理，断言被拒绝且父状态不变；写工具、文件写工具、execute、task 再委派实际不可调用。
+- [x] **Step 1：写失败测试。** 真实 native 图执行两 Skill 组合，活动留资 Skill 必定载入，其余正文未命中不读取。`test_child_cannot_merge_business_state` 让 child 尝试返回 files、自定义状态、Command.update 和伪造受理，断言被拒绝且父状态不变；写工具、文件写工具、execute、task 再委派实际不可调用。
 
   固定断言：`assert parent_business_state == before`；`assert not {"save_lead", "submit_lead", "write_file", "execute", "task"} & child_tool_names`。
-- [ ] **Step 2：验证红灯。** `.venv/Scripts/python.exe -m pytest tests/xiaohe/test_deep_factory.py tests/xiaohe/test_deep_children.py -q`，预期装配边界缺失。
-- [ ] **Step 3：实现最小装配。** 复用原生 `StateBackend`，仅在首次输入放入 Task 2 产出的允许 Skill 文件；恢复不替换 files。显式配置只读 FilesystemMiddleware、关闭默认 general-purpose；通过公开 profile API 应用到实际使用的模型。不要添加自定义文件系统或整仓库挂载。
-- [ ] **Step 4：实现 child 投影。** CompiledSubAgent 外包装只接收 ChildTask，建立其自己的技能 files／只读工具集合，输出严格解析为 ChildResult，再转为允许结果；丢弃或拒绝任意业务 state 合并。业务工具的授权上下文不进入模型可改写的 state；无 child 内层 interrupt。
-- [ ] **Step 5：验证并提交。** 重跑上述测试与 Task 1 native 能力测试，预期全 PASS；建议 `feat(xiaohe): constrain DeepAgents and readonly subagents`。
+- [x] **Step 2：验证红灯。** `.venv/Scripts/python.exe -m pytest tests/xiaohe/test_deep_factory.py tests/xiaohe/test_deep_children.py -q`，预期装配边界缺失。
+- [x] **Step 3：实现最小装配。** 复用原生 `StateBackend`，仅在首次输入放入 Task 2 产出的允许 Skill 文件；恢复不替换 files。显式配置只读 FilesystemMiddleware、关闭默认 general-purpose；通过公开 profile API 应用到实际使用的模型。不要添加自定义文件系统或整仓库挂载。
+- [x] **Step 4：实现 child 投影。** CompiledSubAgent 外包装只接收 ChildTask，建立其自己的技能 files／只读工具集合，输出严格解析为 ChildResult，再转为允许结果；丢弃或拒绝任意业务 state 合并。业务工具的授权上下文不进入模型可改写的 state；无 child 内层 interrupt。
+- [x] **Step 5：验证并提交。** 重跑上述测试与 Task 1 native 能力测试，预期全 PASS；建议 `feat(xiaohe): constrain DeepAgents and readonly subagents`。
 
 ### Task 5：授权业务工具与稳定副作用记录
 
