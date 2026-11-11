@@ -185,13 +185,13 @@
 
 **Interfaces:** Tasks 1—7 的固定 bundle、runtime、工具与 v2 API；Task 8 回执是前后端组合结论的前置条件。继续复用旧业务客户端桩和专用临时 PostgreSQL，不调用真实模型／短信／正式后台。
 
-- [ ] **Step 1：写失败恢复场景。** 三方向完整留资、同轮答疑加留资、只读 child；旧 Run 新 Command 选 native、旧 Command 在途提交仍旧引擎；副作用后 checkpoint 前崩溃、模型后续失败、取消和 worker 竞争；发布新包后旧 Command 使用旧内容；新版关闭后在途 native 仍可恢复。
+- [x] **Step 1：写失败恢复场景。** 三方向完整留资、同轮答疑加留资、只读 child；旧 Run 新 Command 选 native、旧 Command 在途提交仍旧引擎；副作用后 checkpoint 前崩溃、模型后续失败、取消和 worker 竞争；发布新包后旧 Command 使用旧内容；新版关闭后在途 native 仍可恢复。
 
   固定断言：`assert accepted_application_count == 1`；`assert retried_submit_key == original_submit_key`；`assert resumed_execution.bundle_id == original_bundle_id`。
-- [ ] **Step 2：验证这些场景确有覆盖。** 未通过的目标场景先红灯；能通过的既有回归保留对照。对每个故障注入点明确断言唯一正式申请、原提交键和正确缺项／受理／未知结果，不只检查 HTTP 200。
-- [ ] **Step 3：完成集成缺口。** 只修本次接入缺失，不扩大成旧代码重构。复核 SSE／AG-UI 不泄漏 child 内部消息、系统提示及授权快照，确认所有新推理线程被生命周期清理枚举覆盖。
-- [ ] **Step 4：运行验收。** 先跑各 Task 相关测试，再运行 `.venv/Scripts/python.exe -m pytest tests/xiaohe --ignore=tests/xiaohe/integration -m 'not minio' -q` 与本次 crash integration；依赖升级另跑 `tests/agents`、相关 service streaming 测试。MinIO 项须有独立测试存储后另验，不能连接现有 bucket。既有同名模块收集问题如仍存在单独记录，不能将忽略后的集合描述为整个仓库通过。
-- [ ] **Step 5：演练迁移和回退并提交。** 仅专用库验证 upgrade、旧行不改写、有新记录时拒绝不兼容 downgrade、只切后续新请求的回退。记录依赖锁、commit、测试集合、门户回执、未做真实模型／部署及其验收入口。建议 `test(xiaohe): verify native skills recovery and migration`。
+- [x] **Step 2：验证这些场景确有覆盖。** 未通过的目标场景先红灯；能通过的既有回归保留对照。对每个故障注入点明确断言唯一正式申请、原提交键和正确缺项／受理／未知结果，不只检查 HTTP 200。
+- [x] **Step 3：完成集成缺口。** 只修本次接入缺失，不扩大成旧代码重构。复核 SSE／AG-UI 不泄漏 child 内部消息、系统提示及授权快照，确认所有新推理线程被生命周期清理枚举覆盖。
+- [x] **Step 4：运行验收。** 先跑各 Task 相关测试，再运行 `.venv/Scripts/python.exe -m pytest tests/xiaohe --ignore=tests/xiaohe/integration -m 'not minio' -q` 与本次 crash integration；依赖升级另跑 `tests/agents`、相关 service streaming 测试。MinIO 项须有独立测试存储后另验，不能连接现有 bucket。既有同名模块收集问题如仍存在单独记录，不能将忽略后的集合描述为整个仓库通过。
+- [x] **Step 5：演练迁移和回退并提交。** 仅专用库验证 upgrade、旧行不改写、有新记录时拒绝不兼容 downgrade、只切后续新请求的回退。记录依赖锁、commit、测试集合、门户回执、未做真实模型／部署及其验收入口。建议 `test(xiaohe): verify native skills recovery and migration`。
 
 ## 设计覆盖与自审记录
 

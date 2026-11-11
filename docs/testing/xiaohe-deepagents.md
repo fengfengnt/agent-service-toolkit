@@ -1,6 +1,6 @@
 # 小鹤标准 Skill 与 DeepAgents 验证记录
 
-状态：后端实现及隔离验收进行中；门户／前后端组合待维护者回执；未部署。最终测试结果见本文末尾。
+状态：后端实现及隔离验收通过，最终审阅待完成；门户／前后端组合待维护者回执；未部署。最终测试结果见本文末尾。
 
 ## 实现与入口
 
@@ -64,4 +64,4 @@ uv lock --check
 - 首轮完整非 MinIO 集合：995 passed、15 skipped、10 deselected、5 failed。一个失败是旧测试写死 0013（已更新为 0014）；四个来自一次性部署迁移脚本的精确测试库名白名单。未放松或修改这些生产脚本。
 - 同一专有容器中新建 test_xiaohe_agent 隔离库后，历史迁移专项 6 passed，portal origin 迁移随最终专项通过。
 - 最终业务／v2／强杀／origin 专项 26 passed；依赖升级相关 Agent／流式接口 38 passed；uv lock --check 和改动范围 ruff 通过。
-- 新库完整回归与最终独立审阅：待补记。
+- 新库完整非 MinIO 回归：1005 passed、15 skipped、10 deselected，耗时 621.68 秒；最终独立审阅待补记。
