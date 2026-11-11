@@ -152,6 +152,26 @@ class ApplicationFormView(ApplicationFormQuery):
     files: list[FileRef]
 
 
+class LeadFieldView(WireModel):
+    id: Id
+    label: str
+    input_type: Literal["text", "textarea", "select", "multiselect"]
+    validator: Literal["generic", "text", "enum", "email", "channels"]
+    options: list[str]
+    limits: dict[str, int | bool]
+
+
+class LeadPolicyView(WireModel):
+    version: Literal[1] = 1
+    direction: Direction
+    field_rule_version: str
+    interaction_version: str
+    fields: list[LeadFieldView]
+    rounds: list[FieldRound]
+    required_fields: list[str]
+    notices: dict[str, str]
+
+
 class FormSubmissionInput(ApplicationFormQuery):
     form_id: UUID
     client_submission_id: Id

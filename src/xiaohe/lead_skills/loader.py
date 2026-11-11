@@ -1,3 +1,5 @@
+import hashlib
+import json
 from pathlib import Path
 
 import yaml
@@ -54,3 +56,20 @@ def parse_lead_skills(resources: dict[str, str]) -> LeadSkillBundle:
 
 def load_lead_skills(resource_root: Path) -> LeadSkillBundle:
     return parse_lead_skills(read_lead_resources(resource_root))
+
+
+def load_legacy_field_policies(resource_root: Path) -> dict[str, FieldPolicy]:
+    text = _read_resource(resource_root, "legacy-lead-fields-v1.json", MAX_RESOURCE_BYTES)
+    # 未适配的旧草稿也必须使用引入 Skill 前的校验，不能读取后来改过的默认配置。
+    if (
+        hashlib.sha256(text.encode()).hexdigest()
+        != "748e4ef6c3b928630bc6746379c6159963a41664501617f2b8dd6bee2c856783"
+    ):
+        raise WorkflowValidationError("legacy field policy content mismatch")
+    try:
+        data = json.loads(text)
+        if set(data) != {"buyer", "organization", "supplier"}:
+            raise ValueError("missing legacy role")
+        return {role: FieldPolicy.model_validate(value) for role, value in data.items()}
+    except (TypeError, ValueError):
+        raise WorkflowValidationError("legacy field policy unavailable") from None

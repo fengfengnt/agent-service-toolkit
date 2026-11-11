@@ -1,0 +1,1042 @@
+{
+  "buyer": {
+    "version": 1,
+    "direction": "buyer",
+    "fieldRuleVersion": "86ba995f7a627bdbd1e0fdf774c189708d99c89e46ff4ac68e8e79d93dd0b035",
+    "interactionVersion": "36b1ecc01d1c360616f6ea071b416b2a06510509a0fed5f396943a02b8b430a6",
+    "fields": [
+      {
+        "id": "companyName",
+        "label": "企业名称",
+        "inputType": "text",
+        "validator": "text",
+        "options": [],
+        "limits": {
+          "maxLength": 200,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": true,
+          "nonblank": true,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "industry",
+        "label": "行业",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "companyScale",
+        "label": "企业规模",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "city",
+        "label": "城市",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "category",
+        "label": "品类",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "requirement",
+        "label": "需求描述",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "annualPurchase",
+        "label": "年采购额",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "painPoints",
+        "label": "痛点",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "contactName",
+        "label": "联系人",
+        "inputType": "text",
+        "validator": "text",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": true,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "contactPhone",
+        "label": "联系电话",
+        "inputType": "text",
+        "validator": "text",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": true,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "contactRole",
+        "label": "职务",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "existingSystems",
+        "label": "现有系统",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "projectStatus",
+        "label": "立项情况",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "budget",
+        "label": "预算",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "desiredTime",
+        "label": "期望时间",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "decisionProcess",
+        "label": "决策流程",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      }
+    ],
+    "rounds": [
+      {
+        "id": "round1",
+        "name": "基础资料",
+        "fields": [
+          "companyName",
+          "industry",
+          "companyScale",
+          "city"
+        ]
+      },
+      {
+        "id": "round2",
+        "name": "需求和联系信息",
+        "fields": [
+          "category",
+          "requirement",
+          "annualPurchase",
+          "painPoints",
+          "contactName",
+          "contactPhone",
+          "contactRole"
+        ]
+      },
+      {
+        "id": "round3",
+        "name": "选填补充",
+        "fields": [
+          "existingSystems",
+          "projectStatus",
+          "budget",
+          "desiredTime",
+          "decisionProcess"
+        ]
+      },
+      {
+        "id": "summary",
+        "name": "核对并确认当前汇总",
+        "fields": []
+      }
+    ],
+    "requiredFields": [
+      "companyName",
+      "contactName",
+      "contactPhone"
+    ],
+    "notices": {
+      "prepare": "请在资料面板填写本次{direction}资料。",
+      "missing": "正式提交还需：{missing}。",
+      "saved": "本次资料已保存，尚未正式提交。",
+      "submitting": "正在提交本次资料。",
+      "unknown": "正在核实提交结果，请稍后查询，无需重复提交。",
+      "accepted": "本次需求已受理，可在“我的进展”查看状态。",
+      "failed": "本次提交未完成。{guidance}"
+    }
+  },
+  "organization": {
+    "version": 1,
+    "direction": "organization",
+    "fieldRuleVersion": "10bcc133bbb19618f18f7fe042abf9d45723da17cd133d0b4e5fb2543190eb5f",
+    "interactionVersion": "36b1ecc01d1c360616f6ea071b416b2a06510509a0fed5f396943a02b8b430a6",
+    "fields": [
+      {
+        "id": "organizationName",
+        "label": "组织名称",
+        "inputType": "text",
+        "validator": "text",
+        "options": [],
+        "limits": {
+          "maxLength": 40,
+          "minLength": 2,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": true,
+          "nonblank": false,
+          "lengthOnTrimmed": true
+        }
+      },
+      {
+        "id": "organizationType",
+        "label": "组织类型",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "memberSize",
+        "label": "会员规模",
+        "inputType": "select",
+        "validator": "enum",
+        "options": [
+          "100 家以下",
+          "100—500",
+          "500—2000",
+          "2000 以上"
+        ],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "coverage",
+        "label": "覆盖地域",
+        "inputType": "select",
+        "validator": "enum",
+        "options": [
+          "本市",
+          "本省",
+          "全国",
+          "含海外"
+        ],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "city",
+        "label": "城市",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "onlineChannels",
+        "label": "现有线上载体",
+        "inputType": "multiselect",
+        "validator": "channels",
+        "options": [
+          "公众号",
+          "小程序",
+          "APP",
+          "官网",
+          "微信群",
+          "暂无"
+        ],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "industries",
+        "label": "行业分布",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "services",
+        "label": "主要服务",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "aiNeeds",
+        "label": "AI 诉求",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "contactName",
+        "label": "联系人",
+        "inputType": "text",
+        "validator": "text",
+        "options": [],
+        "limits": {
+          "maxLength": 100,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": true,
+          "nonblank": true,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "contactPhone",
+        "label": "联系电话",
+        "inputType": "text",
+        "validator": "text",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": true,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "contactRole",
+        "label": "职务",
+        "inputType": "select",
+        "validator": "enum",
+        "options": [
+          "会长",
+          "副会长",
+          "秘书长",
+          "运营负责人",
+          "专职工作人员",
+          "其他"
+        ],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "email",
+        "label": "邮箱",
+        "inputType": "text",
+        "validator": "email",
+        "options": [],
+        "limits": {
+          "maxLength": 254,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "activeRatio",
+        "label": "活跃比例",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "revenueStructure",
+        "label": "收入结构",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "desiredLaunchTime",
+        "label": "期望上线时间",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "decisionProcess",
+        "label": "决策流程",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "resources",
+        "label": "可提供资源",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      }
+    ],
+    "rounds": [
+      {
+        "id": "round1",
+        "name": "基础资料",
+        "fields": [
+          "organizationName",
+          "organizationType",
+          "memberSize",
+          "coverage",
+          "city",
+          "onlineChannels"
+        ]
+      },
+      {
+        "id": "round2",
+        "name": "需求和联系信息",
+        "fields": [
+          "industries",
+          "services",
+          "aiNeeds",
+          "contactName",
+          "contactPhone",
+          "contactRole",
+          "email"
+        ]
+      },
+      {
+        "id": "round3",
+        "name": "选填补充",
+        "fields": [
+          "activeRatio",
+          "revenueStructure",
+          "desiredLaunchTime",
+          "decisionProcess",
+          "resources"
+        ]
+      },
+      {
+        "id": "summary",
+        "name": "核对并确认当前汇总",
+        "fields": []
+      }
+    ],
+    "requiredFields": [
+      "organizationName",
+      "memberSize",
+      "coverage",
+      "onlineChannels",
+      "contactName",
+      "contactPhone"
+    ],
+    "notices": {
+      "prepare": "请在资料面板填写本次{direction}资料。",
+      "missing": "正式提交还需：{missing}。",
+      "saved": "本次资料已保存，尚未正式提交。",
+      "submitting": "正在提交本次资料。",
+      "unknown": "正在核实提交结果，请稍后查询，无需重复提交。",
+      "accepted": "本次需求已受理，可在“我的进展”查看状态。",
+      "failed": "本次提交未完成。{guidance}"
+    }
+  },
+  "supplier": {
+    "version": 1,
+    "direction": "supplier",
+    "fieldRuleVersion": "05d06286948a96771b8c4ddf2c865528d5729320abd9551db58359225d6421cd",
+    "interactionVersion": "36b1ecc01d1c360616f6ea071b416b2a06510509a0fed5f396943a02b8b430a6",
+    "fields": [
+      {
+        "id": "companyName",
+        "label": "企业名称",
+        "inputType": "text",
+        "validator": "text",
+        "options": [],
+        "limits": {
+          "maxLength": 200,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": true,
+          "nonblank": true,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "companyType",
+        "label": "企业类型",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "category",
+        "label": "品类",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "city",
+        "label": "城市",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "productDescription",
+        "label": "产品描述",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "capabilityTags",
+        "label": "能力标签",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "qualifications",
+        "label": "资质认证",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "serviceAreas",
+        "label": "服务区域",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "orderTypes",
+        "label": "接单类型",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "contactName",
+        "label": "联系人",
+        "inputType": "text",
+        "validator": "text",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": true,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "contactPhone",
+        "label": "联系电话",
+        "inputType": "text",
+        "validator": "text",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": true,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "capacity",
+        "label": "产能",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "deliveryCycle",
+        "label": "交付周期",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "revenue",
+        "label": "营业额",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "teamSize",
+        "label": "团队规模",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "targetCustomers",
+        "label": "目标客户",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      },
+      {
+        "id": "targetAreas",
+        "label": "目标区域",
+        "inputType": "text",
+        "validator": "generic",
+        "options": [],
+        "limits": {
+          "maxLength": 4000,
+          "minLength": 0,
+          "maxItems": 32,
+          "itemMaxLength": 256,
+          "trim": false,
+          "nonblank": false,
+          "lengthOnTrimmed": false
+        }
+      }
+    ],
+    "rounds": [
+      {
+        "id": "round1",
+        "name": "基础资料",
+        "fields": [
+          "companyName",
+          "companyType",
+          "category",
+          "city"
+        ]
+      },
+      {
+        "id": "round2",
+        "name": "需求和联系信息",
+        "fields": [
+          "productDescription",
+          "capabilityTags",
+          "qualifications",
+          "serviceAreas",
+          "orderTypes",
+          "contactName",
+          "contactPhone"
+        ]
+      },
+      {
+        "id": "round3",
+        "name": "选填补充",
+        "fields": [
+          "capacity",
+          "deliveryCycle",
+          "revenue",
+          "teamSize",
+          "targetCustomers",
+          "targetAreas"
+        ]
+      },
+      {
+        "id": "files",
+        "name": "供应商材料（选填）",
+        "fields": []
+      },
+      {
+        "id": "summary",
+        "name": "核对并确认当前汇总",
+        "fields": []
+      }
+    ],
+    "requiredFields": [
+      "companyName",
+      "contactName",
+      "contactPhone"
+    ],
+    "notices": {
+      "prepare": "请在资料面板填写本次{direction}资料。",
+      "missing": "正式提交还需：{missing}。",
+      "saved": "本次资料已保存，尚未正式提交。",
+      "submitting": "正在提交本次资料。",
+      "unknown": "正在核实提交结果，请稍后查询，无需重复提交。",
+      "accepted": "本次需求已受理，可在“我的进展”查看状态。",
+      "failed": "本次提交未完成。{guidance}"
+    }
+  }
+}

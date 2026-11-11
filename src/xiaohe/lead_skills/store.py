@@ -38,7 +38,7 @@ async def resolve_draft_policy(db, row) -> FieldPolicy:
         if not isinstance(policy, FieldPolicy) or policy.direction != row.direction:
             raise WorkflowValidationError("draft policy role mismatch")
         return policy
-    from xiaohe.lead_skills.loader import load_lead_skills, parse_lead_skills
+    from xiaohe.lead_skills.loader import load_legacy_field_policies, parse_lead_skills
     from xiaohe.workflows.definitions import RESOURCE_ROOT, legacy_draft_definition
     from xiaohe.workflows.store import load_persisted_bundle
 
@@ -46,10 +46,10 @@ async def resolve_draft_policy(db, row) -> FieldPolicy:
     bundle = await load_persisted_bundle(db, row.definition_bundle_id)
     resources = bundle.resources
     profiles = (
-        parse_lead_skills(resources)
+        parse_lead_skills(resources).field_policies
         if "lead-skills/common/policy.yaml" in resources
-        else load_lead_skills(RESOURCE_ROOT)
-    ).field_policies
+        else load_legacy_field_policies(RESOURCE_ROOT)
+    )
     base = profiles[row.direction]
     policy = FieldPolicy(
         version=base.version,

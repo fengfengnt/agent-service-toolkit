@@ -104,7 +104,20 @@ def create_reception_router(factory, business_client=None):
         except ValidationError:
             raise ServiceError("INPUT_INVALID", 422) from None
         view = await read_application_form(factory, await form_actor(request), query.source_application_id, query.mode, business_client)
-        return view.model_dump(mode="json", by_alias=True)
+        data = view.model_dump(mode="json", by_alias=True)
+        from xiaohe.lead_skills.views import (
+            current_interaction_policy,
+            lead_policy_view,
+            supports_lead_policy,
+        )
+        if supports_lead_policy(request):
+            from xiaohe.reception.forms import form_field_policy
+            policy = form_field_policy(view.direction, expected_bundle_id=view.definition_bundle_id)
+            async with factory.begin() as db:
+                await _actor(request, db)
+                interaction = await current_interaction_policy(db)
+            data["leadPolicy"] = lead_policy_view(policy, interaction).model_dump(mode="json", by_alias=True)
+        return data
 
     @router.post("/application-form/submissions")
     async def form_submit(request: Request):
@@ -164,6 +177,19 @@ def create_reception_router(factory, business_client=None):
                 data["activeDraft"] = view.active_draft.model_dump(
                     mode="json", by_alias=True, exclude_none=True
                 )
+            from xiaohe.lead_skills.views import (
+                current_interaction_policy,
+                lead_policy_view,
+                supports_lead_policy,
+            )
+            if supports_lead_policy(request):
+                data["leadPolicy"] = None
+                if view.active_draft is not None:
+                    from xiaohe.lead_skills.store import resolve_draft_policy
+                    from xiaohe.reception.models import ReceptionDraft
+                    policy = await resolve_draft_policy(db, await db.get(ReceptionDraft, UUID(view.active_draft.id)))
+                    interaction = await current_interaction_policy(db, conversation_id)
+                    data["leadPolicy"] = lead_policy_view(policy, interaction).model_dump(mode="json", by_alias=True)
             return data
 
     @router.post("/conversations/{conversation_id}/controls", status_code=202)

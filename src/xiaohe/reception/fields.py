@@ -233,12 +233,18 @@ def _validate_policy_fields(direction, fields, policy):
     return result
 
 
-def missing_required(direction: str, fields: dict, *, definition) -> list[str]:
-    if definition.agent_id != "xiaohe-" + direction:
+def missing_required(direction: str, fields: dict, *, definition=None, policy=None) -> list[str]:
+    if policy is not None:
+        if policy.direction != direction:
+            raise ServiceError("INPUT_INVALID", 422)
+        required = policy.required_fields
+    elif definition is not None and definition.agent_id == "xiaohe-" + direction:
+        required = definition.required_fields
+    else:
         raise ServiceError("INPUT_INVALID", 422)
     return [
         key
-        for key in definition.required_fields
+        for key in required
         if not fields.get(key) or isinstance(fields[key], str) and not fields[key].strip()
     ]
 

@@ -129,3 +129,33 @@ async def test_form_projection_matches_form_validation(pg_factory):
     for role in ("buyer", "organization", "supplier"):
         _, definition = form_definition(role)
         assert definition.required_fields == skills().field_policies[role].required_fields
+
+
+async def test_unadapted_legacy_draft_keeps_original_validation_limits(
+    pg_factory, job_app, tmp_path, monkeypatch
+):
+    import shutil
+
+    import yaml
+    from test_lead_skills import ROOT
+
+    from xiaohe.lead_skills.store import resolve_draft_policy
+    from xiaohe.reception.fields import validate_fields
+    from xiaohe.workflows import definitions
+
+    bundle, frame = await prepare(pg_factory, tmp_path)
+    root = tmp_path / "later-resources"
+    shutil.copytree(ROOT, root)
+    path = root / "lead-skills/buyer/policy.yaml"
+    data = yaml.safe_load(path.read_text("utf-8"))
+    next(f for f in data["fields"] if f["id"] == "contactPhone")["max_length"] = 3
+    path.write_text(yaml.safe_dump(data, allow_unicode=True), "utf-8")
+    monkeypatch.setattr(definitions, "RESOURCE_ROOT", root)
+    async with pg_factory.begin() as db:
+        row = await db.get(ReceptionDraft, frame.draft_id)
+        row.field_policy_id = None
+        row.definition_bundle_id = bundle.bundle_id
+        policy = await resolve_draft_policy(db, row)
+        assert validate_fields("buyer", {"contactPhone": "原总台分机电话"}, policy=policy) == {
+            "contactPhone": "原总台分机电话"
+        }

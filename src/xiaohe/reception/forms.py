@@ -40,6 +40,20 @@ def form_definition(direction):
     return bundle.bundle_id, definition.model_copy(update={"required_fields": required})
 
 
+def form_field_policy(direction, *, expected_bundle_id):
+    from xiaohe.lead_skills.loader import load_lead_skills, parse_lead_skills
+
+    bundle = load_bundle(RESOURCE_ROOT)
+    if bundle.bundle_id != expected_bundle_id:
+        raise ServiceError("DRAFT_CONFLICT", 409)
+    definition = workflow_for(bundle, "xiaohe-" + direction)
+    required = list(dict.fromkeys(definition.required_fields + list(FORMAL_REQUIRED_FIELDS[direction])))
+    policies = (parse_lead_skills(bundle.resources)
+        if "lead-skills/common/policy.yaml" in bundle.resources else load_lead_skills(RESOURCE_ROOT))
+    policy = policies.field_policies[direction]
+    return policy.model_copy(update={"rounds": definition.rounds, "required_fields": required})
+
+
 async def read_application_form(factory, actor, source_application_id, mode, client):
     if mode not in ("edit", "new"):
         raise ServiceError("INPUT_INVALID", 422)
@@ -95,9 +109,9 @@ async def submit_application_form(factory, actor, payload, client):
         view = await read_application_form(factory, actor, payload.source_application_id, payload.mode, client)
         if view.expected_application_revision != payload.expected_application_revision or view.definition_bundle_id != payload.definition_bundle_id:
             raise ServiceError("DRAFT_CONFLICT", 409)
-        fields = validate_fields(view.direction, view.fields | payload.fields)
-        _, definition = form_definition(view.direction)
-        if missing_required(view.direction, fields, definition=definition):
+        policy = form_field_policy(view.direction, expected_bundle_id=view.definition_bundle_id)
+        fields = validate_fields(view.direction, view.fields | payload.fields, policy=policy)
+        if missing_required(view.direction, fields, policy=policy):
             raise ServiceError("INPUT_INVALID", 422)
         source_files = {f.id: f for f in view.files}
         files = []
