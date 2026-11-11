@@ -326,3 +326,28 @@ async def test_new_run_for_old_draft_keeps_draft_knowledge_bundle(pg_factory, jo
     assert old_manifest.version in str(result.parts)
     assert newer.version not in str(result.parts)
     assert knowledge.calls[0][0] == old.bundle.bundle_id
+
+
+@pytest.mark.pg
+@pytest.mark.asyncio
+async def test_unreferenced_retrieval_does_not_claim_citation(pg_factory, job_app, tmp_path):
+    root, _ = resources_with_knowledge(tmp_path)
+    knowledge = KnowledgeFixture()
+    model = ScriptedModel(
+        result={},
+        responses={
+            "SemanticDecision": {"action": "unclear"},
+            "AnswerDraft": {
+                "text": "还需确认具体范围。",
+                "basis": "needs_confirmation",
+                "source_ids": [],
+            },
+        },
+    )
+    registry = await load_agent_registry(pg_factory, root, model, None, knowledge=knowledge)
+    fence = await begin(pg_factory, registry)
+    result = await run_agent_turn(
+        pg_factory, fence, bundle=registry.bundle, model=model, registry=registry
+    )
+    assert len(knowledge.calls) == 1
+    assert [item.text for item in result.parts if item.type == "text"] == ["还需确认具体范围。"]

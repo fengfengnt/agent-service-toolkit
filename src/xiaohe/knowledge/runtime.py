@@ -71,6 +71,17 @@ class EmbeddedKnowledge:
             self._executor = ThreadPoolExecutor(
                 max_workers=1, thread_name_prefix="xiaohe-knowledge"
             )
+            from xiaohe.knowledge.build import create_embeddings
+
+            try:
+                self._embeddings = await asyncio.get_running_loop().run_in_executor(
+                    self._executor, create_embeddings, settings
+                )
+            except Exception:
+                logger.warning("xiaohe_knowledge:initialization_failed")
+                self._executor.shutdown(wait=True)
+                self._executor = None
+                return
             self.enabled = True
         except OSError:
             if owner is not None:
@@ -155,6 +166,7 @@ class EmbeddedKnowledge:
             )
         if self._embeddings is None:
             self._embeddings = create_embeddings(settings)
+        # shortcut: 按审定主题检索；需要同主题细粒度问答时先评测脱敏查询。
         query = "平台介绍与服务方向"
         if topics:
             catalog = json.loads(bundle.resources["skills/catalog.json"])

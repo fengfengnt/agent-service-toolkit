@@ -50,6 +50,23 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
 
+  test-knowledge:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/setup-python@v7
+      with:
+        python-version: "3.14"
+    - uses: astral-sh/setup-uv@v10.0.1
+      with:
+        version: "0.13.5"
+    - name: Install embedded knowledge dependencies
+      run: uv sync --frozen --extra rag
+    - name: Verify real embedded Chroma and knowledge boundaries
+      run: |
+        uv run --frozen --extra rag python -c "import chromadb"
+        uv run --frozen --extra rag pytest tests/xiaohe/test_knowledge_sources.py tests/xiaohe/test_knowledge_index.py tests/xiaohe/test_knowledge_runtime.py tests/xiaohe/test_knowledge_workflow.py tests/xiaohe/test_knowledge_deployment.py -m "not pg and not minio" -q
+
   lint-markdown:
     runs-on: ubuntu-latest
 

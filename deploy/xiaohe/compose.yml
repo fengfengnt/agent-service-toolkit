@@ -5,7 +5,7 @@ x-business: &business
     context: ../..
     dockerfile: docker/Dockerfile.xiaohe
   env_file: ${XIAOHE_RUNTIME_ENV_FILE:?set private runtime env file path}
-  environment:
+  environment: &business_environment
     DATABASE_TYPE: postgres
     TOOLKIT_BASE_URL: http://api:8080
     XIAOHE_MINIO_ENDPOINT: http://minio:9000
@@ -28,6 +28,10 @@ services:
     <<: *business
     container_name: yunhezhiyuan-aibackend-${VERSION:?run sh deploy/xiaohe/compose.sh to read VERSION}
     command: [api]
+    environment:
+      <<: *business_environment
+      XIAOHE_KNOWLEDGE_ROOT: /var/lib/xiaohe/knowledge
+    volumes: [knowledge-data:/var/lib/xiaohe/knowledge]
     expose: ['8080']
     networks:
       private:
@@ -95,6 +99,8 @@ secrets:
   minio_root_user: {file: '${XIAOHE_MINIO_ROOT_USER_FILE:?set private root user file}'}
   minio_root_password: {file: '${XIAOHE_MINIO_ROOT_PASSWORD_FILE:?set private root password file}'}
 volumes:
+  knowledge-data:
+    name: xiaohe_knowledge-data
   postgres-data:
     name: xiaohe_postgres-data
   minio-data:

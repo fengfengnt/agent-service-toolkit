@@ -8,7 +8,8 @@ import threading
 from pathlib import Path
 
 import pytest
-from knowledge_support import embedding_server, write_knowledge_source
+import yaml
+from knowledge_support import DeterministicEmbeddings, embedding_server, write_knowledge_source
 from test_knowledge_index import build_child
 from workflow_support import write_test_bundle
 
@@ -32,8 +33,13 @@ def knowledge_release(tmp_path_factory):
                 topics=("general",),
                 text=agent + "的虚构资料",
             )
+        write_knowledge_source(
+            root / "sources", id="buyer-rfx", topics=("buyer.rfx",), text="采购 RFX 虚构专用资料"
+        )
+        allowed = {agent: set() for agent in AGENT_IDS}
+        allowed["xiaohe-buyer"] = {"buyer.rfx"}
         manifest, chunks = prepare_manifest(
-            load_sources(root / "sources", {agent: set() for agent in AGENT_IDS}),
+            load_sources(root / "sources", allowed),
             embedding_model="fixture",
             embedding_identity=embedding_identity(endpoint, "fixture"),
             dimensions=3,
@@ -52,6 +58,24 @@ def configured(tmp_path, release):
     root = tmp_path / "indexes"
     shutil.copytree(indexes, root)
     resources = write_test_bundle(tmp_path / "resources")
+    workflow = yaml.safe_load((resources / "workflows/buyer.yaml").read_text("utf-8"))
+    workflow["skills"] = ["buyer.rfx"]
+    (resources / "workflows/buyer.yaml").write_text(yaml.safe_dump(workflow), "utf-8")
+    (resources / "skills/buyer/rfx").mkdir(parents=True)
+    (resources / "skills/buyer/rfx/SKILL.md").write_text("测试兜底资料。", "utf-8")
+    (resources / "skills/catalog.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "buyer.rfx",
+                    "direction": "buyer",
+                    "title": "采购 RFX 说明",
+                    "path": "buyer/rfx/SKILL.md",
+                }
+            ]
+        ),
+        "utf-8",
+    )
     (resources / "knowledge").mkdir()
     (resources / "knowledge/manifest.json").write_text(manifest.model_dump_json(), "utf-8")
     settings = Settings(
@@ -334,3 +358,43 @@ asyncio.run(main())
     allowed = subprocess.run(args + ["probe"], env=env, capture_output=True, text=True, timeout=30)
     assert allowed.returncode == 0
     assert allowed.stdout.strip() == "enabled"
+
+
+@pytest.mark.asyncio
+async def test_ready_host_has_prepared_embedding_client_for_first_query(
+    tmp_path, knowledge_release, monkeypatch
+):
+    from xiaohe.knowledge import build
+    from xiaohe.knowledge.runtime import EmbeddedKnowledge
+
+    settings, bundle, _ = configured(tmp_path, knowledge_release)
+    ready = False
+
+    def initialize(settings):
+        if ready:
+            raise AssertionError("client initialization must finish before readiness")
+        return DeterministicEmbeddings()
+
+    monkeypatch.setattr(build, "create_embeddings", initialize)
+    knowledge = EmbeddedKnowledge(settings)
+    await knowledge.start()
+    ready = True
+    try:
+        assert len(await knowledge.query(bundle, "xiaohe-buyer", [])) == 1
+    finally:
+        await knowledge.aclose()
+
+
+@pytest.mark.asyncio
+async def test_professional_query_uses_approved_title_and_topic_filter(tmp_path, knowledge_release):
+    from xiaohe.knowledge.runtime import EmbeddedKnowledge
+
+    settings, bundle, requests = configured(tmp_path, knowledge_release)
+    knowledge = EmbeddedKnowledge(settings)
+    await knowledge.start()
+    try:
+        hits = await knowledge.query(bundle, "xiaohe-buyer", ["buyer.rfx"])
+        assert {hit.text for hit in hits} == {"xiaohe-buyer的虚构资料", "采购 RFX 虚构专用资料"}
+        assert requests[-1]["input"] == ["采购 RFX 说明"]
+    finally:
+        await knowledge.aclose()
