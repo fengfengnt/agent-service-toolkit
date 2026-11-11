@@ -1,4 +1,5 @@
 from ipaddress import ip_network
+from pathlib import Path
 from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator, model_validator
@@ -61,6 +62,40 @@ class Settings(BaseSettings):
     trusted_proxy_cidrs: list[str] = Field(
         default_factory=list, validation_alias="XIAOHE_TRUSTED_PROXY_CIDRS"
     )
+    knowledge_root: Path | None = Field(default=None, validation_alias="XIAOHE_KNOWLEDGE_ROOT")
+    knowledge_embedding_base_url: str | None = Field(
+        default=None, validation_alias="XIAOHE_KNOWLEDGE_EMBEDDING_BASE_URL"
+    )
+    knowledge_embedding_model: str | None = Field(
+        default=None, validation_alias="XIAOHE_KNOWLEDGE_EMBEDDING_MODEL"
+    )
+    knowledge_embedding_api_key: SecretStr | None = Field(
+        default=None, validation_alias="XIAOHE_KNOWLEDGE_EMBEDDING_API_KEY"
+    )
+    knowledge_embedding_dimensions: int | None = Field(
+        default=None, gt=0, validation_alias="XIAOHE_KNOWLEDGE_EMBEDDING_DIMENSIONS"
+    )
+
+    @field_validator("knowledge_embedding_base_url")
+    @classmethod
+    def embedding_endpoint(cls, value):
+        if value is None:
+            return None
+        parsed = urlsplit(value)
+        if (
+            parsed.scheme not in ("http", "https")
+            or not parsed.hostname
+            or parsed.username
+            or parsed.password
+            or parsed.query
+            or parsed.fragment
+            or "?" in value
+            or "#" in value
+            or any(char.isspace() for char in value)
+        ):
+            raise ValueError("invalid knowledge embedding endpoint")
+        parsed.port
+        return value.rstrip("/")
 
     @field_validator("trusted_proxy_cidrs")
     @classmethod

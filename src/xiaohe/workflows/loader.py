@@ -114,6 +114,22 @@ def load_bundle(resource_root: Path) -> WorkflowBundle:
             resources["skills/" + item.path] = _read_resource(
                 resource_root / "skills", item.path, MAX_RESOURCE_BYTES
             )
+    from xiaohe.knowledge.sources import MANIFEST_KEY, read_manifest, validate_scope
+
+    knowledge_root = resource_root / "knowledge"
+    manifest_path = knowledge_root / "manifest.json"
+    if not knowledge_root.resolve().is_relative_to(resource_root):
+        raise WorkflowValidationError("knowledge directory escapes allowed root")
+    if manifest_path.exists() or manifest_path.is_symlink():
+        try:
+            text = _read_resource(knowledge_root, "manifest.json", MAX_RESOURCE_BYTES)
+            manifest = read_manifest(text)
+            allowed = {agent: set(item.skills) for agent, item in definitions.items()}
+            for entry in manifest.entries.values():
+                validate_scope(entry, allowed)
+            resources[MANIFEST_KEY] = text
+        except ValueError:
+            raise WorkflowValidationError("invalid knowledge manifest") from None
     return WorkflowBundle(
         bundle_id=bundle_digest(definitions, resources),
         definitions=definitions,
