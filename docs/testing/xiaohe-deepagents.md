@@ -57,7 +57,7 @@ uv lock --check
 
 门户交接见 [交接文档](../handoffs/2026-11-11-standard-skills-portal.md)，协议见 [v2 契约](../contracts/xiaohe-lead-policy-v2.md)。已获得并核对[门户固定提交回执](../handoffs/2026-11-11-standard-skills-portal-receipt.md)：前端隔离协议桩及浏览器覆盖脏输入保护、焦点、角色／认证恢复等场景；真实新后端组合仍未执行，不能据此标记组合通过。
 
-真实模型语义选择、真实登录／短信、正式业务后台、MinIO 和环境发布未验。上线前需另行按授权完成这些检查；隔离模型脚本结果不代替真实业务验收。
+隔离测试阶段未验证真实模型语义选择、真实登录／短信、正式业务后台、MinIO 和环境发布。后续 WSL 发布见文末；隔离模型脚本结果不代替真实业务验收。
 
 ## 本轮执行结果
 
@@ -83,3 +83,9 @@ uv lock --check
 已只读核对门户固定 SHA `485a0e3a4ae23fddd2bede4d68220aaa4038014b`、干净工作区、两端 fixture 字节一致及维护者归档日志。回执记录 637 项单测、36 项安全检查、38 项留资浏览器和 20 项 SSO 浏览器通过，typecheck／build 通过；本聊天读取了对应日志和报告文件存在性，未重新执行门户测试。
 
 两端 fixture 的 SHA256 均为 `9bc7c5f113d888b9015c04e3e4bafd04423a61cc92d3f75c59cef10e3988c69c`。Task 8 的实现与隔离验证回执闭环；后续缺口为新门户连接实际运行的新后端、沿真实 API 完成受控组合验收。默认开关、现有环境数据库及部署状态未因此改变。
+
+## 2026-11-12 WSL 发布
+
+用户随后授权提交并部署 WSL：AI API／Worker 0.1.7 已启用 `XIAOHE_DEEPAGENTS_ENABLED=true`，实际数据库迁至 0014；源代码默认值仍为 false。门户维护者已发布固定 SHA 的 Portal 0.1.27，本聊天复核 233 个 HTTPS 文件与归档一致。实际镜像探针、配置模型组装、API 健康、Worker 心跳、native bundle 及数据／配置保留检查通过，见[发布记录](../deployment/2026-11-12-standard-skills-wsl.md)。
+
+这补齐本地环境发布，不表示真实模型、真人登录／短信、认证后表单全流程或正式业务写入已验收；未部署 UAT／生产。
