@@ -239,7 +239,7 @@ class ReceptionView(WireModel):
 class ReceptionControl(WireModel):
     client_action_id: InputId
     action: Literal["accept_invitation", "start_collection", "switch_direction"]
-    direction: Literal["organization", "supplier"] | None = None
+    direction: Literal["buyer", "organization", "supplier"] | None = None
 
     @model_validator(mode="after")
     def switch_direction_required(self) -> Self:

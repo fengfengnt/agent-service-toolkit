@@ -39,7 +39,7 @@ async def test_three_business_nodes_and_native_answer(pg_factory, job_app, tmp_p
     model = make_script_model(
         [
             final_response(
-                answer={"text": "建议先明确需求。", "basis": "general_advice"}, wait_for_input=True
+                answer={"text": "建议先明确需求。</br>再说明当前情况。", "basis": "general_advice"}, wait_for_input=True
             )
         ]
     )
@@ -47,7 +47,9 @@ async def test_three_business_nodes_and_native_answer(pg_factory, job_app, tmp_p
     assert {"prepare_context", "business_agent", "finalize"} == set(
         runtime().business_graph_nodes()
     )
-    assert outcome.wait_for_input and "一般建议" in outcome.parts[0].text
+    assert outcome.wait_for_input
+    assert outcome.parts[0].text == "建议先明确需求。\n再说明当前情况。"
+    assert outcome.parts[-1].prompt == "您可以进行咨询或者留下您的信息"
     assert (
         sum(isinstance(m, HumanMessage) and m.content == context.text for m in model.requests[0])
         == 1
@@ -74,6 +76,28 @@ async def test_button_submits_without_model(pg_factory, job_app, tmp_path):
     outcome = await invoke(context, model=model)
     assert not model.requests and not outcome.wait_for_input
     assert "受理" in outcome.parts[0].text and len(context.business_client.payloads) == 1
+
+
+@pytest.mark.parametrize("role", ["buyer", "organization", "supplier"])
+async def test_collection_link_runs_bound_lead_skill(pg_factory, job_app, tmp_path, role):
+    context, _ = await tool_context(pg_factory, tmp_path, role=role, text="采集信息", client=Business())
+    async with pg_factory.begin() as db:
+        command = await db.get(Command, context.command_id)
+        command.payload = command.payload | {"receptionControl": "start_collection"}
+        from xiaohe.reception.models import ReceptionDraft
+        from xiaohe.reception.store import locked_flow
+        conversation = await db.get(Conversation, context.conversation_id)
+        flow = await locked_flow(db, conversation)
+        (await db.get(ReceptionDraft, flow.active_draft_id)).state = "collecting"
+    model = make_script_model([
+        AIMessage(content="", tool_calls=[dict(name="prepare_lead", id="prepare", args={"mode":"resume"})]),
+        final_response(answer={"text":"请填写当前资料。", "basis":"needs_confirmation"}),
+    ])
+    outcome = await invoke(context, model=model)
+    assert model.requests, "留资入口不能绕过业务 Agent 和绑定的 Skill"
+    skill = context.bundle.skills[context.binding.flow_skill]
+    assert context.bundle.resources[skill.path + "/SKILL.md"] in model.requests[0][0].text
+    assert outcome.wait_for_input and not context.business_client.payloads
 
 
 async def test_reception_handoff_only_once(pg_factory, job_app, tmp_path):

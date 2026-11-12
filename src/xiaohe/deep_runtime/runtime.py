@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 from typing import TypedDict
 from uuid import uuid5
 
@@ -239,14 +240,26 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
             action.get("control") in ("accept_invitation", "start_collection")
             and context.binding.agent_id != "xiaohe-reception"
         ):
-            await execute_effect(
+            prepared = await execute_effect(
                 context,
                 "prepare_lead",
                 draft_id=None,
                 expected_revision=None,
                 payload={"mode": "resume"},
             )
-            return {"candidate": None}
+            if prepared.status != "ok" or prepared.data.get("state") in (
+                "review",
+                "accepted",
+                "submitting",
+            ):
+                return {"candidate": None}
+            initial["messages"].insert(
+                -1,
+                SystemMessage(
+                    content="用户选择了留下信息，请按本方向留资 Skill 引导。准备结果："
+                    + prepared.model_dump_json()
+                ),
+            )
         if action.get("action") == "confirm":
             await execute_effect(
                 context,
@@ -338,8 +351,7 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
                     parts.append(
                         {
                             "type": "text",
-                            "text": ("一般建议：" if answer.basis == "general_advice" else "")
-                            + answer.text,
+                            "text": re.sub(r"</?br\s*/?\s*>", "\n", answer.text, flags=re.IGNORECASE),
                         }
                     )
             if submitted or saved:
@@ -396,7 +408,7 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
 
                 parts.append({"type": "system_notice", "text": COLLECTION_NOTICE})
             if not parts:
-                parts.append({"type": "text", "text": "您可以继续咨询或补充当前资料。"})
+                parts.append({"type": "text", "text": "请告诉我您希望了解的内容。"})
             wait = (candidate.wait_for_input if candidate else not submitted) and not auth
             if wait:
                 flow.pending_request_id = uuid5(command.id, "deep.input")
@@ -404,7 +416,7 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
                     {
                         "type": "input_request",
                         "requestId": str(flow.pending_request_id),
-                        "prompt": "您可以继续咨询或补充当前资料。",
+                        "prompt": "您可以进行咨询或者留下您的信息",
                     }
                 )
             else:

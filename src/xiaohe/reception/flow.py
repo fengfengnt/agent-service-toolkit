@@ -48,7 +48,7 @@ async def apply_reception_control(db, actor, conversation_id, request):
         conversation.direction not in LABELS
         or (
             request.action == "accept_invitation"
-            and flow.invitation_state not in ("offered", "deferred")
+            and flow.invitation_state not in ("none", "offered", "deferred")
         )
         or (
             request.action == "start_collection"

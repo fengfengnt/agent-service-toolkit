@@ -81,7 +81,10 @@ async def checked_context(db, context: ToolContext, operation: str):
         )
     ):
         raise ServiceError("FORBIDDEN", 403)
-    if operation == "submit_lead" and command.payload.get("authContinuation"):
+    if operation == "submit_lead" and (
+        command.payload.get("authContinuation")
+        or command.payload.get("receptionControl") in ("accept_invitation", "start_collection")
+    ):
         raise ServiceError("INPUT_INVALID", 422)
     execution = DeepExecution.model_validate(command.payload.get("deepExecution", {}))
     if (
