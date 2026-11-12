@@ -78,6 +78,31 @@ async def test_button_submits_without_model(pg_factory, job_app, tmp_path):
     assert "受理" in outcome.parts[0].text and len(context.business_client.payloads) == 1
 
 
+@pytest.mark.parametrize(
+    "role,capabilities",
+    [
+        ("buyer", ["采购服务助手", "采购需求", "供应商筛选", "智能寻源"]),
+        ("organization", ["社群组织服务助手", "会员服务", "供需撮合", "组织增收"]),
+        ("supplier", ["供应商服务助手", "产品与服务", "供货能力", "AI 能力提升", "商机直达"]),
+    ],
+)
+async def test_direction_selection_welcomes_with_current_agent_capabilities(
+    pg_factory, job_app, tmp_path, role, capabilities
+):
+    context, _ = await tool_context(pg_factory, tmp_path, role=role)
+    async with pg_factory.begin() as db:
+        command = await db.get(Command, context.command_id)
+        command.payload = command.payload | {"receptionControl": "switch_direction"}
+    model = make_script_model([AIMessage(content="must not run")])
+    outcome = await invoke(context, model=model)
+    greeting = outcome.parts[0].text
+    assert all(capability in greeting for capability in capabilities)
+    assert "已进入当前服务方向" not in greeting
+    assert not model.requests
+    assert outcome.wait_for_input
+    assert outcome.parts[-1].prompt == "您可以进行咨询或者留下您的信息"
+
+
 @pytest.mark.parametrize("role", ["buyer", "organization", "supplier"])
 async def test_collection_link_runs_bound_lead_skill(pg_factory, job_app, tmp_path, role):
     context, _ = await tool_context(pg_factory, tmp_path, role=role, text="采集信息", client=Business())

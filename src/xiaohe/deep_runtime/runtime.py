@@ -22,6 +22,24 @@ from xiaohe.reception.models import ReceptionDraft
 from xiaohe.reception.store import locked_flow
 from xiaohe.runs import TERMINAL
 
+_AGENT_WELCOMES = {
+    "xiaohe-buyer": (
+        "您好，我是小鹤，您的采购服务助手。"
+        "我可以帮您梳理采购需求，讨论品类与成本分析、供应商筛选、询价比价和智能寻源。"
+        "您目前在采购哪类产品或服务，最想解决什么问题？"
+    ),
+    "xiaohe-organization": (
+        "您好，我是小鹤，您的社群组织服务助手。"
+        "我可以和您一起梳理会员服务、供需撮合与 AI 应用需求，"
+        "讨论会员活跃、组织增收和合作落地的思路。您想先聊哪一方面？"
+    ),
+    "xiaohe-supplier": (
+        "您好，我是小鹤，您的供应商服务助手。"
+        "我可以帮您梳理产品与服务、供货能力和服务区域，"
+        "介绍企业 AI 能力提升、采购对接与商机直达的服务方式。您想先了解哪一方面？"
+    ),
+}
+
 
 class BusinessState(TypedDict, total=False):
     candidate: dict | None
@@ -211,7 +229,7 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
             return {
                 "candidate": DeepTurnResult(
                     answer={
-                        "text": "已进入当前服务方向，您可以继续咨询或填写资料。",
+                        "text": _AGENT_WELCOMES[context.binding.agent_id],
                         "basis": "general_advice",
                         "source_ids": [],
                     }
