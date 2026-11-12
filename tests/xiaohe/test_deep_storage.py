@@ -6,7 +6,7 @@ from alembic.config import Config
 from sqlalchemy import create_engine, select
 
 from xiaohe.deep_runtime import bundles
-from xiaohe.workflows.models import WorkflowValidationError
+from xiaohe.skill_schema import SkillValidationError
 
 ROOT = Path(__file__).resolve().parents[2] / "resources/xiaohe"
 pytestmark = [pytest.mark.pg, pytest.mark.asyncio]
@@ -24,14 +24,14 @@ async def test_runtime_record_is_immutable(pg_factory):
         assert await bundles.load_runtime_bundle_record(db, bundle.bundle_id) == bundle
         row = await db.scalar(select(DeepRuntimeBundleRecord))
         row.payload = row.payload | {"resources": {}}
-    with pytest.raises(WorkflowValidationError):
+    with pytest.raises(SkillValidationError):
         async with pg_factory() as db:
             await bundles.load_runtime_bundle_record(db, bundle.bundle_id)
 
 
 async def test_missing_runtime_record_does_not_use_latest(pg_factory):
     assert hasattr(bundles, "load_runtime_bundle_record"), "native snapshot loading missing"
-    with pytest.raises(WorkflowValidationError):
+    with pytest.raises(SkillValidationError):
         async with pg_factory() as db:
             await bundles.load_runtime_bundle_record(db, "0" * 64)
 

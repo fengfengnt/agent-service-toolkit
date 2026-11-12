@@ -2,9 +2,6 @@
 
 import argparse
 import asyncio
-import hashlib
-import json
-import os
 import sys
 import time
 from collections.abc import Awaitable, Callable
@@ -19,7 +16,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from xiaohe.agents.contracts import VisibleTurn  # noqa: E402
 from xiaohe.reception.contracts import FieldValue  # noqa: E402
-from xiaohe.workflows.models import AgentId, RouteEvent  # noqa: E402
+from xiaohe.skill_schema import AgentId, RouteEvent  # noqa: E402
 
 
 class SemanticCase(BaseModel):
@@ -233,124 +230,9 @@ def load_cases(path):
 
 
 async def main(args):
-    if os.environ.get("XIAOHE_SEMANTIC_EVAL_ENABLED") != "1":
-        raise ValueError("explicit semantic evaluation enable required")
-    os.environ["LANGCHAIN_TRACING_V2"] = "false"
-    os.environ["LANGSMITH_TRACING"] = "false"
-    budget = EvaluationBudget(max_calls=args.max_calls, max_output_tokens=args.max_output_tokens)
-    cases = load_cases(args.cases)
-    from sqlalchemy.engine import make_url
-    from sqlalchemy.ext.asyncio import async_sessionmaker
-
-    from xiaohe.database import create_database_engine
-    from xiaohe.graph import reception_model
-
-    url = os.environ.get("XIAOHE_TEST_DATABASE_URL", "")
-    parsed = make_url(url)
-    if parsed.host != "127.0.0.1" or not (parsed.database or "").startswith("test_xiaohe_"):
-        raise ValueError("explicit loopback test database required")
-    model = reception_model()
-    require_live_enabled(True, model.model_name, budget)
-    limited = LimitedModel(finite_model(model, budget), budget)
-    engine = create_database_engine(url)
-    factory = async_sessionmaker(engine, expire_on_commit=False)
-    sys.path.insert(0, str(ROOT / "tests/xiaohe"))
-    from semantic_runtime_support import build_runner
-
-    try:
-        runner, bundle = await build_runner(factory, limited)
-        metadata = {
-            "model": model.model_name,
-            "provider": "OpenAI-compatible",
-            "bundle_id": bundle.bundle_id,
-            "max_calls": budget.max_calls,
-            "max_output_tokens": budget.max_output_tokens,
-            "sdk_max_retries": 0,
-            "max_case_attempts": 2,
-            "harness_sha256": hashlib.sha256(
-                Path(__file__).read_bytes()
-                + (ROOT / "tests/xiaohe/semantic_runtime_support.py").read_bytes()
-            ).hexdigest(),
-            "temperature": model.temperature,
-            "code_sha256": hashlib.sha256(
-                b"".join(
-                    (ROOT / name).read_bytes()
-                    for name in (
-                        "src/xiaohe/agents/semantic.py",
-                        "src/xiaohe/agents/nodes.py",
-                        "src/xiaohe/agents/runtime.py",
-                        "src/xiaohe/workflows/compiler.py",
-                    )
-                )
-            ).hexdigest(),
-            "prompt_digests": {
-                key: hashlib.sha256(value.encode()).hexdigest()
-                for key, value in bundle.resources.items()
-                if key.startswith("prompts/")
-            },
-            "corpus_sha256": hashlib.sha256(args.cases.read_bytes()).hexdigest(),
-            "monetary_cap": None,
-            "monetary_authorization": "用户明确不设金额预算",
-            "available_cost": None,
-            "business_backend": "isolated in-memory adapter",
-            "answer_review": "需要逐条对照来源；自动状态不代替人工业务验收",
-            "authentication": "fictional trusted identities",
-        }
-        partial = []
-
-        async def checked(case, shared_budget):
-            started = time.perf_counter()
-            value = EvaluatedCase.model_validate(await runner(case, shared_budget))
-            value.elapsed_seconds = round(time.perf_counter() - started, 3)
-            partial.append(value.model_dump())
-            args.receipt.parent.mkdir(parents=True, exist_ok=True)
-            args.receipt.write_text(
-                json.dumps(
-                    metadata
-                    | {
-                        "status": "incomplete",
-                        "model_calls": budget.calls,
-                        "evaluated": partial,
-                        "usage": limited.usage,
-                        "attempts": limited.attempts,
-                    },
-                    ensure_ascii=False,
-                    indent=2,
-                ),
-                "utf-8",
-            )
-            print(
-                json.dumps({"case": case.id, "passed": value.passed, "calls": budget.calls}),
-                flush=True,
-            )
-            return value
-
-        report = await evaluate_cases(cases, checked, budget)
-        args.receipt.write_text(
-            json.dumps(
-                metadata
-                | report.model_dump()
-                | {"usage": limited.usage, "attempts": limited.attempts},
-                ensure_ascii=False,
-                indent=2,
-            ),
-            "utf-8",
-        )
-        print(
-            json.dumps(
-                {
-                    "status": report.status,
-                    "model_calls": report.model_calls,
-                    "failed": report.failed,
-                    "not_run": report.not_run,
-                },
-                ensure_ascii=False,
-            ),
-            flush=True,
-        )
-        return 0 if report.status == "pass" else 1
-    finally:
-        await engine.dispose()
+    raise RuntimeError(
+        "旧 DSL 运行评测入口已退役；请使用标准 Skill 原生测试，真实模型评测需原生适配。"
+    )
 
 
 if __name__ == "__main__":

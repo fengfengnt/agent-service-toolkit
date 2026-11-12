@@ -179,10 +179,30 @@ async def test_other_system_can_submit_through_direct_entry_with_alternate_backe
             )
             row = await db.get(ReceptionDraft, UUID(view.id))
             row.step, row.state, row.summary_version = "summary", "review", row.revision
+        from langchain_core.messages import AIMessage
+        from test_deep_factory import final_response
+
+        model.responses = [
+            AIMessage(
+                content="",
+                tool_calls=[
+                    dict(
+                        name="submit_lead",
+                        id="native-submit",
+                        args={
+                            "draft_id": view.id,
+                            "expected_revision": view.revision,
+                            "confirmation": {"confirmed": True, "evidence": "就按这份资料提交吧"},
+                        },
+                    )
+                ],
+            ),
+            final_response(wait_for_input=False),
+        ]
         response = await client.post(
             f"/ai-api/v1/agents/xiaohe-buyer/conversations/{conversation}/messages",
             json={"clientMessageId": "other-submit", "text": "就按这份资料提交吧"},
         )
         assert response.status_code == 202
         await runtime_env.worker.execute_run(UUID(response.json()["run"]["id"]))
-        assert backend.creates == 1 and len(model.agent_calls) == 1
+        assert backend.creates == 1 and len(model.agent_calls) == 2

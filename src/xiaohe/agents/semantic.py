@@ -1,18 +1,9 @@
-import asyncio
-import json
 import re
 
-from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import HumanMessage, SystemMessage
-
-from xiaohe.agents.contracts import AgentFrame, AnswerDraft, SemanticDecision
+from xiaohe.agents.contracts import AgentFrame, SemanticDecision
 from xiaohe.contracts import ServiceError
 from xiaohe.graph import _safe_model_text
-from xiaohe.reception.contracts import KnowledgeHit
 from xiaohe.reception.fields import map_member_size, validate_fields
-from xiaohe.workflows.models import WorkflowBundle, WorkflowDefinition
-
-MODEL_TIMEOUT = 30
 
 
 def _claims_business_success(text: str) -> bool:
@@ -66,58 +57,6 @@ def _safe_context(frame: AgentFrame) -> dict:
     return context
 
 
-async def _structured(model, schema, messages):
-    try:
-        async with asyncio.timeout(MODEL_TIMEOUT):
-            raw = await model.with_structured_output(schema).ainvoke(
-                messages, config={"tags": ["xiaohe_internal"]}
-            )
-            return schema.model_validate(raw)
-    except Exception:
-        raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True) from None
-
-
-async def understand_turn(
-    model: BaseChatModel,
-    frame: AgentFrame,
-    definition: WorkflowDefinition,
-    bundle: WorkflowBundle,
-    *,
-    prompt_key: str = "intent",
-) -> SemanticDecision:
-    if frame.agent_id != definition.agent_id or frame.bundle_id != bundle.bundle_id:
-        raise ServiceError("FORBIDDEN", 403)
-    context = _safe_context(frame)
-    prompt = bundle.resources["prompts/" + definition.prompts[prompt_key]]
-    if frame.model_context.role_guide:
-        prompt += "\n\n本轮适用的角色留资规范：\n" + frame.model_context.role_guide
-    context.pop("role_guide", None)
-    from xiaohe.reception.skills import load_skill_materials
-
-    context["available_topics"] = [
-        {"id": item.source, "scope": _safe_model_text(item.text)}
-        for item in load_skill_materials(bundle, frame.agent_id, definition.skills)
-    ]
-    decision = await _structured(
-        model,
-        SemanticDecision,
-        [
-            SystemMessage(content=prompt),
-            HumanMessage(content=json.dumps(context, ensure_ascii=False)),
-        ],
-    )
-    if (
-        frame.model_context.allowed_actions
-        and decision.action not in frame.model_context.allowed_actions
-        or len(decision.topics) != len(set(decision.topics))
-        or set(decision.topics) - set(definition.skills)
-        or set(decision.topics) - set(frame.model_context.eligible_topics)
-        or set(decision.candidates) - set(frame.model_context.allowed_fields)
-    ):
-        raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
-    return validate_candidates(decision, frame)
-
-
 def validate_candidates(decision: SemanticDecision, frame: AgentFrame) -> SemanticDecision:
     context = _safe_context(frame)
     if set(decision.candidates) - set(frame.model_context.allowed_fields):
@@ -155,46 +94,3 @@ def validate_candidates(decision: SemanticDecision, frame: AgentFrame) -> Semant
         except ServiceError:
             raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True) from None
     return decision
-
-
-async def compose_answer(
-    model: BaseChatModel,
-    frame: AgentFrame,
-    decision: SemanticDecision,
-    materials: list[KnowledgeHit],
-    prompt: str,
-) -> AnswerDraft:
-    if frame.model_context.role_guide:
-        prompt += "\n\n本轮适用的角色留资规范：\n" + frame.model_context.role_guide
-    context = _safe_context(frame)
-    context.pop("role_guide", None)
-    payload = {
-        "context": context,
-        "topics": decision.topics,
-        "materials": [
-            {
-                "source": item.source,
-                "text": _safe_model_text(item.text),
-                "conditions": item.conditions,
-            }
-            for item in materials
-        ],
-    }
-    for _ in range(2):
-        answer = await _structured(
-            model,
-            AnswerDraft,
-            [
-                SystemMessage(content=prompt),
-                HumanMessage(content=json.dumps(payload, ensure_ascii=False)),
-            ],
-        )
-        if "\ufffd" not in answer.text:
-            break
-    else:
-        raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
-    if set(answer.source_ids) - {item.source for item in materials}:
-        raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
-    if frame.interaction_policy and _claims_business_success(answer.text):
-        raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
-    return answer

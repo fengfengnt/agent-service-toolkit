@@ -15,8 +15,8 @@ from xiaohe.agents.contracts import (
     ModelContext,
     SemanticDecision,
 )
-from xiaohe.agents.nodes import _save_stage
 from xiaohe.agents.semantic import validate_candidates
+from xiaohe.agents.state import _save_stage
 from xiaohe.contracts import Actor, ServiceError, WriteFence
 from xiaohe.conversations import require_conversation
 from xiaohe.deep_runtime.bundles import select_binding
@@ -81,6 +81,8 @@ async def checked_context(db, context: ToolContext, operation: str):
         )
     ):
         raise ServiceError("FORBIDDEN", 403)
+    if operation == "submit_lead" and command.payload.get("authContinuation"):
+        raise ServiceError("INPUT_INVALID", 422)
     execution = DeepExecution.model_validate(command.payload.get("deepExecution", {}))
     if (
         execution.bundle_id != context.bundle.bundle_id

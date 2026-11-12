@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from xiaohe.contracts import Actor, InternalModel, WriteFence
 from xiaohe.lead_skills.models import FieldPolicy, InteractionPolicy
 from xiaohe.reception.contracts import FieldValue
-from xiaohe.workflows.models import AgentId, RouteEvent
+from xiaohe.skill_schema import AgentId, RouteEvent
 
 AgentDirection = Literal["unknown", "buyer", "organization", "supplier"]
 InvitationState = Literal["none", "offered", "deferred", "accepted"]
@@ -87,36 +87,6 @@ class SemanticDecision(StrictAgentModel):
     ) = None
     onboarding_mode: Literal["start", "supplement"] = "start"
     draft_name: str | None = Field(default=None, max_length=200)
-
-
-class ConfirmationEvidence(InternalModel):
-    command_id: UUID
-    run_id: UUID
-    message_id: UUID
-    user_id: str | None
-    draft_id: UUID
-    revision: int
-    summary_version: int
-    bundle_id: str
-    agent_id: AgentId
-    source: Literal["semantic", "button"]
-
-    @classmethod
-    def from_frame(cls, frame: AgentFrame, *, source: Literal["semantic", "button"]):
-        return cls.model_validate(
-            dict(
-                command_id=frame.command_id,
-                run_id=frame.fence.run_id,
-                message_id=frame.message_id,
-                user_id=frame.actor.user_id,
-                draft_id=frame.draft_id,
-                revision=frame.draft_revision,
-                summary_version=frame.summary_version,
-                bundle_id=frame.bundle_id,
-                agent_id=frame.agent_id,
-                source=source,
-            )
-        )
 
 
 class LeadConfirmationEvidence(InternalModel):

@@ -1,6 +1,6 @@
 import pytest
+from native_support import Business
 from test_deep_tools import tool_context, tools_module
-from test_lead_submission import Business
 
 pytestmark = [pytest.mark.pg, pytest.mark.asyncio]
 

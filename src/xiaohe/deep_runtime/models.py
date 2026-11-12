@@ -5,7 +5,7 @@ from pydantic import Field, model_validator
 from xiaohe.agents.contracts import AnswerDraft, FieldCandidate
 from xiaohe.contracts import WireModel
 from xiaohe.lead_skills.models import FieldPolicy, InteractionPolicy, policy_digest
-from xiaohe.workflows.models import AgentId, DefinitionModel, Identifier
+from xiaohe.skill_schema import AgentId, DefinitionModel, Identifier
 
 TOOLS = frozenset(
     {
@@ -29,7 +29,6 @@ class SkillSpec(DefinitionModel):
     direction: Literal["general", "buyer", "organization", "supplier"]
     authenticated: bool = False
     requires_tools: list[str] = Field(default_factory=list)
-    legacy_id: str | None = None
 
 
 class ChildBinding(DefinitionModel):

@@ -106,7 +106,7 @@ async def _accept(
     async with db.begin_nested():
         conversation = await require_conversation(db, actor, conversation_id)
         session = await require_session(db, actor)
-        if db.info.get("deepagents_enabled") and not db.info.get("deep_runtime_bundle_id"):
+        if not db.info.get("deep_runtime_bundle_id"):
             raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
         existing = await db.scalar(
             select(Command)
@@ -206,14 +206,7 @@ async def _accept(
                 ownership_epoch=conversation.ownership_epoch,
             )
             db.add(run)
-            if db.info.get("deepagents_enabled") and (
-                native_id := db.info.get("deep_runtime_bundle_id")
-            ):
-                run.runtime_version = "deepagent-v1"
-                run.deep_runtime_bundle_id = native_id
-            elif bundle_id := db.info.get("workflow_bundle_id"):
-                run.runtime_version = "dsl-v1"
-                run.workflow_bundle_id = bundle_id
+            run.deep_runtime_bundle_id = db.info["deep_runtime_bundle_id"]
         else:
             run.status, run.holds_slot, run.pending_request = "queued", True, None
             run.updated_at = func.clock_timestamp()
@@ -236,26 +229,10 @@ async def _accept(
             run_id=run.id,
             request_id=request_id,
         )
-        native_id = (
-            db.info.get("deep_runtime_bundle_id")
-            if db.info.get("deepagents_enabled")
-            else run.deep_runtime_bundle_id
-        )
-        if native_id:
-            from xiaohe.deep_runtime.bundles import bind_deep_command, load_runtime_bundle_record
+        native_id = db.info["deep_runtime_bundle_id"]
+        from xiaohe.deep_runtime.bundles import bind_deep_command, load_runtime_bundle_record
 
-            await bind_deep_command(
-                db, run, command, await load_runtime_bundle_record(db, native_id)
-            )
-        elif policy_id := db.info.get("lead_interaction_policy_id"):
-            from xiaohe.lead_skills.store import bind_command_policy, load_policy
-
-            await bind_command_policy(
-                db,
-                command,
-                await load_policy(db, policy_id),
-                workflow_bundle_id=db.info["workflow_bundle_id"],
-            )
+        await bind_deep_command(db, run, command, await load_runtime_bundle_record(db, native_id))
         await db.flush()
         db.add(command)
         await db.flush()
@@ -335,10 +312,11 @@ async def accept_action(
 
 
 def _agent_entry(db, agent_id):
-    from xiaohe.workflows.models import AGENT_IDS
+    from xiaohe.skill_schema import AGENT_IDS
+
     if agent_id not in AGENT_IDS:
         raise ServiceError("AGENT_NOT_FOUND", 404)
-    if not db.info.get("workflow_bundle_id"):
+    if not db.info.get("deep_runtime_bundle_id"):
         raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
 
 
@@ -346,8 +324,14 @@ async def accept_agent_message(db, actor, agent_id, conversation_id, body: Messa
     _agent_entry(db, agent_id)
     body = _parse(MessageInput, body)
     _safe_text(body.text)
-    return await _accept(db, actor, conversation_id, "message", body.client_message_id,
-        body.model_dump(mode="json", by_alias=True) | {"entryAgent": agent_id})
+    return await _accept(
+        db,
+        actor,
+        conversation_id,
+        "message",
+        body.client_message_id,
+        body.model_dump(mode="json", by_alias=True) | {"entryAgent": agent_id},
+    )
 
 
 async def accept_agent_action(db, actor, agent_id, conversation_id, body: ChatAction):
@@ -357,19 +341,35 @@ async def accept_agent_action(db, actor, agent_id, conversation_id, body: ChatAc
         _safe_text(body.text)
     await require_conversation(db, actor, conversation_id)
     payload = body.model_dump(mode="json", by_alias=True) | {"entryAgent": agent_id}
-    existing = await db.scalar(select(Command).where(Command.conversation_id == conversation_id,
-        Command.kind == "action", Command.client_key == body.client_action_id))
+    existing = await db.scalar(
+        select(Command).where(
+            Command.conversation_id == conversation_id,
+            Command.kind == "action",
+            Command.client_key == body.client_action_id,
+        )
+    )
     if existing is not None:
         return await _accept(db, actor, conversation_id, "action", body.client_action_id, payload)
-    run = await db.scalar(select(Run).where(Run.conversation_id == conversation_id,
-        Run.status == "waiting_input", Run.pending_request["requestId"].astext == body.request_id))
-    previous = await db.scalar(select(Command).where(Command.run_id == run.id,
-        Command.payload["receptionReceiptFor"].astext.is_(None))
-        .order_by(Command.created_at.desc(), Command.id.desc()).limit(1)) if run else None
-    active = (
-        previous.payload.get("deepExecution", previous.payload.get("agentExecution", {})).get("active")
-        if previous else None
+    run = await db.scalar(
+        select(Run).where(
+            Run.conversation_id == conversation_id,
+            Run.status == "waiting_input",
+            Run.pending_request["requestId"].astext == body.request_id,
+        )
     )
+    previous = (
+        await db.scalar(
+            select(Command)
+            .where(
+                Command.run_id == run.id, Command.payload["receptionReceiptFor"].astext.is_(None)
+            )
+            .order_by(Command.created_at.desc(), Command.id.desc())
+            .limit(1)
+        )
+        if run
+        else None
+    )
+    active = previous.payload.get("deepExecution", {}).get("active") if previous else None
     if run is None or previous is None or active != agent_id:
         raise ServiceError("ACTION_STALE", 409)
     return await _accept(db, actor, conversation_id, "action", body.client_action_id, payload)

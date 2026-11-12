@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
 from xiaohe.contracts import ServiceError
+from xiaohe.deep_runtime.bundles import load_runtime_bundle
 from xiaohe.identity import require_session
 from xiaohe.models import User
 from xiaohe.reception.contracts import (
@@ -17,8 +18,7 @@ from xiaohe.reception.contracts import (
 from xiaohe.reception.fields import PUBLIC_FIELDS, missing_required, validate_fields
 from xiaohe.reception.models import ReceptionFormSubmission
 from xiaohe.reception.submission import actor_from_user
-from xiaohe.workflows.definitions import RESOURCE_ROOT
-from xiaohe.workflows.loader import load_bundle, workflow_for
+from xiaohe.resources import RESOURCE_ROOT
 
 
 async def authority(db, actor):
@@ -34,24 +34,17 @@ def form_scope(actor):
 
 
 def form_definition(direction):
-    bundle = load_bundle(RESOURCE_ROOT)
-    definition = workflow_for(bundle, "xiaohe-" + direction)
-    required = list(dict.fromkeys(definition.required_fields + list(FORMAL_REQUIRED_FIELDS[direction])))
-    return bundle.bundle_id, definition.model_copy(update={"required_fields": required})
+    bundle = load_runtime_bundle(RESOURCE_ROOT)
+    policy = bundle.field_policies[direction]
+    required = list(dict.fromkeys(policy.required_fields + list(FORMAL_REQUIRED_FIELDS[direction])))
+    return bundle.bundle_id, policy.model_copy(update={"required_fields": required})
 
 
 def form_field_policy(direction, *, expected_bundle_id):
-    from xiaohe.lead_skills.loader import load_lead_skills, parse_lead_skills
-
-    bundle = load_bundle(RESOURCE_ROOT)
-    if bundle.bundle_id != expected_bundle_id:
+    bundle_id, policy = form_definition(direction)
+    if bundle_id != expected_bundle_id:
         raise ServiceError("DRAFT_CONFLICT", 409)
-    definition = workflow_for(bundle, "xiaohe-" + direction)
-    required = list(dict.fromkeys(definition.required_fields + list(FORMAL_REQUIRED_FIELDS[direction])))
-    policies = (parse_lead_skills(bundle.resources)
-        if "lead-skills/common/policy.yaml" in bundle.resources else load_lead_skills(RESOURCE_ROOT))
-    policy = policies.field_policies[direction]
-    return policy.model_copy(update={"rounds": definition.rounds, "required_fields": required})
+    return policy
 
 
 async def read_application_form(factory, actor, source_application_id, mode, client):
@@ -72,7 +65,11 @@ async def read_application_form(factory, actor, source_application_id, mode, cli
             page = await client.subjects(bound, query)
             profile = next((item for item in page.items if item.id == source.subject_id), None)
             if profile:
-                fields = {k: v for k, v in profile.public_fields.items() if k in PUBLIC_FIELDS[source.direction]}
+                fields = {
+                    k: v
+                    for k, v in profile.public_fields.items()
+                    if k in PUBLIC_FIELDS[source.direction]
+                }
                 break
             if not page.next_cursor or page.next_cursor == cursor:
                 raise ServiceError("FORBIDDEN", 403)
@@ -80,18 +77,30 @@ async def read_application_form(factory, actor, source_application_id, mode, cli
     bundle_id, definition = form_definition(source.direction)
     async with factory.begin() as db:
         await authority(db, actor)
-    return ApplicationFormView(mode=mode, source_application_id=source.id, subject_id=source.subject_id,
-        direction=source.direction, expected_application_revision=source.revision if mode == "edit" else None,
-        definition_bundle_id=bundle_id, field_layout={"rounds": [
-            {"id": r.id, "name": r.name, "fields": r.fields} for r in definition.rounds],
-            "requiredFields": definition.required_fields}, fields=fields, files=source.files if mode == "edit" else [])
+    return ApplicationFormView(
+        mode=mode,
+        source_application_id=source.id,
+        subject_id=source.subject_id,
+        direction=source.direction,
+        expected_application_revision=source.revision if mode == "edit" else None,
+        definition_bundle_id=bundle_id,
+        field_layout={
+            "rounds": [{"id": r.id, "name": r.name, "fields": r.fields} for r in definition.rounds],
+            "requiredFields": definition.required_fields,
+        },
+        fields=fields,
+        files=source.files if mode == "edit" else [],
+    )
 
 
 async def submission_row(db, actor, client_id, *, lock=False):
     system, tenant, user = form_scope(actor)
-    query = select(ReceptionFormSubmission).where(ReceptionFormSubmission.system_id == system,
-        ReceptionFormSubmission.tenant_id == tenant, ReceptionFormSubmission.user_id == user,
-        ReceptionFormSubmission.client_submission_id == client_id)
+    query = select(ReceptionFormSubmission).where(
+        ReceptionFormSubmission.system_id == system,
+        ReceptionFormSubmission.tenant_id == tenant,
+        ReceptionFormSubmission.user_id == user,
+        ReceptionFormSubmission.client_submission_id == client_id,
+    )
     if lock:
         query = query.with_for_update()
     return await db.scalar(query.execution_options(populate_existing=True))
@@ -99,18 +108,26 @@ async def submission_row(db, actor, client_id, *, lock=False):
 
 async def submit_application_form(factory, actor, payload, client):
     raw = payload.model_dump(mode="json", by_alias=True)
-    digest = hashlib.sha256(json.dumps(raw, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    digest = hashlib.sha256(
+        json.dumps(raw, sort_keys=True, ensure_ascii=False).encode()
+    ).hexdigest()
     async with factory.begin() as db:
         await authority(db, actor)
         existing = await submission_row(db, actor, payload.client_submission_id)
         if existing and existing.input_hash != digest:
             raise ServiceError("IDEMPOTENCY_CONFLICT", 409)
     if existing is None:
-        view = await read_application_form(factory, actor, payload.source_application_id, payload.mode, client)
-        if view.expected_application_revision != payload.expected_application_revision or view.definition_bundle_id != payload.definition_bundle_id:
+        view = await read_application_form(
+            factory, actor, payload.source_application_id, payload.mode, client
+        )
+        if (
+            view.expected_application_revision != payload.expected_application_revision
+            or view.definition_bundle_id != payload.definition_bundle_id
+        ):
             raise ServiceError("DRAFT_CONFLICT", 409)
         if getattr(payload, "policy_form_id", None):
             from xiaohe.deep_runtime.forms import application_policy_v2
+
             async with factory.begin() as db:
                 projected = await application_policy_v2(db, actor, view)
             if projected.form_id != payload.policy_form_id:
@@ -132,22 +149,50 @@ async def submit_application_form(factory, actor, payload, client):
                 else:
                     from xiaohe.reception.files import _ref
                     from xiaohe.reception.form_files import owned_form_file
+
                     row = await owned_form_file(db, actor, payload.form_id, file_id)
                     if row.status != "ready":
                         raise ServiceError("FILE_INVALID", 422)
                     files.append(_ref(row))
             scope = form_scope(actor)
-            key = "form:" + hashlib.sha256(json.dumps([*scope, payload.client_submission_id]).encode()).hexdigest()
-            formal = Submission(submission_key=key, draft_id="form:" + str(payload.form_id), draft_revision=1,
+            key = (
+                "form:"
+                + hashlib.sha256(
+                    json.dumps([*scope, payload.client_submission_id]).encode()
+                ).hexdigest()
+            )
+            formal = Submission(
+                submission_key=key,
+                draft_id="form:" + str(payload.form_id),
+                draft_revision=1,
                 operation="update" if payload.mode == "edit" else "create",
                 application_id=view.source_application_id if payload.mode == "edit" else None,
-                expected_application_revision=payload.expected_application_revision, subject_id=view.subject_id,
-                subject_kind="organization" if view.direction == "organization" else "company", direction=view.direction,
-                public_fields={k: v for k, v in fields.items() if k in PUBLIC_FIELDS[view.direction]},
-                request_fields={k: v for k, v in fields.items() if k not in PUBLIC_FIELDS[view.direction]}, files=files)
-            await db.execute(insert(ReceptionFormSubmission).values(system_id=scope[0], tenant_id=scope[1], user_id=scope[2],
-                client_submission_id=payload.client_submission_id, form_id=payload.form_id, input_hash=digest,
-                payload=formal.model_dump(mode="json", by_alias=True), status="pending").on_conflict_do_nothing())
+                expected_application_revision=payload.expected_application_revision,
+                subject_id=view.subject_id,
+                subject_kind="organization" if view.direction == "organization" else "company",
+                direction=view.direction,
+                public_fields={
+                    k: v for k, v in fields.items() if k in PUBLIC_FIELDS[view.direction]
+                },
+                request_fields={
+                    k: v for k, v in fields.items() if k not in PUBLIC_FIELDS[view.direction]
+                },
+                files=files,
+            )
+            await db.execute(
+                insert(ReceptionFormSubmission)
+                .values(
+                    system_id=scope[0],
+                    tenant_id=scope[1],
+                    user_id=scope[2],
+                    client_submission_id=payload.client_submission_id,
+                    form_id=payload.form_id,
+                    input_hash=digest,
+                    payload=formal.model_dump(mode="json", by_alias=True),
+                    status="pending",
+                )
+                .on_conflict_do_nothing()
+            )
             row = await submission_row(db, actor, payload.client_submission_id, lock=True)
             if row.input_hash != digest:
                 raise ServiceError("IDEMPOTENCY_CONFLICT", 409)
@@ -161,7 +206,9 @@ async def application_form_result(factory, actor, client_submission_id, client):
         if row is None:
             return SubmissionResult(status="not_found", receipt=None)
         if row.status == "accepted":
-            return SubmissionResult(status="accepted", receipt=SubmitReceipt.model_validate(row.receipt))
+            return SubmissionResult(
+                status="accepted", receipt=SubmitReceipt.model_validate(row.receipt)
+            )
         if row.status == "failed":
             raise ServiceError(row.receipt["code"], row.receipt["status"])
         payload = Submission.model_validate(row.payload)
@@ -171,16 +218,34 @@ async def application_form_result(factory, actor, client_submission_id, client):
         result = await client.result(bound, payload.submission_key)
         if result.status == "pending":
             return result
-        receipt = result.receipt if result.status == "accepted" else await client.submit(bound, payload)
-        if receipt.status != "accepted" or receipt.kind != "service" or receipt.submission_key != payload.submission_key or (payload.application_id and receipt.application_id != payload.application_id):
+        receipt = (
+            result.receipt if result.status == "accepted" else await client.submit(bound, payload)
+        )
+        if (
+            receipt.status != "accepted"
+            or receipt.kind != "service"
+            or receipt.submission_key != payload.submission_key
+            or (payload.application_id and receipt.application_id != payload.application_id)
+        ):
             raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
     except ServiceError as error:
-        if error.code in ("INPUT_INVALID", "DRAFT_CONFLICT", "SUBJECT_CONFLICT", "IDEMPOTENCY_CONFLICT", "FORBIDDEN", "APPLICATION_FLOW_CHANGED", "APPLICATION_MIGRATION_REQUIRED"):
+        if error.code in (
+            "INPUT_INVALID",
+            "DRAFT_CONFLICT",
+            "SUBJECT_CONFLICT",
+            "IDEMPOTENCY_CONFLICT",
+            "FORBIDDEN",
+            "APPLICATION_FLOW_CHANGED",
+            "APPLICATION_MIGRATION_REQUIRED",
+        ):
             async with factory.begin() as db:
                 await authority(db, actor)
                 row = await submission_row(db, actor, client_submission_id, lock=True)
                 if row.status == "pending":
-                    row.status, row.receipt = "failed", {"code": error.code, "status": error.http_status}
+                    row.status, row.receipt = (
+                        "failed",
+                        {"code": error.code, "status": error.http_status},
+                    )
         raise
     async with factory.begin() as db:
         await authority(db, actor)

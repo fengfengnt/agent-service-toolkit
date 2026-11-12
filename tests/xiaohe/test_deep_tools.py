@@ -4,9 +4,8 @@ from pathlib import Path
 from uuid import UUID
 
 import pytest
+from native_support import Business, prepare
 from sqlalchemy import select
-from test_agent_operations import prepare
-from test_lead_submission import Business
 
 from xiaohe.contracts import ServiceError
 from xiaohe.deep_runtime.bundles import load_runtime_bundle, persist_runtime_bundle, select_binding
@@ -16,6 +15,24 @@ from xiaohe.reception.models import ReceptionDraft
 
 ROOT = Path(__file__).resolve().parents[2] / "resources/xiaohe"
 pytestmark = [pytest.mark.pg, pytest.mark.asyncio]
+
+
+async def test_authentication_continuation_cannot_submit_without_new_consent(
+    pg_factory, job_app, tmp_path
+):
+    context, frame = await tool_context(pg_factory, tmp_path, client=Business())
+    async with pg_factory.begin() as db:
+        command = await db.get(Command, context.command_id)
+        command.payload = command.payload | {"authContinuation": True}
+    with pytest.raises(ServiceError, match="INPUT_INVALID"):
+        await tools_module().execute_effect(
+            context,
+            "submit_lead",
+            draft_id=frame.draft_id,
+            expected_revision=frame.draft_revision,
+            payload={"confirmation": {"confirmed": True, "evidence": "好的"}},
+        )
+    assert context.business_client.payloads == []
 
 
 def tools_module():
@@ -158,8 +175,8 @@ async def test_role_mismatch_and_stale_revision_are_rejected(pg_factory, job_app
 
 async def test_guest_prepare_requests_auth_without_creating_draft(pg_factory, job_app):
     module = tools_module()
+    from native_support import send_in_db
     from test_admission import visitor
-    from test_reception_flow import send_in_db
 
     from xiaohe.runs import acquire_run
 

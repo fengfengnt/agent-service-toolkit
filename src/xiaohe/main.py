@@ -44,20 +44,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         _active_app = app
         previous = agents.get("xiaohe")
         try:
-            from xiaohe.agents.runtime import load_agent_registry
-            from xiaohe.workflows.definitions import RESOURCE_ROOT
-
             # 后续独立部署只替换宿主认证和 BusinessBackend 装配；本期共用进程。
-            registry = await load_agent_registry(factory, RESOURCE_ROOT, None, reception_client)
             from xiaohe.deep_runtime.runtime import publish_runtime
+            from xiaohe.resources import RESOURCE_ROOT
 
-            await publish_runtime(factory, RESOURCE_ROOT, enabled=settings.deepagents_enabled)
-            app.state.xiaohe_agent_registry = registry
+            await publish_runtime(factory, RESOURCE_ROOT)
             agents["xiaohe"] = Agent(
                 description="小鹤执行与暂停外壳",
-                graph_like=build_graph(
-                    factory=factory, business_client=reception_client, agent_registry=registry
-                ),
+                graph_like=build_graph(factory=factory, business_client=reception_client),
             )
             async with AsyncExitStack() as stack:
                 # An open transaction would block upstream CREATE INDEX CONCURRENTLY.

@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy import select, text
 from test_deep_tools import tool_context, tools_module
-from test_workflow_recovery import kill_at_committed_phase
+from native_support import kill_at_committed_phase
 
 from xiaohe.reception.contracts import SubmissionResult, SubmitReceipt
 from xiaohe.reception.models import ReceptionDraft, ReceptionSubmission

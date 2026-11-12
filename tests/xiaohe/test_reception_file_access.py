@@ -5,7 +5,7 @@ from integration.minio_support import minio_env as minio_env
 from test_http_api import client_for, session
 from test_identity_sessions import actor, bootstrap, login
 from test_reception_files import PDF, chunks
-from test_reception_flow import send_in_db
+from native_support import send_in_db
 
 from xiaohe.contracts import ServiceError
 from xiaohe.reception.api import create_reception_file_router, create_reception_router

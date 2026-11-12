@@ -6,7 +6,7 @@ from typing import Literal, Self
 from pydantic import Field, model_validator
 
 from xiaohe.reception.fields import ALLOWED_FIELDS, PUBLIC_FIELDS
-from xiaohe.workflows.models import DefinitionModel, RoundDefinition
+from xiaohe.skill_schema import DefinitionModel, RoundDefinition
 
 Direction = Literal["buyer", "organization", "supplier"]
 NOTICE_VARIABLES = {

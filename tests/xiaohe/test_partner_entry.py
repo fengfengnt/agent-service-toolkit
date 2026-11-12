@@ -149,7 +149,7 @@ async def test_partner_entry_greets_without_model_or_submission(
         question = run.pending_request["requestId"]
         assert await db.scalar(select(func.count()).select_from(ReceptionDraft)) == 0
         command = await db.scalar(select(Command).where(Command.run_id == run.id))
-        assert set(command.payload["agentStages"]) == {"xiaohe-" + direction}
+        assert command.payload["deepExecution"]["active"] == "xiaohe-" + direction
         answer = await db.scalar(
             select(Message)
             .where(Message.id != UUID(accepted.message.id))

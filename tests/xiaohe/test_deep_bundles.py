@@ -1,5 +1,4 @@
 import importlib
-import json
 import os
 import shutil
 from pathlib import Path
@@ -9,8 +8,7 @@ import pytest
 import yaml
 
 from xiaohe.contracts import Actor
-from xiaohe.lead_skills.loader import load_lead_skills
-from xiaohe.workflows.models import WorkflowValidationError
+from xiaohe.skill_schema import SkillValidationError
 
 ROOT = Path(__file__).resolve().parents[2] / "resources/xiaohe"
 
@@ -58,15 +56,10 @@ def test_twenty_one_standard_packages():
         "xiaohe-organization",
         "xiaohe-supplier",
     }
-    for entry in json.loads((ROOT / "skills/catalog.json").read_text("utf-8")):
-        name = entry["id"].replace(".", "-")
-        assert (
-            bundle.resources[f"skills/{name}/references/answer.md"].encode("utf-8")
-            == (ROOT / "skills" / entry["path"]).read_bytes()
-        )
-        assert bundle.skills[name].description
-    old = load_lead_skills(ROOT)
-    assert bundle.field_policies == old.field_policies
+    assert sum("references/answer.md" in key for key in bundle.resources) == 18
+    for name, spec in bundle.skills.items():
+        assert spec.description and f"skills/{name}/SKILL.md" in bundle.resources
+    assert not (ROOT / "skills/catalog.json").exists()
     assert bundle.bindings["xiaohe-reception"].tools == ["request_handoff"]
     assert bundle == type(bundle).model_validate_json(bundle.model_dump_json())
 
@@ -133,7 +126,7 @@ def test_invalid_runtime_packages_are_rejected(runtime_root, change):
     else:
         path = runtime_root / "deep-runtime.yaml"
         path.write_text("version: 1\nversion: 2\n", "utf-8")
-    with pytest.raises(WorkflowValidationError):
+    with pytest.raises(SkillValidationError):
         loader().load_runtime_bundle(runtime_root)
 
 
@@ -148,5 +141,5 @@ def test_symlinked_reference_cannot_escape_package(runtime_root, tmp_path):
         if os.name != "nt":
             raise
         pytest.skip("Windows symlink privilege unavailable")
-    with pytest.raises(WorkflowValidationError):
+    with pytest.raises(SkillValidationError):
         loader().load_runtime_bundle(runtime_root)

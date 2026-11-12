@@ -7,9 +7,8 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
 from sqlalchemy import select, text
 
-from xiaohe.agents.nodes import _command
-from xiaohe.agents.runtime import _select_direction
 from xiaohe.agents.semantic import _claims_business_success
+from xiaohe.agents.state import _command, _select_direction
 from xiaohe.contracts import Actor, AgentOutcome, ServiceError, TrustedSystem
 from xiaohe.deep_runtime.bundles import load_runtime_bundle_record, select_binding, skill_files
 from xiaohe.deep_runtime.factory import build_business_agent
@@ -43,13 +42,12 @@ def _persist(command, execution, **updates):
     return updated
 
 
-async def publish_runtime(factory, resource_root, *, enabled):
+async def publish_runtime(factory, resource_root):
     from xiaohe.deep_runtime.bundles import load_runtime_bundle, persist_runtime_bundle
 
-    bundle = load_runtime_bundle(resource_root) if enabled else None
+    bundle = load_runtime_bundle(resource_root)
     async with factory.begin() as db:
-        if bundle is not None:
-            await persist_runtime_bundle(db, bundle)
+        await persist_runtime_bundle(db, bundle)
         for bundle_id in await db.scalars(
             select(Run.deep_runtime_bundle_id)
             .where(Run.deep_runtime_bundle_id.is_not(None), Run.status.not_in(TERMINAL))
@@ -63,8 +61,10 @@ async def publish_runtime(factory, resource_root, *, enabled):
                 )
     factory.configure(
         info=factory.kw.get("info", {})
-        | {"deepagents_enabled": enabled}
-        | ({"deep_runtime_bundle_id": bundle.bundle_id} if bundle is not None else {})
+        | {
+            "deep_runtime_bundle_id": bundle.bundle_id,
+            "lead_interaction_policy_id": bundle.interaction_policy.policy_id,
+        }
     )
 
 
@@ -206,6 +206,17 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
     async def business_agent(state):
         from xiaohe.graph import _auth_intent
 
+        if action.get("control") == "switch_direction":
+            return {
+                "candidate": DeepTurnResult(
+                    answer={
+                        "text": "已进入当前服务方向，您可以继续咨询或填写资料。",
+                        "basis": "general_advice",
+                        "source_ids": [],
+                    }
+                ).model_dump(mode="json")
+            }
+
         if context.binding.agent_id == "xiaohe-reception" and (
             intent := _auth_intent(context.text)
         ):
@@ -255,7 +266,7 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
             )
             return {"candidate": None}
         if action.get("action") in ("save_round", "skip_optional", "show_summary"):
-            await _legacy_button(context, action)
+            await _form_action(context, action)
             return {"candidate": None}
         from xiaohe.graph import reception_model
 
@@ -318,9 +329,7 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
             parts = []
             if candidate and candidate.answer:
                 answer = candidate.answer
-                source_ids = {name for name in context.binding.skills} | {
-                    bundle.skills[name].legacy_id for name in context.binding.skills
-                }
+                source_ids = set(context.binding.skills)
                 if _claims_business_success(answer.text) or set(answer.source_ids) - source_ids:
                     if not submitted and not saved:
                         raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
@@ -365,7 +374,7 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
                         }
                     )
             for effect in effects:
-                if effect["operation"] == "legacy_button":
+                if effect["operation"] == "form_action":
                     parts.append({"type": "text", "text": effect["data"]["text"]})
             auth = any(e["status"] == "auth" for e in effects)
             if auth:
@@ -432,7 +441,7 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
     raise ServiceError("INVALID_WAIT_STATE", 502)
 
 
-async def _legacy_button(context, action):
+async def _form_action(context, action):
     from xiaohe.deep_runtime.models import ToolResult
     from xiaohe.deep_runtime.tools import _save_execution, active_draft, checked_context
     from xiaohe.lead_skills.store import resolve_draft_policy
@@ -441,7 +450,7 @@ async def _legacy_button(context, action):
     async with context.factory.begin() as db:
         _, command, _, flow = await checked_context(db, context, "read_lead")
         execution = DeepExecution.model_validate(command.payload["deepExecution"])
-        key = "legacy_button"
+        key = "form_action"
         if key in execution.effects:
             return
         row = await active_draft(db, context, flow, action["draftId"])
@@ -478,7 +487,7 @@ async def _legacy_button(context, action):
             execution,
             key,
             ToolResult(
-                operation="legacy_button",
+                operation="form_action",
                 revision=row.revision,
                 data={"text": notice, "collection": True},
             ),

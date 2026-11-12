@@ -9,7 +9,6 @@ from uuid import uuid4
 
 import httpx
 import pytest
-import yaml
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -120,7 +119,7 @@ async def test_actual_reception_application_progress_onboarding_and_private_file
             return await view()
 
         async def create(direction, fields, **source):
-            fields = {"contactName":"张先生", "contactPhone":"企业总台"} | fields
+            fields = {"contactName": "张先生", "contactPhone": "企业总台"} | fields
             response = await client.post(
                 path + "/drafts",
                 json={
@@ -195,11 +194,11 @@ async def test_actual_reception_application_progress_onboarding_and_private_file
             assert (
                 db.scalar(
                     text(
-                        "SELECT runtime_version FROM xiaohe.runs WHERE conversation_id=:id ORDER BY created_at DESC LIMIT 1"
+                        "SELECT deep_runtime_bundle_id FROM xiaohe.runs WHERE conversation_id=:id ORDER BY created_at DESC LIMIT 1"
                     ),
                     {"id": conversation},
                 )
-                == "dsl-v1"
+                is not None
             )
         switched = await turn("切换到供应商")
         assert switched["direction"] == "supplier" and switched["activeDraft"] is None
@@ -480,7 +479,7 @@ async def test_process_kill_after_java_accept_recovers_original_submission():
         with engine.connect() as db:
             original_bundle = db.scalar(
                 text(
-                    "SELECT workflow_bundle_id FROM xiaohe.runs WHERE conversation_id=:id ORDER BY created_at DESC LIMIT 1"
+                    "SELECT deep_runtime_bundle_id FROM xiaohe.runs WHERE conversation_id=:id ORDER BY created_at DESC LIMIT 1"
                 ),
                 {"id": snapshot["conversationId"]},
             )
@@ -491,12 +490,10 @@ async def test_process_kill_after_java_accept_recovers_original_submission():
                 )
                 is None
             )
-        workflow = Path(config["resource_root"]) / "workflows/buyer.yaml"
-        changed = yaml.safe_load(workflow.read_text("utf-8"))
-        changed["workflow_version"] += "-restart-test"
-        for group in changed["rounds"]:
-            group["fields"] = [key for key in group["fields"] if key != "budget"]
-        workflow.write_text(yaml.safe_dump(changed, allow_unicode=True), "utf-8")
+        skill = Path(config["resource_root"]) / "skills/buyer-lead-capture/SKILL.md"
+        skill.write_text(
+            skill.read_text("utf-8") + "\n新版引导标记，不改变已执行动作的快照。\n", "utf-8"
+        )
         (directory / "restart-runtime").write_text("kill-owned-runtime", "utf-8")
 
         async def restarted():
@@ -513,7 +510,7 @@ async def test_process_kill_after_java_accept_recovers_original_submission():
             assert (
                 db.scalar(
                     text(
-                        "SELECT workflow_bundle_id FROM xiaohe.runs WHERE conversation_id=:id ORDER BY created_at DESC LIMIT 1"
+                        "SELECT deep_runtime_bundle_id FROM xiaohe.runs WHERE conversation_id=:id ORDER BY created_at DESC LIMIT 1"
                     ),
                     {"id": snapshot["conversationId"]},
                 )

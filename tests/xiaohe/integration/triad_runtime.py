@@ -115,7 +115,7 @@ def create_triad_app(settings):
                 graph = build_graph(
                     factory=factory,
                     model=model(intent="professional"),
-                    handlers={"buyer": document, "organization": document, "supplier": document},
+                    handler=document,
                 )
                 graph.checkpointer, graph.store = original_graph.checkpointer, original_graph.store
                 agents["xiaohe"].graph_like = graph

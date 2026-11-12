@@ -5,11 +5,14 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, text
 from test_admission import visitor
+from test_standard_cleanup import legacy_factory as legacy_factory
 
 pytestmark = [pytest.mark.pg, pytest.mark.asyncio]
 
 
-async def test_execution_migration_backfills_existing_waiting_run(pg_factory, pg_url):
+@pytest.mark.parametrize("legacy_factory", [False], indirect=True)
+async def test_execution_migration_backfills_existing_waiting_run(legacy_factory):
+    pg_factory, pg_url, _ = legacy_factory
     who, conversation = await visitor(pg_factory)
     engine = create_engine(pg_url, hide_parameters=True)
     try:
@@ -44,7 +47,7 @@ async def test_execution_migration_backfills_existing_waiting_run(pg_factory, pg
                     VALUES (:command,:conversation,'portal',1,'message','legacy','legacy','{}',:message,:run)"""),
                     ids,
                 )
-                command.upgrade(config, "head")
+                command.upgrade(config, "0014")
                 row = connection.execute(
                     text("""SELECT r.guest_id,r.user_id,
                     r.execution_expires_at=s.expires_at AS same_deadline,c.completed_at IS NOT NULL AS completed

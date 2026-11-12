@@ -2,13 +2,11 @@ import importlib
 from uuid import uuid4
 
 import pytest
-from alembic import command
-from alembic.config import Config
+from native_support import skills
 from pydantic import ValidationError
-from sqlalchemy import create_engine, select, text
-from test_lead_skills import skills
+from sqlalchemy import select, text
 
-from xiaohe.workflows.models import WorkflowValidationError
+from xiaohe.skill_schema import SkillValidationError
 
 
 @pytest.mark.pg
@@ -28,7 +26,7 @@ async def test_policy_record_is_immutable(pg_factory):
         assert await load_policy(db, policy.policy_id) == policy
         row = await db.scalar(select(LeadPolicyRecord))
         row.payload = row.payload | {"direction": "supplier"}
-    with pytest.raises(WorkflowValidationError):
+    with pytest.raises(SkillValidationError):
         async with pg_factory() as db:
             await load_policy(db, policy.policy_id)
 
@@ -61,110 +59,17 @@ def test_direct_evidence_does_not_forge_summary():
 
 @pytest.mark.pg
 @pytest.mark.asyncio
-async def test_expand_migration_preserves_legacy_submissions(pg_factory, pg_url, job_app):
+async def test_submitting_draft_cannot_lose_field_policy(pg_factory):
+    from sqlalchemy.exc import IntegrityError
     from test_reception_submission import confirmed
 
-    from xiaohe.reception.models import ReceptionDraft, ReceptionFile, ReceptionSubmission
+    from xiaohe.reception.models import ReceptionSubmission
 
-    assert "confirmation_evidence" in ReceptionSubmission.__table__.columns, (
-        "expand migration missing"
-    )
     _, submission = await confirmed(pg_factory)
-    async with pg_factory.begin() as db:
-        draft = await db.get(ReceptionDraft, submission.draft_id)
-        file_id = uuid4()
-        db.add(
-            ReceptionFile(
-                id=file_id,
-                draft_id=draft.id,
-                conversation_id=draft.conversation_id,
-                system_id=draft.system_id,
-                tenant_id=draft.tenant_id,
-                client_upload_id="migration-file",
-                upload_request={},
-                category="product_manual",
-                filename="合成测试.pdf",
-                media_type="application/pdf",
-                bytes=5,
-                sha256="d" * 64,
-                status="ready",
-                object_key="fixture/lead-file",
-                object_keys=["fixture/lead-file"],
-                detached=False,
-            )
-        )
-        record = await db.get(ReceptionSubmission, submission.id)
-        record.payload = record.payload | {
-            "files": [
-                {
-                    "id": str(file_id),
-                    "category": "product_manual",
-                    "filename": "合成测试.pdf",
-                    "mediaType": "application/pdf",
-                    "bytes": 5,
-                    "sha256": "d" * 64,
-                    "status": "ready",
-                }
-            ]
-        }
-    engine = create_engine(pg_url, hide_parameters=True)
-    try:
-        with engine.connect() as connection:
-            transaction = connection.begin()
-            try:
-                config = Config("alembic.ini")
-                config.attributes["connection"] = connection
-                # 构造未引入 Skill 前的样本；不能把新绑定伪称为旧库数据。
-                connection.execute(text("UPDATE xiaohe.reception_drafts SET field_policy_id=NULL"))
-                command.downgrade(config, "0012")
-                before = connection.execute(
-                    text("SELECT row_to_json(s) FROM xiaohe.reception_submissions s")
-                ).scalar_one()
-                drafts = (
-                    connection.execute(text("SELECT row_to_json(d) FROM xiaohe.reception_drafts d"))
-                    .scalars()
-                    .all()
-                )
-                retained = {
-                    table: connection.execute(text(f"SELECT row_to_json(t) FROM xiaohe.{table} t"))
-                    .scalars()
-                    .all()
-                    for table in ("users", "sessions", "reception_files")
-                }
-                command.upgrade(config, "head")
-                after = connection.execute(
-                    text("SELECT row_to_json(s) FROM xiaohe.reception_submissions s")
-                ).scalar_one()
-                assert {k: after[k] for k in before} == before
-                assert after["confirmation_evidence"] is None
-                assert after["submission_key"] == submission.submission_key
-                actual = (
-                    connection.execute(text("SELECT row_to_json(d) FROM xiaohe.reception_drafts d"))
-                    .scalars()
-                    .all()
-                )
-                assert [
-                    {k: d[k] for k in old} for d, old in zip(actual, drafts, strict=True)
-                ] == drafts
-                for table, rows in retained.items():
-                    assert (
-                        connection.execute(text(f"SELECT row_to_json(t) FROM xiaohe.{table} t"))
-                        .scalars()
-                        .all()
-                        == rows
-                    )
-                connection.execute(
-                    text(
-                        "INSERT INTO xiaohe.lead_policies (policy_id,kind,payload) VALUES (:id,'fields','{}')"
-                    ),
-                    {"id": "a" * 64},
-                )
-                connection.execute(
-                    text("UPDATE xiaohe.reception_drafts SET field_policy_id=:id"), {"id": "a" * 64}
-                )
-                with pytest.raises(RuntimeError, match="lead policy"):
-                    command.downgrade(config, "0012")
-            finally:
-                transaction.rollback()
-    finally:
-        engine.dispose()
+    async with pg_factory() as db:
+        before = (await db.get(ReceptionSubmission, submission.id)).payload
+    with pytest.raises(IntegrityError):
+        async with pg_factory.begin() as db:
+            await db.execute(text("UPDATE xiaohe.reception_drafts SET field_policy_id=NULL"))
+    async with pg_factory() as db:
+        assert (await db.get(ReceptionSubmission, submission.id)).payload == before

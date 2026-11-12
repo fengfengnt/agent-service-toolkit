@@ -8,10 +8,10 @@ from deep_runtime_support import DeepScriptModel, make_script_model
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 from langgraph.checkpoint.memory import InMemorySaver
+from native_support import Business
 from test_deep_factory import final_response, stub_tools
 from test_deep_runtime import invoke
 from test_deep_tools import tool_context, tools_module
-from test_lead_submission import Business
 
 from xiaohe.deep_runtime.bundles import load_runtime_bundle, select_binding
 from xiaohe.deep_runtime.factory import build_business_agent, build_readonly_child
@@ -19,6 +19,7 @@ from xiaohe.deep_runtime.models import ChildBinding, DeepExecution, RuntimeBindi
 from xiaohe.deep_runtime.runtime import publish_runtime
 from xiaohe.models import Command, Conversation, Message, Run
 from xiaohe.reception.models import ReceptionDraft
+from xiaohe.skill_schema import SkillValidationError
 
 pytestmark = [pytest.mark.pg, pytest.mark.asyncio]
 
@@ -127,19 +128,22 @@ async def test_committed_write_survives_bad_final_candidate(
         assert row.revision == frame.draft_revision + 1 and row.fields["city"] == "苏州"
 
 
-async def test_disabled_runtime_drains_snapshot_without_loading_broken_new_package(
+async def test_broken_new_package_rejects_startup_but_fixed_command_still_restores(
     pg_factory, job_app, tmp_path
 ):
     from test_admission import send, visitor
 
     context, _ = await tool_context(pg_factory, tmp_path)
-    await publish_runtime(pg_factory, tmp_path / "broken-current-package", enabled=False)
+    with pytest.raises(SkillValidationError):
+        await publish_runtime(pg_factory, tmp_path / "broken-current-package")
     result = await invoke(context, model=make_script_model([final_response(wait_for_input=False)]))
     assert result
     who, conversation = await visitor(pg_factory)
     accepted = await send(pg_factory, who, conversation, "新请求")
     async with pg_factory() as db:
-        assert (await db.get(Run, UUID(accepted.run.id))).runtime_version != "deepagent-v1"
+        assert (
+            await db.get(Run, UUID(accepted.run.id))
+        ).deep_runtime_bundle_id == context.bundle.bundle_id
         assert (await db.get(Command, context.command_id)).payload["deepExecution"][
             "bundle_id"
         ] == context.bundle.bundle_id
@@ -257,20 +261,16 @@ async def test_write_receipt_does_not_hide_unexpected_inner_interrupt(
         ] is None
 
 
-async def test_disabled_startup_still_validates_waiting_native_run_snapshot(
-    pg_factory, job_app, tmp_path
-):
+async def test_startup_validates_waiting_native_run_snapshot(pg_factory, job_app, tmp_path):
     from datetime import UTC, datetime
 
     from sqlalchemy import select
     from test_admission import send, visitor
 
     from xiaohe.models import DeepRuntimeBundleRecord
-    from xiaohe.workflows.models import WorkflowValidationError
+    from xiaohe.skill_schema import SkillValidationError
 
-    await publish_runtime(
-        pg_factory, Path(__file__).resolve().parents[2] / "resources/xiaohe", enabled=True
-    )
+    await publish_runtime(pg_factory, Path(__file__).resolve().parents[2] / "resources/xiaohe")
     who, conversation = await visitor(pg_factory)
     accepted = await send(pg_factory, who, conversation, "等待接续")
     async with pg_factory.begin() as db:
@@ -280,5 +280,5 @@ async def test_disabled_startup_still_validates_waiting_native_run_snapshot(
         command.completed_at = datetime.now(UTC)
         snapshot = await db.get(DeepRuntimeBundleRecord, row.deep_runtime_bundle_id)
         snapshot.payload = snapshot.payload | {"resources": {}}
-    with pytest.raises(WorkflowValidationError, match="snapshot corrupt"):
-        await publish_runtime(pg_factory, tmp_path / "broken-current", enabled=False)
+    with pytest.raises(SkillValidationError, match="snapshot corrupt"):
+        await publish_runtime(pg_factory, Path(__file__).resolve().parents[2] / "resources/xiaohe")

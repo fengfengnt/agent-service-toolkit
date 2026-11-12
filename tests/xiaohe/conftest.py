@@ -71,6 +71,10 @@ async def pg_factory(pg_url):
                 ),
             ]
         )
+    from xiaohe.deep_runtime.runtime import publish_runtime
+    from xiaohe.resources import RESOURCE_ROOT
+
+    await publish_runtime(factory, RESOURCE_ROOT)
     yield factory
     await engine.dispose()
 

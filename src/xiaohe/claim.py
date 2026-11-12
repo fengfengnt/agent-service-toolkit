@@ -172,6 +172,9 @@ async def rebuild_after_claim(db, claim, target):
     )
     message = await db.get(Message, source_command.message_id)
     value = "\n".join(part["text"] for part in message.parts if part["type"] == "text")
+    bundle_id = db.info.get("deep_runtime_bundle_id")
+    if not bundle_id:
+        raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
     run = Run(
         id=uuid4(),
         conversation_id=target.id,
@@ -185,25 +188,28 @@ async def rebuild_after_claim(db, claim, target):
         ownership_epoch=target.ownership_epoch,
         status="queued",
         holds_slot=True,
+        deep_runtime_bundle_id=bundle_id,
     )
     db.add(run)
     await db.flush()
     key = "continuation:" + str(claim.id)
-    payload = {"clientMessageId": key, "text": value}
-    db.add(
-        Command(
-            conversation_id=target.id,
-            system_id=claim.system_id,
-            tenant_id=claim.tenant_id,
-            kind="message",
-            client_key=key,
-            payload_digest=hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest(),
-            payload=payload,
-            question=claim.source_question or source_command.question,
-            message_id=message.id,
-            run_id=run.id,
-        )
+    payload = {"clientMessageId": key, "text": value, "authContinuation": True}
+    command = Command(
+        conversation_id=target.id,
+        system_id=claim.system_id,
+        tenant_id=claim.tenant_id,
+        kind="message",
+        client_key=key,
+        payload_digest=hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest(),
+        payload=payload,
+        question=claim.source_question or source_command.question,
+        message_id=message.id,
+        run_id=run.id,
     )
+    from xiaohe.deep_runtime.bundles import bind_deep_command, load_runtime_bundle_record
+
+    await bind_deep_command(db, run, command, await load_runtime_bundle_record(db, bundle_id))
+    db.add(command)
     await db.flush()
     run.job_id = await defer_run(db, run.id, f"{claim.tenant_id}:{target.id}")
     claim.continuation_run_id = run.id

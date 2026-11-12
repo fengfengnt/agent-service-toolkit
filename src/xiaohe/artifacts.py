@@ -449,3 +449,23 @@ class ArtifactService:
             self._s3.delete_object(Bucket=self.settings.minio_bucket, Key=object_key)
 
         await self._io(remove)
+
+    async def verify_unversioned_cleanup(self):
+        def verify():
+            status = self._s3.get_bucket_versioning(Bucket=self.settings.minio_bucket).get("Status")
+            if status in ("Enabled", "Suspended"):
+                raise ValueError("versioned bucket purge is not supported")
+
+        await self._io(verify)
+
+    async def verify_object_absent(self, object_key):
+        def verify():
+            try:
+                self._s3.head_object(Bucket=self.settings.minio_bucket, Key=object_key)
+            except ClientError as error:
+                if error.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
+                    return
+                raise
+            raise ValueError("deleted object is still present")
+
+        await self._io(verify)

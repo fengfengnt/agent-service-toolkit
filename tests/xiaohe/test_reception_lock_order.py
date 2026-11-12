@@ -4,7 +4,7 @@ from uuid import UUID
 import pytest
 from sqlalchemy import text
 from test_identity_sessions import actor, bootstrap, login
-from test_reception_flow import send_in_db
+from native_support import send_in_db
 
 from xiaohe.conversations import require_conversation
 from xiaohe.identity import require_session

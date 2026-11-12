@@ -45,24 +45,18 @@ async def test_initial_welcome_is_persisted_once_without_a_run_or_quota(pg_facto
 async def test_welcome_direction_shortcut_is_a_real_first_user_turn(
     pg_factory, runtime_env, monkeypatch, direction, label
 ):
-    from test_reception_graph import model
-
     from agents.agents import agents
-    from xiaohe.contracts import AgentOutcome
+    from deep_runtime_support import make_script_model
+    from langchain_core.messages import AIMessage
+    from test_deep_factory import final_response
     from xiaohe.graph import build_graph
 
-    async def answer(state):
-        return AgentOutcome(
-            parts=[{"type": "text", "text": state["direction"]}],
-            wait_for_input=False,
-            artifact_version_ids=[],
-        )
-
-    graph = build_graph(
-        factory=pg_factory,
-        model=model(intent="professional"),
-        handlers={key: answer for key in ("buyer", "organization", "supplier")},
-    )
+    native=make_script_model([
+        AIMessage(content="",tool_calls=[dict(name="request_handoff",id="welcome-direction",args={"direction":direction,"evidence":label})]),
+        final_response(wait_for_input=False),
+        final_response(answer={"text":direction,"basis":"needs_confirmation","source_ids":[]},wait_for_input=False),
+    ])
+    graph=build_graph(factory=pg_factory,model=native)
     graph.checkpointer, graph.store = runtime_env.graph.checkpointer, runtime_env.graph.store
     monkeypatch.setattr(agents["xiaohe"], "graph_like", graph)
     async with client_for(pg_factory) as (client, app):

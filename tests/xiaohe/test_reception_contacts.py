@@ -1,15 +1,12 @@
 import pytest
 from pydantic import ValidationError
-from test_reception_graph import DecisionModel
 
 from xiaohe.admission import _safe_text
 from xiaohe.contracts import ServiceError
 from xiaohe.graph import _safe_model_text
 from xiaohe.reception.contracts import ApplicationView, Submission
 from xiaohe.reception.fields import missing_required, validate_fields
-from xiaohe.reception.flow import _extract
-from xiaohe.workflows.definitions import RESOURCE_ROOT
-from xiaohe.workflows.loader import load_bundle, workflow_for
+from xiaohe.reception.forms import form_definition
 
 
 def test_explicit_business_phone_is_allowed_but_authentication_secrets_are_blocked():
@@ -34,7 +31,7 @@ def test_explicit_business_phone_is_allowed_but_authentication_secrets_are_block
 
 @pytest.mark.parametrize("direction", ["buyer", "supplier", "organization"])
 def test_contact_and_free_text_phone_are_required_for_each_direction(direction):
-    definition = workflow_for(load_bundle(RESOURCE_ROOT), "xiaohe-" + direction)
+    definition = form_definition(direction)[1]
     fields = (
         dict(
             organizationName="测试协会",
@@ -45,16 +42,16 @@ def test_contact_and_free_text_phone_are_required_for_each_direction(direction):
         if direction == "organization"
         else {"companyName": "测试公司"}
     )
-    assert missing_required(direction, fields, definition=definition) == [
+    assert missing_required(direction, fields, policy=definition) == [
         "contactName",
         "contactPhone",
     ]
     for phone in ("13912345678", "010-12345678 转 9", "+44 (0)20 1234 5678", "请联系分机总台"):
         value = fields | {"contactName": "张三", "contactPhone": phone}
         assert validate_fields(direction, value)["contactPhone"] == phone
-        assert missing_required(direction, value, definition=definition) == []
+        assert missing_required(direction, value, policy=definition) == []
     assert missing_required(
-        direction, fields | {"contactName": "张三", "contactPhone": "  "}, definition=definition
+        direction, fields | {"contactName": "张三", "contactPhone": "  "}, policy=definition
     ) == ["contactPhone"]
 
 
@@ -117,17 +114,3 @@ def test_persisted_submission_can_be_reconciled_without_lowering_new_submission_
     )
     with pytest.raises(ValidationError):
         Submission.model_validate(payload)
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("direction", ["buyer", "supplier", "organization"])
-async def test_chat_updates_contact_phone_across_rounds_and_ignores_login_phone(direction):
-    definition = workflow_for(load_bundle(RESOURCE_ROOT), "xiaohe-" + direction)
-    model = DecisionModel(result={"fields": {}})
-    assert await _extract(
-        model, direction, "round1", "我要更新电话号码是+44 (0)20 1234 转 9", definition
-    ) == {"contactPhone": "+44 (0)20 1234 转 9"}
-    assert await _extract(
-        model, direction, "round1", "联系电话：总台分机；联系人：张三", definition
-    ) == {"contactPhone": "总台分机", "contactName": "张三"}
-    assert await _extract(model, direction, "round1", "登录手机号：13912345678", definition) == {}

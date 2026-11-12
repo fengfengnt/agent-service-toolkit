@@ -1,12 +1,12 @@
 from sqlalchemy import select
 
-from xiaohe.lead_skills.loader import load_lead_skills
+from xiaohe.deep_runtime.bundles import load_runtime_bundle
 from xiaohe.lead_skills.models import FieldPolicy, InteractionPolicy
 from xiaohe.lead_skills.store import load_policy
 from xiaohe.models import Command
 from xiaohe.reception.contracts import LeadPolicyView
-from xiaohe.workflows.definitions import RESOURCE_ROOT
-from xiaohe.workflows.models import WorkflowValidationError
+from xiaohe.resources import RESOURCE_ROOT
+from xiaohe.skill_schema import SkillValidationError
 
 
 def supports_lead_policy(request) -> bool:
@@ -29,9 +29,9 @@ async def current_interaction_policy(db, conversation_id=None) -> InteractionPol
     if policy_id:
         policy = await load_policy(db, policy_id)
         if not isinstance(policy, InteractionPolicy):
-            raise WorkflowValidationError("interaction projection policy mismatch")
+            raise SkillValidationError("interaction projection policy mismatch")
         return policy
-    return load_lead_skills(RESOURCE_ROOT).interaction_policy
+    return load_runtime_bundle(RESOURCE_ROOT).interaction_policy
 
 
 def lead_policy_view(policy: FieldPolicy, interaction: InteractionPolicy) -> LeadPolicyView:

@@ -3,6 +3,7 @@ from uuid import uuid5
 from sqlalchemy import select
 
 from xiaohe.contracts import ServiceError
+from xiaohe.lead_skills.store import resolve_draft_policy
 from xiaohe.models import Command, Message, Run, User
 from xiaohe.reception.contracts import (
     OnboardingSubmission,
@@ -14,7 +15,6 @@ from xiaohe.reception.fields import PUBLIC_FIELDS, missing_required
 from xiaohe.reception.models import ReceptionDraft, ReceptionFile, ReceptionSubmission
 from xiaohe.reception.store import create_draft, require_draft
 from xiaohe.runs import require_write
-from xiaohe.workflows.definitions import draft_definition
 
 
 def actor_from_user(user: User) -> ReceptionActor:
@@ -40,7 +40,6 @@ async def confirm_locked_draft(
     db, row, expected_revision, summary_version, message_id, user_id, *, evidence=None
 ):
     from xiaohe.agents.contracts import LeadConfirmationEvidence
-    from xiaohe.reception.flow import _explicit_confirmation
 
     lead_evidence = isinstance(evidence, LeadConfirmationEvidence)
 
@@ -58,10 +57,6 @@ async def confirm_locked_draft(
         from xiaohe.agents.confirmation import validate_lead_evidence
 
         validate_lead_evidence(evidence, row, command, run, message_id, user_id)
-    elif run is not None and run.runtime_version == "dsl-v1":
-        from xiaohe.agents.nodes import validate_confirmation_evidence
-
-        validate_confirmation_evidence(evidence, row, command, run, message_id, user_id)
     elif evidence is not None:
         raise ServiceError("INPUT_INVALID", 422)
     existing = await db.scalar(
@@ -104,7 +99,6 @@ async def confirm_locked_draft(
         or run.user_id != user_id
     ):
         raise ServiceError("FORBIDDEN", 403)
-    text = "\n".join(part["text"] for part in message.parts if part["type"] == "text")
     action = command.payload.get("reception", {})
     explicit_action = (
         action.get("action") == "confirm"
@@ -112,13 +106,9 @@ async def confirm_locked_draft(
         and action.get("expectedRevision") == row.revision
         and action.get("summaryVersion") == summary_version
     )
-    if (
-        not lead_evidence
-        and run.runtime_version != "dsl-v1"
-        and not (explicit_action or _explicit_confirmation(text))
-    ):
+    if not lead_evidence and not explicit_action:
         raise ServiceError("INPUT_INVALID", 422)
-    if missing_required(row.direction, row.fields, definition=await draft_definition(db, row)):
+    if missing_required(row.direction, row.fields, policy=await resolve_draft_policy(db, row)):
         raise ServiceError("INPUT_INVALID", 422)
     payload = await prepare_submission_payload(db, row)
     if lead_evidence:
@@ -289,7 +279,13 @@ async def submit_confirmed(factory, fence, submission_id, client) -> SubmitRecei
 
 
 async def create_draft_from_business(
-    factory, actor, conversation_id, request, client, *, fence=None, definition_bundle_id=None,
+    factory,
+    actor,
+    conversation_id,
+    request,
+    client,
+    *,
+    fence=None,
     field_policy=None,
 ):
     from xiaohe.conversations import require_conversation
@@ -310,7 +306,10 @@ async def create_draft_from_business(
         )
         if existing is not None:
             return await create_draft(
-                db, actor, conversation_id, request, definition_bundle_id=definition_bundle_id,
+                db,
+                actor,
+                conversation_id,
+                request,
                 field_policy=field_policy,
             )
         user = await db.get(User, actor.user_id)
@@ -367,6 +366,5 @@ async def create_draft_from_business(
             conversation_id,
             request,
             source=source,
-            definition_bundle_id=definition_bundle_id,
             field_policy=field_policy,
         )

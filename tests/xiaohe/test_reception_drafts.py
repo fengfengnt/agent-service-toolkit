@@ -9,25 +9,24 @@ from test_admission import visitor
 from xiaohe.contracts import ServiceError
 from xiaohe.reception.contracts import CreateDraft
 from xiaohe.reception.fields import missing_required, validate_fields
+from xiaohe.reception.forms import form_definition
 from xiaohe.reception.models import ReceptionDraft
 from xiaohe.reception.store import create_draft, load_reception, patch_draft
-from xiaohe.workflows.definitions import RESOURCE_ROOT
-from xiaohe.workflows.loader import load_bundle, workflow_for
 
 
 def definition(direction):
-    return workflow_for(load_bundle(RESOURCE_ROOT), "xiaohe-" + direction)
+    return form_definition(direction)[1]
 
 
 def test_minimum_fields_and_explicit_clear():
-    assert missing_required("buyer", {"companyName": "甲公司"}, definition=definition("buyer")) == [
+    assert missing_required("buyer", {"companyName": "甲公司"}, policy=definition("buyer")) == [
         "contactName",
         "contactPhone",
     ]
     assert missing_required(
-        "supplier", {"companyName": "甲公司"}, definition=definition("supplier")
+        "supplier", {"companyName": "甲公司"}, policy=definition("supplier")
     ) == ["contactName", "contactPhone"]
-    assert missing_required("buyer", {"companyName": None}, definition=definition("buyer")) == [
+    assert missing_required("buyer", {"companyName": None}, policy=definition("buyer")) == [
         "companyName",
         "contactName",
         "contactPhone",
@@ -38,7 +37,7 @@ def test_minimum_fields_and_explicit_clear():
         coverage="本省",
         onlineChannels=["微信群"],
     )
-    assert missing_required("organization", fields, definition=definition("organization")) == [
+    assert missing_required("organization", fields, policy=definition("organization")) == [
         "contactName",
         "contactPhone",
     ]

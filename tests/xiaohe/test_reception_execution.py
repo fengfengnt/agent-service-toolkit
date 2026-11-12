@@ -3,15 +3,13 @@ from uuid import UUID
 import pytest
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage
-from test_admission import send, visitor
+from test_admission import visitor
 from test_identity_sessions import bootstrap
-from test_reception_graph import model
 from test_toolkit_execution import frame
 
 from xiaohe.contracts import AgentOutcome
-from xiaohe.graph import build_graph, build_reception_context
+from xiaohe.graph import build_graph
 from xiaohe.models import Conversation, Message, Run
-from xiaohe.runs import acquire_run
 
 pytestmark = [pytest.mark.pg, pytest.mark.asyncio]
 
@@ -33,17 +31,28 @@ async def test_authorized_context_excludes_foreign_system_and_untrusted_state(
                 parts=[{"type": "text", "text": "foreign-private-data"}],
             )
         )
-    accepted = await send(pg_factory, who, conversation, "initial", "我代表供应商，想了解服务")
+    from deep_runtime_support import make_script_model
+    from test_deep_factory import final_response
+
+    from xiaohe.admission import accept_agent_message
+    from xiaohe.contracts import MessageInput
+
     async with pg_factory.begin() as db:
-        fence = await acquire_run(db, UUID(accepted.run.id))
-        context = await build_reception_context(db, fence)
-    assert "foreign-private-data" not in context.model_dump_json()
-    graph = build_graph(factory=pg_factory, model=model("buyer"))
+        accepted = await accept_agent_message(
+            db,
+            who,
+            "xiaohe-supplier",
+            conversation,
+            MessageInput(client_message_id="initial", text="我代表供应商，想了解服务"),
+        )
+    native_model = make_script_model([final_response(wait_for_input=True)])
+    graph = build_graph(factory=pg_factory, model=native_model)
     graph.checkpointer, graph.store = runtime_env.graph.checkpointer, runtime_env.graph.store
     monkeypatch.setattr(agents["xiaohe"], "graph_like", graph)
-    await runtime_env.worker.execute_run(fence.run_id)
+    await runtime_env.worker.execute_run(UUID(accepted.run.id))
+    assert "foreign-private-data" not in str(native_model.requests)
     async with pg_factory() as db:
-        assert (await db.get(Run, fence.run_id)).status == "waiting_input"
+        assert (await db.get(Run, UUID(accepted.run.id))).status == "waiting_input"
         assert (await db.get(Conversation, conversation)).direction == "supplier"
 
 

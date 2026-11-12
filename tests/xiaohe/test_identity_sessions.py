@@ -10,6 +10,7 @@ import pytest
 from fastapi import Request, Response
 from sqlalchemy import func, select, text, update
 from sqlalchemy.exc import IntegrityError
+from test_standard_cleanup import legacy_factory as legacy_factory
 
 from xiaohe import identity
 from xiaohe.contracts import ServiceError, TrustedSystem, VerifiedCompletion
@@ -474,7 +475,9 @@ async def test_expiry_is_checked_after_session_lock_wait(pg_factory):
     assert exc.value.code == "VISITOR_EXPIRED"
 
 
-async def test_migration_roundtrip_preserves_real_checkpoint_and_store(pg_factory, pg_url):
+@pytest.mark.parametrize("legacy_factory", [False], indirect=True)
+async def test_migration_roundtrip_preserves_real_checkpoint_and_store(legacy_factory):
+    _, pg_url, _ = legacy_factory
     from alembic import command
     from alembic.config import Config
     from langgraph.checkpoint.base import empty_checkpoint

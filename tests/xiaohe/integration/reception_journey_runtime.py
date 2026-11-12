@@ -49,8 +49,8 @@ def api_app(config, settings):
     from psycopg import AsyncConnection
     from psycopg.rows import dict_row
     from sqlalchemy.ext.asyncio import async_sessionmaker
-
     from xiaohe.agents.runtime import load_agent_registry
+
     from xiaohe.agui import create_agui_router
     from xiaohe.api import create_public_router, install_error_handlers
     from xiaohe.artifacts import ArtifactService

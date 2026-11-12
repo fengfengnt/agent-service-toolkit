@@ -6,7 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from xiaohe.contracts import Actor, ServiceError
 from xiaohe.conversations import require_conversation
-from xiaohe.lead_skills.store import resolve_draft_policy
+from xiaohe.deep_runtime.bundles import load_runtime_bundle
+from xiaohe.lead_skills.store import persist_policy, resolve_draft_policy
 from xiaohe.models import Conversation
 from xiaohe.reception.contracts import (
     CreateDraft,
@@ -23,9 +24,7 @@ from xiaohe.reception.models import (
     ReceptionFlow,
     ReceptionSubmission,
 )
-from xiaohe.workflows.definitions import RESOURCE_ROOT, draft_definition
-from xiaohe.workflows.loader import load_bundle
-from xiaohe.workflows.store import persist_bundle
+from xiaohe.resources import RESOURCE_ROOT
 
 
 def _uuid(value: str | UUID) -> UUID:
@@ -82,7 +81,7 @@ async def draft_view(db: AsyncSession, row: ReceptionDraft) -> DraftView:
             .order_by(ReceptionFile.created_at, ReceptionFile.id)
         )
     ).all()
-    definition = await draft_definition(db, row)
+    definition = await resolve_draft_policy(db, row)
     accepted_application_id = None
     if row.state == "accepted" and row.kind == "service":
         submission = await db.scalar(
@@ -112,7 +111,7 @@ async def draft_view(db: AsyncSession, row: ReceptionDraft) -> DraftView:
         step=row.step,
         state=row.state,
         fields=row.fields,
-        missing_required=missing_required(row.direction, row.fields, definition=definition),
+        missing_required=missing_required(row.direction, row.fields, policy=definition),
         field_layout={
             "rounds": [group.model_dump() for group in definition.rounds],
             "requiredFields": definition.required_fields,
@@ -141,7 +140,6 @@ async def create_draft(
     request: CreateDraft,
     *,
     source=None,
-    definition_bundle_id=None,
     field_policy=None,
 ) -> DraftView:
     flow = await flow_record(db, actor, conversation_id)
@@ -166,18 +164,14 @@ async def create_draft(
         conversation_id=conversation_id,
         system_id=actor.system.system_id,
         tenant_id=actor.system.tenant_id,
-        definition_bundle_id=definition_bundle_id
-        or db.info.get("workflow_bundle_id")
-        or await persist_bundle(db, load_bundle(RESOURCE_ROOT)),
         creation_request=request.model_dump(mode="json", by_alias=True, exclude_none=True),
         **request.model_dump(),
     )
-    if field_policy is not None:
-        from xiaohe.lead_skills.store import persist_policy
-
-        if field_policy.direction != request.direction:
-            raise ServiceError("INPUT_INVALID", 422)
-        row.field_policy_id = await persist_policy(db, field_policy)
+    if field_policy is None:
+        field_policy = load_runtime_bundle(RESOURCE_ROOT).field_policies[request.direction]
+    if field_policy.direction != request.direction:
+        raise ServiceError("INPUT_INVALID", 422)
+    row.field_policy_id = await persist_policy(db, field_policy)
     if source is not None:
         if request.source_application_id:
             if (
@@ -211,7 +205,7 @@ async def create_draft(
         )
     db.add(row)
     await db.flush()
-    row.step = (await draft_definition(db, row)).rounds[0].id
+    row.step = (await resolve_draft_policy(db, row)).rounds[0].id
     conversation = await db.get(Conversation, conversation_id)
     conversation.direction = request.direction
     flow.active_draft_id = row.id
@@ -232,7 +226,7 @@ async def patch_locked_draft(db, row, expected_revision, fields) -> DraftView:
         raise ServiceError("DRAFT_CONFLICT", 409)
     if row.state in ("submitting", "accepted"):
         raise ServiceError("DRAFT_CONFLICT", 409)
-    definition = await draft_definition(db, row)
+    definition = await resolve_draft_policy(db, row)
     if fields.keys() - {key for group in definition.rounds for key in group.fields}:
         raise ServiceError("INPUT_INVALID", 422)
     merged = row.fields | validate_fields(

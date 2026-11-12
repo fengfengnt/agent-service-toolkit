@@ -14,8 +14,8 @@ from xiaohe.deep_runtime.models import (
     SkillSpec,
 )
 from xiaohe.lead_skills.models import CommonPolicy, FieldPolicy, InteractionPolicy
-from xiaohe.workflows.loader import MAX_DEFINITION_BYTES, MAX_RESOURCE_BYTES, DefinitionLoader
-from xiaohe.workflows.models import AGENT_IDS, AgentId, WorkflowValidationError
+from xiaohe.resources import MAX_DEFINITION_BYTES, MAX_RESOURCE_BYTES, DefinitionLoader
+from xiaohe.skill_schema import AGENT_IDS, AgentId, SkillValidationError
 
 RECEPTION_POLICY = "deep-runtime/reception-policy.md"
 
@@ -29,23 +29,23 @@ def _read(root: Path, reference: str) -> str:
         or relative.is_absolute()
         or ".." in relative.parts
     ):
-        raise WorkflowValidationError("invalid runtime resource reference")
+        raise SkillValidationError("invalid runtime resource reference")
     path = (root / reference).resolve()
     if not path.is_relative_to(root.resolve()):
-        raise WorkflowValidationError("runtime resource escapes root")
+        raise SkillValidationError("runtime resource escapes root")
     try:
         with path.open("rb") as source:
             raw = source.read(MAX_RESOURCE_BYTES + 1)
         if len(raw) > MAX_RESOURCE_BYTES:
-            raise WorkflowValidationError("runtime resource exceeds size limit")
+            raise SkillValidationError("runtime resource exceeds size limit")
         return raw.decode("utf-8")
     except (OSError, UnicodeError):
-        raise WorkflowValidationError("runtime resource unavailable") from None
+        raise SkillValidationError("runtime resource unavailable") from None
 
 
 def _yaml(text: str):
     if len(text.encode()) > MAX_DEFINITION_BYTES:
-        raise WorkflowValidationError("runtime definition exceeds size limit")
+        raise SkillValidationError("runtime definition exceeds size limit")
     return yaml.load(text, Loader=DefinitionLoader)
 
 
@@ -57,15 +57,13 @@ def _validate_binding(bundle: RuntimeBundle, binding: RuntimeBinding) -> None:
         raise ValueError("flow skill must be bound")
     if role == "reception" and (binding.flow_skill or set(binding.tools) - {"request_handoff"}):
         raise ValueError("reception cannot write professional data")
-    flows = []
     for name in binding.skills:
         skill = bundle.skills[name]
         if skill.direction not in ("general", role) or set(skill.requires_tools) - set(
             binding.tools
         ):
             raise ValueError("skill is not allowed for this binding")
-        if skill.legacy_id and skill.legacy_id.endswith(".lead_capture"):
-            flows.append(name)
+    flows = [name for name in binding.skills if name.endswith("-lead-capture")]
     if flows != ([binding.flow_skill] if binding.flow_skill else []):
         raise ValueError("conflicting flow skills")
     if len({child.name for child in binding.children}) != len(binding.children):
@@ -151,9 +149,7 @@ def load_runtime_bundle(resource_root: Path) -> RuntimeBundle:
             _validate_binding(bundle, binding)
         return bundle
     except (KeyError, TypeError, ValueError, ValidationError, yaml.YAMLError, RecursionError):
-        raise WorkflowValidationError(
-            "invalid or unavailable runtime skill configuration"
-        ) from None
+        raise SkillValidationError("invalid or unavailable runtime skill configuration") from None
 
 
 def select_binding(bundle: RuntimeBundle, actor: Actor, agent_id: AgentId) -> RuntimeBinding:
@@ -215,7 +211,7 @@ async def persist_runtime_bundle(db, bundle: RuntimeBundle) -> str:
         .on_conflict_do_nothing(index_elements=["bundle_id"])
     )
     if await load_runtime_bundle_record(db, bundle.bundle_id) != bundle:
-        raise WorkflowValidationError("native snapshot content mismatch")
+        raise SkillValidationError("native snapshot content mismatch")
     return bundle.bundle_id
 
 
@@ -224,14 +220,14 @@ async def load_runtime_bundle_record(db, bundle_id: str) -> RuntimeBundle:
 
     row = await db.get(DeepRuntimeBundleRecord, bundle_id, populate_existing=True)
     if row is None:
-        raise WorkflowValidationError("bound native snapshot unavailable")
+        raise SkillValidationError("bound native snapshot unavailable")
     try:
         bundle = RuntimeBundle.model_validate(row.payload)
         if bundle.bundle_id != bundle_id:
             raise ValueError("content mismatch")
         return bundle
     except (TypeError, ValueError):
-        raise WorkflowValidationError("bound native snapshot corrupt") from None
+        raise SkillValidationError("bound native snapshot corrupt") from None
 
 
 async def bind_deep_command(db, run, command, bundle: RuntimeBundle) -> DeepExecution:
@@ -242,7 +238,7 @@ async def bind_deep_command(db, run, command, bundle: RuntimeBundle) -> DeepExec
         await load_runtime_bundle_record(db, execution.bundle_id)
         return execution
     if command.attempts or command.completed_at is not None:
-        raise WorkflowValidationError("cannot switch started command runtime")
+        raise SkillValidationError("cannot switch started command runtime")
     await persist_runtime_bundle(db, bundle)
     execution = DeepExecution(bundle_id=bundle.bundle_id)
     command.interaction_policy_id = await persist_policy(db, bundle.interaction_policy)

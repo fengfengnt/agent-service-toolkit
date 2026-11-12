@@ -69,6 +69,7 @@ async def test_late_page_baseline_is_not_global_event_progress(pg_factory):
             initial_message_id=row.id,
             status="completed",
             holds_slot=False,
+            deep_runtime_bundle_id=db.info["deep_runtime_bundle_id"],
         )
         db.add(run)
         await db.flush()

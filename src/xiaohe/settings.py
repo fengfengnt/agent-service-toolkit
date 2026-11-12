@@ -19,7 +19,6 @@ class Settings(BaseSettings):
     )
     toolkit_base_url: str = Field(validation_alias="TOOLKIT_BASE_URL")
     auth_secret: SecretStr = Field(validation_alias="AUTH_SECRET")
-    deepagents_enabled: bool = Field(default=False, validation_alias="XIAOHE_DEEPAGENTS_ENABLED")
     sso_bridge_enabled: bool = Field(default=False, validation_alias="SSO_XIAOHE_BRIDGE_ENABLED")
     sso_bridge_base_url: str | None = Field(default=None, validation_alias="XIAOHE_SSO_BASE_URL")
     sso_bridge_application_id: str | None = Field(

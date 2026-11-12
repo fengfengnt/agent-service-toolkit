@@ -9,7 +9,6 @@ from scripts.evaluate_xiaohe_semantics import (
     SemanticCase,
     evaluate_cases,
     finite_model,
-    load_cases,
     require_live_enabled,
 )
 
@@ -99,65 +98,3 @@ async def test_model_wrapper_checks_budget_before_each_call():
     with pytest.raises(BudgetExhausted):
         await wrapped.ainvoke([])
     assert len(calls) == budget.calls == 1
-
-
-@pytest.mark.pg
-@pytest.mark.asyncio
-async def test_frozen_cases_run_through_real_graphs_and_guarded_business_services(
-    pg_factory, job_app
-):
-    from pathlib import Path
-
-    from langchain_core.messages import AIMessage
-    from langchain_core.runnables import RunnableLambda
-    from semantic_runtime_support import build_runner
-    from test_agent_handoff import AgentSequenceModel
-
-    model = AgentSequenceModel(result={}, decisions=[])
-
-    class RawAdapter:
-        def with_structured_output(self, schema, **kwargs):
-            return model.with_structured_output(schema) | RunnableLambda(
-                lambda value: {"parsed": value, "raw": AIMessage(content="")}
-            )
-
-    budget = EvaluationBudget(max_calls=96, max_output_tokens=2048)
-    runner, _ = await build_runner(pg_factory, LimitedModel(RawAdapter(), budget))
-    cases = load_cases(Path(__file__).parent / "fixtures/semantic_cases.yaml")
-
-    async def controlled(case, budget):
-        primary = {
-            "action": case.expected_actions[0],
-            "topics": case.expected_topics,
-            "target_direction": case.expected_target,
-            **case.required_flags,
-        }
-        if case.expected_fields:
-            primary["candidates"] = {
-                key: {"value": value, "evidence": case.text}
-                for key, value in case.expected_fields.items()
-            }
-        if case.expect_intent:
-            primary["organization_intent"] = "sample_demo"
-        if case.id == "O03":
-            primary["candidates"]["memberSize"] = {"value": "三百家", "evidence": "会员三百家"}
-        if case.id == "S05":
-            primary.update(action="confirm_current_summary", negated=True)
-        if case.id == "S08":
-            primary.update(action="defer_invitation", conditional=True, deferred=True)
-        model.decisions = [primary]
-        if case.expected_target:
-            model.decisions.append(
-                {
-                    "action": "switch_direction",
-                    "target_direction": case.expected_target,
-                    "explicit_switch": True,
-                }
-            )
-        return await runner(case, budget)
-
-    report = await evaluate_cases(cases, controlled, budget)
-    assert report.status == "pass", [
-        (item.id, item.failures) for item in report.evaluated if not item.passed
-    ]
-    assert report.model_calls >= 32 and not report.not_run

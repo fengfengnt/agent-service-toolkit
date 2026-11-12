@@ -16,7 +16,11 @@ async def test_draft_routes_share_auth_csrf_and_safe_errors(pg_factory):
         )
         assert create.status_code == 201, create.text
         draft = create.json()
-        assert "sourceApplicationId" not in draft and draft["missingRequired"] == ["companyName", "contactName", "contactPhone"]
+        assert "sourceApplicationId" not in draft and draft["missingRequired"] == [
+            "companyName",
+            "contactName",
+            "contactPhone",
+        ]
         endpoint = "/ai-api/v1/reception/drafts/" + draft["id"]
         result = await client.patch(
             endpoint, json={"expectedRevision": 1, "fields": {"companyName": "甲公司"}}
@@ -88,6 +92,10 @@ async def test_invitation_control_records_system_notice_not_user_speech(
         conversation = UUID(snapshot["conversationId"])
         await talk(pg_factory, runtime_env, who, conversation, "采购商")
         await talk(pg_factory, runtime_env, who, conversation, "多少钱")
+        from xiaohe.reception.store import flow_record
+
+        async with pg_factory.begin() as db:
+            (await flow_record(db, who, conversation)).invitation_state = "offered"
         async with pg_factory.begin() as db:
             await db.execute(
                 update(Session).where(Session.id == who.session_id).values(message_count=100)

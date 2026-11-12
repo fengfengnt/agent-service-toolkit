@@ -161,7 +161,7 @@ async def main():
         graph = build_graph(
             factory=factory,
             model=model(intent="professional"),
-            handlers={"buyer": document, "organization": document, "supplier": document},
+            handler=document,
         )
     agents["xiaohe"] = Agent(description="process probe", graph_like=graph)
     if mode == "marker":

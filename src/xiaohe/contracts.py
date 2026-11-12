@@ -547,24 +547,6 @@ class RunInput(InternalModel):
     action_request_id: UUID | None
 
 
-class ReceptionContext(InternalModel):
-    recent_messages: list[ChatMessage]
-    direction: Direction
-    pending_request: dict | None
-    confirmed_facts: dict
-
-
-class RoutingAnswer(InternalModel):
-    direction: Literal["unknown", "buyer", "organization", "supplier"]
-    intent: Literal["reception", "professional", "clarify", "off_topic"]
-    answer: Annotated[str, Field(strict=True, min_length=1, max_length=4000)]
-
-
-class ReceptionDecision(RoutingAnswer):
-    target_direction: Literal["unknown", "buyer", "organization", "supplier"]
-    auth_intent: Literal["lead", "register", "login"] | None
-
-
 class AgentOutcome(InternalModel):
     parts: list[ChatPart]
     wait_for_input: bool = Field(strict=True)

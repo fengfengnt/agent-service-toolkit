@@ -13,7 +13,11 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def compose(root, *args, **kwargs):
-    prefix = ["wsl", "-d", "Ubuntu", "--", "sh"] if sys.platform == "win32" else ["sh"]
+    prefix = (
+        ["wsl", "-d", "Ubuntu", "-u", "root", "--cd", "/", "--", "sh"]
+        if sys.platform == "win32"
+        else ["sh"]
+    )
     return subprocess.run(
         prefix + [root + "/deploy/xiaohe/compose.sh", *args],
         capture_output=True,
@@ -47,7 +51,8 @@ def deployment(tmp_path_factory, release_project):
 
         def linux(path):
             return subprocess.check_output(
-                ["wsl", "-d", "Ubuntu", "--", "wslpath", "-a", path], text=True
+                ["wsl", "-d", "Ubuntu", "-u", "root", "--cd", "/", "--", "wslpath", "-a", path],
+                text=True,
             ).strip()
 
         root, runtime_path = linux(root), linux(runtime_path)

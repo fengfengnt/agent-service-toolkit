@@ -3,8 +3,8 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
+from native_support import prepare
 from sqlalchemy import select
-from test_agent_operations import prepare
 from test_identity_sessions import actor, bootstrap, login
 
 from xiaohe.admission import accept_action, accept_message
@@ -23,9 +23,7 @@ async def test_native_new_run_is_bound_without_legacy_bundle(pg_factory, job_app
     bundle = bundles.load_runtime_bundle(ROOT)
     async with pg_factory.begin() as db:
         await bundles.persist_runtime_bundle(db, bundle)
-    pg_factory.configure(
-        info={"deepagents_enabled": True, "deep_runtime_bundle_id": bundle.bundle_id}
-    )
+    pg_factory.configure(info={"deep_runtime_bundle_id": bundle.bundle_id})
     _, token = await login(pg_factory)
     initial, _, _ = await bootstrap(pg_factory, token)
     who = await actor(pg_factory, token)
@@ -34,8 +32,6 @@ async def test_native_new_run_is_bound_without_legacy_bundle(pg_factory, job_app
             db, who, UUID(initial.conversation_id), "native-first", "采购咨询"
         )
         run = await db.get(Run, UUID(result.run.id))
-        assert run.runtime_version == "deepagent-v1"
-        assert run.workflow_bundle_id is None
         assert run.deep_runtime_bundle_id == bundle.bundle_id
         cmd = await db.scalar(select(Command).where(Command.message_id == UUID(result.message.id)))
         assert cmd.payload["deepExecution"]["bundle_id"] == bundle.bundle_id
@@ -65,9 +61,7 @@ async def test_existing_run_new_command_pins_new_bundle(pg_factory, job_app, tmp
                 "requestId": request_id,
                 "prompt": "继续",
             }
-        pg_factory.configure(
-            info={"deepagents_enabled": True, "deep_runtime_bundle_id": bundle.bundle_id}
-        )
+        pg_factory.configure(info={"deep_runtime_bundle_id": bundle.bundle_id})
         async with pg_factory.begin() as db:
             result = await accept_action(
                 db, frame.actor, frame.conversation_id, str(uuid4()), request_id, None, "继续"
@@ -79,27 +73,25 @@ async def test_existing_run_new_command_pins_new_bundle(pg_factory, job_app, tmp
             executions.append((cmd.id, cmd.payload["deepExecution"]["bundle_id"]))
     assert executions[0][1] == first.bundle_id
     assert executions[1][1] == latest.bundle_id
-    pg_factory.configure(info={"deepagents_enabled": False})
+    pg_factory.configure(info={})
     async with pg_factory.begin() as db:
         run = await db.get(Run, frame.fence.run_id)
         cmd = await db.get(Command, executions[0][0])
         restored = await bundles.bind_deep_command(db, run, cmd, latest)
         assert restored.bundle_id == first.bundle_id
-        assert run.runtime_version == "dsl-v1" and run.workflow_bundle_id == legacy.bundle_id
+        assert run.deep_runtime_bundle_id == legacy.bundle_id
         assert (await db.get(ReceptionDraft, frame.draft_id)).field_policy_id == original_policy_id
 
 
-async def test_native_setting_defaults_off():
-    settings = Settings(toolkit_base_url="http://fixture", auth_secret="fixture")
-    assert hasattr(settings, "deepagents_enabled"), "native setting missing"
-    assert settings.deepagents_enabled is False
+async def test_native_runtime_is_not_optional():
+    assert "deepagents_enabled" not in Settings.model_fields
 
 
 async def test_enabled_runtime_requires_published_bundle(pg_factory, job_app):
     _, token = await login(pg_factory)
     initial, _, _ = await bootstrap(pg_factory, token)
     who = await actor(pg_factory, token)
-    pg_factory.configure(info={"deepagents_enabled": True})
+    pg_factory.configure(info={})
     async with pg_factory.begin() as db:
         with pytest.raises(ServiceError) as error:
             await accept_message(db, who, UUID(initial.conversation_id), "missing-native", "咨询")

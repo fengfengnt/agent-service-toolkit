@@ -1,11 +1,11 @@
 import pytest
 from deep_runtime_support import make_script_model
 from langchain_core.messages import AIMessage
+from native_support import Business
 from sqlalchemy import select
 from test_deep_factory import final_response
 from test_deep_runtime import invoke
 from test_deep_tools import tool_context, tools_module
-from test_lead_submission import Business
 
 from xiaohe.models import Command
 from xiaohe.reception.contracts import CreateDraft, ProgressPage
@@ -163,7 +163,7 @@ async def test_native_internal_text_never_reaches_worker_messages(
     from xiaohe.models import Conversation, Message, Run
 
     root = Path(__file__).resolve().parents[2] / "resources/xiaohe"
-    await publish_runtime(pg_factory, root, enabled=True)
+    await publish_runtime(pg_factory, root)
     name = "buyer-security"
     model = make_script_model(
         [
@@ -253,7 +253,7 @@ async def test_native_late_or_competing_driver_cannot_publish(
         await first
 
 
-async def test_published_update_and_disable_keep_inflight_snapshot(pg_factory, job_app, tmp_path):
+async def test_published_update_keeps_inflight_snapshot(pg_factory, job_app, tmp_path):
     from xiaohe.deep_runtime.bundles import persist_runtime_bundle
 
     context, _ = await tool_context(pg_factory, tmp_path)
@@ -262,9 +262,7 @@ async def test_published_update_and_disable_keep_inflight_snapshot(pg_factory, j
     latest = context.bundle.model_copy(update={"resources": resources})
     async with pg_factory.begin() as db:
         await persist_runtime_bundle(db, latest)
-    pg_factory.configure(
-        info={"deepagents_enabled": False, "deep_runtime_bundle_id": latest.bundle_id}
-    )
+    pg_factory.configure(info={"deep_runtime_bundle_id": latest.bundle_id})
     model = make_script_model([final_response(wait_for_input=False)])
     await invoke(context, model=model)
     assert "LIVE_NEW_GUIDE" not in model.requests[0][0].text

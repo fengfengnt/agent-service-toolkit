@@ -47,11 +47,6 @@ class ReceptionDraft(Base):
     __table_args__ = (
         ForeignKeyConstraint(["field_policy_id"], ["xiaohe.lead_policies.policy_id"]),
         _conversation_fk(),
-        ForeignKeyConstraint(
-            ["definition_bundle_id"],
-            ["xiaohe.workflow_definitions.bundle_id"],
-            name="fk_reception_drafts_workflow_definition",
-        ),
         UniqueConstraint("conversation_id", "client_draft_id"),
         UniqueConstraint("id", "conversation_id", "system_id", "tenant_id"),
         CheckConstraint("kind IN ('service','onboarding')"),
@@ -72,8 +67,7 @@ class ReceptionDraft(Base):
     creation_request: Mapped[dict] = mapped_column(JSONB, default=dict)
     kind: Mapped[str]
     direction: Mapped[str]
-    definition_bundle_id: Mapped[str | None] = mapped_column(String(64))
-    field_policy_id: Mapped[str | None] = mapped_column(String(64))
+    field_policy_id: Mapped[str] = mapped_column(String(64))
     guidance_progress: Mapped[dict | None] = mapped_column(JSONB)
     subject_id: Mapped[str | None]
     source_application_id: Mapped[str | None]
@@ -155,8 +149,10 @@ class ReceptionFile(Base):
 class ReceptionFormSubmission(Base):
     __tablename__ = "reception_form_submissions"
     __table_args__ = (
-        ForeignKeyConstraint(["user_id", "system_id", "tenant_id"],
-            ["xiaohe.users.user_id", "xiaohe.users.system_id", "xiaohe.users.tenant_id"]),
+        ForeignKeyConstraint(
+            ["user_id", "system_id", "tenant_id"],
+            ["xiaohe.users.user_id", "xiaohe.users.system_id", "xiaohe.users.tenant_id"],
+        ),
         CheckConstraint("status IN ('pending','accepted','failed')"),
     )
     system_id: Mapped[str] = mapped_column(primary_key=True)
@@ -168,14 +164,18 @@ class ReceptionFormSubmission(Base):
     payload: Mapped[dict] = mapped_column(JSONB)
     receipt: Mapped[dict | None] = mapped_column(JSONB)
     status: Mapped[str] = mapped_column(default="pending")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.clock_timestamp())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.clock_timestamp()
+    )
 
 
 class ReceptionFormFile(Base):
     __tablename__ = "reception_form_files"
     __table_args__ = (
-        ForeignKeyConstraint(["user_id", "system_id", "tenant_id"],
-            ["xiaohe.users.user_id", "xiaohe.users.system_id", "xiaohe.users.tenant_id"]),
+        ForeignKeyConstraint(
+            ["user_id", "system_id", "tenant_id"],
+            ["xiaohe.users.user_id", "xiaohe.users.system_id", "xiaohe.users.tenant_id"],
+        ),
         UniqueConstraint("system_id", "tenant_id", "user_id", "form_id", "client_upload_id"),
         CheckConstraint("status IN ('pending','ready','failed')"),
     )
@@ -195,5 +195,7 @@ class ReceptionFormFile(Base):
     object_key: Mapped[str] = mapped_column(unique=True)
     object_keys: Mapped[list] = mapped_column(JSONB, default=list)
     detached: Mapped[bool] = mapped_column(default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.clock_timestamp())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.clock_timestamp()
+    )
     cleanup_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

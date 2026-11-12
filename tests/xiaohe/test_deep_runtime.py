@@ -4,9 +4,9 @@ import pytest
 from deep_runtime_support import make_script_model
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.checkpoint.memory import InMemorySaver
+from native_support import Business
 from test_deep_factory import final_response
 from test_deep_tools import tool_context
-from test_lead_submission import Business
 
 from xiaohe.deep_runtime.models import DeepExecution
 from xiaohe.models import Command, Conversation
@@ -119,7 +119,7 @@ async def test_outer_dispatch_reads_command_before_legacy_snapshot(
     async def forbidden(*args):
         raise AssertionError("native entered legacy snapshot loader")
 
-    monkeypatch.setattr("xiaohe.workflows.store.bundle_for_run", forbidden)
+    assert not hasattr(__import__("xiaohe.models", fromlist=["Run"]).Run, "workflow_bundle_id")
     graph = build_graph(
         factory=pg_factory, model=make_script_model([final_response(wait_for_input=False)])
     )

@@ -46,7 +46,7 @@ async def test_guest_directions_reconnect_private_artifact_and_expiry(
     graph = build_graph(
         factory=pg_factory,
         model=model(intent="professional"),
-        handlers={"buyer": document, "organization": document, "supplier": document},
+        handler=document,
     )
     graph.checkpointer, graph.store = runtime_env.graph.checkpointer, runtime_env.graph.store
     monkeypatch.setattr(agents["xiaohe"], "graph_like", graph)

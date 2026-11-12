@@ -135,7 +135,7 @@ def create_candidate_app(settings):
             graph = build_graph(
                 factory=app.state.xiaohe_factory,
                 model=model(intent="professional"),
-                handlers={name: controlled for name in ("buyer", "organization", "supplier")},
+                handler=controlled,
             )
             graph.checkpointer, graph.store = previous.checkpointer, previous.store
             agents["xiaohe"].graph_like = graph

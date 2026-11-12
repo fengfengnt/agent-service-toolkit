@@ -91,62 +91,91 @@ def create_reception_router(factory, business_client=None):
                 raise ServiceError("AUTH_REQUIRED", 401)
             record = await require_session(db, actor)
             proof = request.headers.getlist(CSRF_HEADER)
-            if len(proof) != 1 or not proof[0].isascii() or not hmac.compare_digest(proof[0], record.csrf_token):
+            if (
+                len(proof) != 1
+                or not proof[0].isascii()
+                or not hmac.compare_digest(proof[0], record.csrf_token)
+            ):
                 raise ServiceError("CSRF_INVALID", 403)
         return actor
 
     @router.get("/application-form")
     async def form_view(request: Request):
         from xiaohe.reception.forms import read_application_form
+
         if len(request.query_params.multi_items()) != len(request.query_params):
             raise ServiceError("INPUT_INVALID", 422)
         try:
             query = ApplicationFormQuery.model_validate(dict(request.query_params))
         except ValidationError:
             raise ServiceError("INPUT_INVALID", 422) from None
-        view = await read_application_form(factory, await form_actor(request), query.source_application_id, query.mode, business_client)
+        view = await read_application_form(
+            factory,
+            await form_actor(request),
+            query.source_application_id,
+            query.mode,
+            business_client,
+        )
         data = view.model_dump(mode="json", by_alias=True)
         from xiaohe.lead_skills.views import (
             current_interaction_policy,
             lead_policy_view,
             supports_lead_policy,
         )
+
         if supports_lead_policy_v2(request):
             from xiaohe.deep_runtime.forms import application_policy_v2
+
             async with factory.begin() as db:
                 actor = await _actor(request, db)
-                data["leadPolicy"] = (await application_policy_v2(db, actor, view)).model_dump(mode="json", by_alias=True)
+                data["leadPolicy"] = (await application_policy_v2(db, actor, view)).model_dump(
+                    mode="json", by_alias=True
+                )
         elif supports_lead_policy(request):
             from xiaohe.reception.forms import form_field_policy
+
             policy = form_field_policy(view.direction, expected_bundle_id=view.definition_bundle_id)
             async with factory.begin() as db:
                 await _actor(request, db)
                 interaction = await current_interaction_policy(db)
-            data["leadPolicy"] = lead_policy_view(policy, interaction).model_dump(mode="json", by_alias=True)
+            data["leadPolicy"] = lead_policy_view(policy, interaction).model_dump(
+                mode="json", by_alias=True
+            )
         return data
 
     @router.post("/application-form/submissions")
     async def form_submit(request: Request):
         from xiaohe.reception.contracts import FormSubmissionV2
         from xiaohe.reception.forms import submit_application_form
-        body = await _body(request, FormSubmissionV2 if supports_lead_policy_v2(request) else FormSubmissionInput, max_bytes=512 * 1024)
-        result = await submit_application_form(factory, await form_actor(request), body, business_client)
+
+        body = await _body(
+            request,
+            FormSubmissionV2 if supports_lead_policy_v2(request) else FormSubmissionInput,
+            max_bytes=512 * 1024,
+        )
+        result = await submit_application_form(
+            factory, await form_actor(request), body, business_client
+        )
         return result.model_dump(mode="json", by_alias=True)
 
     @router.get("/application-form/submissions/{client_submission_id}")
     async def form_result(client_submission_id: str, request: Request):
         from xiaohe.reception.contracts import Id
         from xiaohe.reception.forms import application_form_result
+
         try:
             TypeAdapter(Id).validate_python(client_submission_id)
         except ValidationError:
             raise ServiceError("INPUT_INVALID", 422) from None
-        result = await application_form_result(factory, await form_actor(request), client_submission_id, business_client)
+        result = await application_form_result(
+            factory, await form_actor(request), client_submission_id, business_client
+        )
         return result.model_dump(mode="json", by_alias=True)
 
     @router.post("/application-form/{form_id}/files", status_code=201)
     async def form_file_init(form_id: UUID, request: Request):
         from xiaohe.reception.form_files import init_form_file
+
         body = await _body(request, FormInitFile)
         result = await init_form_file(factory, await form_actor(request), form_id, body)
         return result.model_dump(mode="json", by_alias=True)
@@ -154,25 +183,38 @@ def create_reception_router(factory, business_client=None):
     @router.put("/application-form/{form_id}/files/{file_id}")
     async def form_file_upload(form_id: UUID, file_id: UUID, request: Request):
         from xiaohe.reception.form_files import write_form_file
-        ref = await write_form_file(factory, await form_actor(request), form_id, file_id, request.stream(), artifacts=storage(request))
+
+        ref = await write_form_file(
+            factory,
+            await form_actor(request),
+            form_id,
+            file_id,
+            request.stream(),
+            artifacts=storage(request),
+        )
         return ref.model_dump(mode="json", by_alias=True)
 
     @router.delete("/application-form/{form_id}/files/{file_id}", status_code=204)
     async def form_file_detach(form_id: UUID, file_id: UUID, request: Request):
         from xiaohe.reception.form_files import detach_form_file
+
         await detach_form_file(factory, await form_actor(request), form_id, file_id)
         return Response(status_code=204)
 
     @router.delete("/application-form/{form_id}", status_code=204)
     async def form_abandon(form_id: UUID, request: Request):
         from xiaohe.reception.form_files import abandon_form
+
         await abandon_form(factory, await form_actor(request), form_id)
         return Response(status_code=204)
 
     @router.get("/application-form/files/{file_id}/download")
     async def form_file_download(file_id: UUID, request: Request):
         from xiaohe.reception.form_files import download_form_file
-        ref, content = await download_form_file(factory, await form_actor(request), file_id, artifacts=storage(request))
+
+        ref, content = await download_form_file(
+            factory, await form_actor(request), file_id, artifacts=storage(request)
+        )
         return file_response(ref, content)
 
     @router.get("/conversations/{conversation_id}")
@@ -189,19 +231,30 @@ def create_reception_router(factory, business_client=None):
                 lead_policy_view,
                 supports_lead_policy,
             )
+
             if supports_lead_policy_v2(request):
                 from xiaohe.deep_runtime.forms import lead_policy_v2
+
                 data["leadPolicy"] = None
                 if view.active_draft is not None:
-                    data["leadPolicy"] = (await lead_policy_v2(db, await _actor(request, db), UUID(view.active_draft.id))).model_dump(mode="json", by_alias=True)
+                    data["leadPolicy"] = (
+                        await lead_policy_v2(
+                            db, await _actor(request, db), UUID(view.active_draft.id)
+                        )
+                    ).model_dump(mode="json", by_alias=True)
             elif supports_lead_policy(request):
                 data["leadPolicy"] = None
                 if view.active_draft is not None:
                     from xiaohe.lead_skills.store import resolve_draft_policy
                     from xiaohe.reception.models import ReceptionDraft
-                    policy = await resolve_draft_policy(db, await db.get(ReceptionDraft, UUID(view.active_draft.id)))
+
+                    policy = await resolve_draft_policy(
+                        db, await db.get(ReceptionDraft, UUID(view.active_draft.id))
+                    )
                     interaction = await current_interaction_policy(db, conversation_id)
-                    data["leadPolicy"] = lead_policy_view(policy, interaction).model_dump(mode="json", by_alias=True)
+                    data["leadPolicy"] = lead_policy_view(policy, interaction).model_dump(
+                        mode="json", by_alias=True
+                    )
             return data
 
     @router.post("/conversations/{conversation_id}/controls", status_code=202)
@@ -219,13 +272,15 @@ def create_reception_router(factory, business_client=None):
             async with factory.begin() as db:
                 actor = await _actor(request, db)
             view = await create_draft_from_business(
-                factory, actor, conversation_id, body, business_client,
-                definition_bundle_id=db.info.get("workflow_bundle_id"),
+                factory,
+                actor,
+                conversation_id,
+                body,
+                business_client,
             )
             return view.model_dump(mode="json", by_alias=True, exclude_none=True)
         async with factory.begin() as db:
-            view = await create_draft(db, await _actor(request, db), conversation_id, body,
-                                      definition_bundle_id=db.info.get("workflow_bundle_id"))
+            view = await create_draft(db, await _actor(request, db), conversation_id, body)
             return view.model_dump(mode="json", by_alias=True, exclude_none=True)
 
     @router.patch("/drafts/{draft_id}")
@@ -241,10 +296,17 @@ def create_reception_router(factory, business_client=None):
     async def dynamic_form_patch(draft_id: UUID, request: Request):
         from xiaohe.deep_runtime.forms import patch_form
         from xiaohe.reception.contracts import PatchForm
+
         body = await _body(request, PatchForm, max_bytes=512 * 1024)
         async with factory.begin() as db:
-            view = await patch_form(db, await _actor(request, db), draft_id,
-                form_id=body.form_id, expected_revision=body.expected_revision, fields=body.fields)
+            view = await patch_form(
+                db,
+                await _actor(request, db),
+                draft_id,
+                form_id=body.form_id,
+                expected_revision=body.expected_revision,
+                fields=body.fields,
+            )
             return view.model_dump(mode="json", by_alias=True, exclude_none=True)
 
     @router.post("/drafts/{draft_id}/actions", status_code=202)
