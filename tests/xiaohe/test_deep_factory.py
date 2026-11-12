@@ -76,6 +76,8 @@ async def test_business_agent_combines_skills_with_readonly_filesystem():
     )
     assert result["structured_response"].wait_for_input is True
     prompt = model.requests[0][0].text
+    assert "answer.source_ids" in prompt
+    assert "允许编号：" + ", ".join(binding.skills) in prompt
     assert bundle.resources["skills/buyer-lead-capture/SKILL.md"] in prompt
     assert bundle.resources["skills/buyer-analysis/references/answer.md"] not in prompt
     assert not {"write_file", "edit_file", "delete", "execute", "task"} & set(

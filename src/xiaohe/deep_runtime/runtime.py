@@ -465,6 +465,8 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
     builder.add_edge("finalize", END)
     graph = builder.compile()
     for _ in range(2):
+        # 父图恢复可能跳过已完成的节点，先重建本次调用的闭包上下文。
+        await prepare_context({})
         result = await graph.ainvoke({})
         if result["outcome"]:
             return AgentOutcome.model_validate(result["outcome"])

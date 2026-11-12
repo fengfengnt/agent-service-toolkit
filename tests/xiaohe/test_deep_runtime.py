@@ -60,6 +60,31 @@ async def test_three_business_nodes_and_native_answer(pg_factory, job_app, tmp_p
         assert len(runtime().deep_thread_ids(command)) == 1
 
 
+@pytest.mark.parametrize("source_id", ["buyer-analysis", "nonexistent-material"])
+async def test_answer_sources_must_be_authorized_skills(pg_factory, job_app, tmp_path, source_id):
+    from xiaohe.contracts import ServiceError
+
+    context, _ = await tool_context(pg_factory, tmp_path)
+    model = make_script_model(
+        [
+            final_response(
+                answer={
+                    "text": "先明确需求。",
+                    "basis": "confirmed_material",
+                    "source_ids": [source_id],
+                }
+            )
+        ]
+    )
+    if source_id in context.binding.skills:
+        outcome = await invoke(context, model=model)
+        assert outcome.parts[0].text == "先明确需求。"
+    else:
+        with pytest.raises(ServiceError) as error:
+            await invoke(context, model=model)
+        assert error.value.code == "UPSTREAM_UNAVAILABLE"
+
+
 async def test_button_submits_without_model(pg_factory, job_app, tmp_path):
     context, frame = await tool_context(pg_factory, tmp_path, client=Business())
     async with pg_factory.begin() as db:

@@ -128,6 +128,9 @@ def build_business_agent(
         "回答使用自然纯文本和换行，不输出 HTML 标签，不添加‘一般建议：’等固定前缀，"
         "不逐轮重复政策免责声明；只在当前问题涉及待确认事实时说明。"
         "只返回 DeepTurnResult，普通回答使用 AnswerDraft 的来源口径，不输出可信状态块。"
+        "answer.source_ids 只能填写本轮授权 Skill 的名称，不能编造资料编号、文件路径或引用用户信息。"
+        "普通建议使用 general_advice 且 source_ids=[]；仅依据已读取资料时使用 confirmed_material。"
+        "允许编号：" + ", ".join(binding.skills) + "。"
     )
     if binding.agent_id == "xiaohe-reception":
         prompt += "\n\n" + bundle.resources.get(RECEPTION_POLICY, "")

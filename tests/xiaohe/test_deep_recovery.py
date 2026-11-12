@@ -66,6 +66,65 @@ async def test_checkpoint_recovery_does_not_duplicate_user_input(pg_factory, job
     )
 
 
+@pytest.mark.parametrize("failure_stage", ["model", "finalize"])
+async def test_outer_checkpoint_retry_rebuilds_business_context(
+    pg_factory, job_app, tmp_path, monkeypatch, failure_stage
+):
+    from xiaohe.graph import build_graph
+
+    class FailsOnce(DeepScriptModel):
+        failed: bool = False
+
+        def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+            if failure_stage == "model" and not self.failed:
+                self.failed = True
+                raise RuntimeError("isolated model failure")
+            return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+
+    context, _ = await tool_context(pg_factory, tmp_path)
+    model = FailsOnce(
+        responses=[
+            final_response(
+                answer={"text": "请说明需求。", "basis": "general_advice"}, wait_for_input=False
+            )
+        ],
+        profile={"tool_calling": True},
+    )
+    if failure_stage == "finalize":
+        checks = iter([True, False])
+
+        def fail_once(_text):
+            if next(checks):
+                raise RuntimeError("isolated model failure")
+            return False
+
+        monkeypatch.setattr(runtime(), "_claims_business_success", fail_once)
+    graph = build_graph(factory=pg_factory, model=model)
+    graph.checkpointer = InMemorySaver()
+    config = {
+        "configurable": {"thread_id": "retry-outer"},
+        "metadata": {
+            "business_run_id": str(context.fence.run_id),
+            "attempt": context.fence.attempt,
+            "ownership_epoch": context.fence.ownership_epoch,
+        },
+    }
+    with pytest.raises(RuntimeError, match="isolated model failure"):
+        await graph.ainvoke(
+            {"run_id": str(context.fence.run_id), "output_message_id": str(context.command_id)},
+            config=config,
+        )
+    result = await graph.ainvoke(None, config=config)
+    assert result["outcome"]
+    assert (
+        sum(
+            isinstance(message, HumanMessage) and message.content == context.text
+            for message in model.requests[0]
+        )
+        == 1
+    )
+
+
 async def test_save_survives_model_failure_with_server_notice(pg_factory, job_app, tmp_path):
     class FailsAfterSave(DeepScriptModel):
         def _generate(self, messages, stop=None, run_manager=None, **kwargs):
