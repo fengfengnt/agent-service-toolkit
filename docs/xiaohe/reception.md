@@ -39,4 +39,6 @@
 
 0015 要求先显式清理旧数据，再移除旧结构；正常启动不会自动销毁业务记录。当前实施范围和隔离验证见[标准 Skill 唯一执行链验证](../testing/xiaohe-standard-only.md)，清理设计见[设计文档](../superpowers/specs/2026-11-12-xiaohe-standard-skills-only-design.md)。旧版本验收文档仅保留历史事实。
 
+清理维护账号须具备目标桶的 `GetBucketVersioning`、`ListBucket`、`GetObject`、`DeleteObject` 权限；版本化桶会在删除前被拒绝。本次 WSL 使用临时桶级账号并在完成后撤销，不能因此扩大应用账号的常驻权限。
+
 清理后的旧会话、草稿、附件和执行状态不恢复；不能把仅支持旧结构的 0.1.7 镜像直接切回。身份、认证、额度、其他业务系统与既有备份不属于本次删除范围。
