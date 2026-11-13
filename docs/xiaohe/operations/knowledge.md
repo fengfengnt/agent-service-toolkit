@@ -36,6 +36,16 @@ topics:
 
 ## 2. 配置 Embedding
 
+可直接复制[参数模板](../../../deploy/xiaohe/knowledge.env.example)。四项 Embedding 参数必须一起填写；示例维度不能代替模型实际维度。模板不包含业务、登录或聊天模型密钥，不要用它覆盖原有完整运行配置。
+
+WSL 0.1.12 将专用文件 `/home/fengfeng/yunhezhiyuan/aibackend/config/knowledge.env` 作为 API 的 `env_file`，worker 不读取该文件。修改后执行以下命令重新读取配置，不能只执行 `restart`：
+
+```powershell
+wsl.exe -d Ubuntu -- sh /home/fengfeng/yunhezhiyuan/aibackend/compose.sh up -d --no-deps --no-build --pull never --force-recreate aibackend-api
+```
+
+配置模型仅使检索具备运行条件；首次使用还需按第 3、4 节构建并发布真实知识索引。修改模型、endpoint 或维度后必须重建索引。该 WSL 路径不代表 UAT 或生产已接入此文件。
+
 在私有环境中配置，不提交 `.env` 或密钥：
 
 | 配置键 | 含义 |
