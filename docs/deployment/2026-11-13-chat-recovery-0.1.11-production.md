@@ -1,6 +1,6 @@
-# 小鹤聊天失败恢复：AI 0.1.11 生产发布准备
+# 小鹤聊天失败恢复：AI 0.1.11 生产发布
 
-日期：2026-11-13。状态：**已提交、推送、归档并加载生产镜像；等待 1Panel 更新现有 API／Worker 编排**。配套门户 0.1.35 已上线。生产 AI 仍运行 0.1.10，不能据此记录为整批发布完成。
+日期：2026-11-13。状态：**现有 1Panel 编排更新后，API／Worker 均已核验运行 0.1.11**，镜像身份、版本文件、就绪状态与数据库 0015 通过；其余 16 个容器保持。当前门户为 0.1.36。
 
 ## 修复与验证
 
@@ -17,8 +17,8 @@
 
 ## 生产准备与边界
 
-生产主机 `123.56.185.111`，现有编排 `yh-prod-aibackend`。活动文件 `/opt/yunhezhiyuan-prod/services/yh-prod-aibackend/docker-compose.yml` 仅改两个 image 字段，其他解析配置完全一致。API、Worker 仍运行旧镜像；18 个容器没有重建或重启。API 旧版本就绪接口、正式门户及 SSO Discovery 返回 200；配置、秘密及 SSO 静态内容摘要保持。
+生产主机 `123.56.185.111`，现有编排 `yh-prod-aibackend`。活动文件 `/opt/yunhezhiyuan-prod/services/yh-prod-aibackend/docker-compose.yml` 仅改两个 image 字段，其他解析配置完全一致。本次 Agent 准备阶段没有重建容器；操作人经 1Panel 更新后，两个 AI 容器实际镜像和 `/app/VERSION=0.1.11` 均匹配。当前环境变量的键值与已准备的 Compose 及镜像默认值一致，挂载保持，其余 16 个容器身份和启动时间未变。新版本就绪接口返回 200。
 
 数据库保持 `0015`，本次无表结构或运行配置变更，因此不制作数据库／配置备份，不备份文件存储。远程镜像上传包在导入校验后删除，旧 AI 镜像保留；未部署 WSL／UAT，也未切换 Java、Runtime 或其他服务。
 
-操作单：[手动更新步骤](D:/Code/deploy/local-deploy/releases/yunhezhiyuan-aibackend/prod/0.1.11/手动更新步骤.md)。用户完成面板更新后，继续核验实际镜像、版本、健康、配置及其他容器。真实登录、模型回复及 90 秒超时原因尚未线上验收；不重放生产用户消息或正式提交。
+操作单：[手动更新步骤](D:/Code/deploy/local-deploy/releases/yunhezhiyuan-aibackend/prod/0.1.11/手动更新步骤.md)。面板更新后的完整核验见归档 `live-verification.json`；操作单保留历史，不要重复执行。真实登录、模型回复及 90 秒超时原因尚未线上验收；不重放生产用户消息或正式提交。
