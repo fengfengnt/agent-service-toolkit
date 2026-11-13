@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import re
 from typing import TypedDict
 from uuid import uuid5
@@ -16,11 +17,14 @@ from xiaohe.deep_runtime.factory import build_business_agent
 from xiaohe.deep_runtime.models import DeepExecution, DeepTurnResult
 from xiaohe.deep_runtime.tools import ToolContext, execute_effect, make_business_tools
 from xiaohe.graph import _safe_model_text
+from xiaohe.knowledge.sources import KnowledgeMaterial
 from xiaohe.lead_skills.notices import render_lead_notice
 from xiaohe.models import Command, Conversation, Message, Run, System
 from xiaohe.reception.models import ReceptionDraft
 from xiaohe.reception.store import locked_flow
 from xiaohe.runs import TERMINAL
+
+logger = logging.getLogger(__name__)
 
 _AGENT_WELCOMES = {
     "xiaohe-buyer": (
@@ -87,7 +91,9 @@ async def publish_runtime(factory, resource_root):
     )
 
 
-async def run_deep_turn(factory, fence, *, execution, model, business_client, checkpointer):
+async def run_deep_turn(
+    factory, fence, *, execution, model, business_client, checkpointer, knowledge=None
+):
     if checkpointer is None:
         raise ServiceError("CHECKPOINT_NOT_READY", 503)
     async with factory.begin() as db:
@@ -104,9 +110,10 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
     initial = None
     thread_id = None
     action = None
+    materials = []
 
     async def prepare_context(state):
-        nonlocal context, initial, thread_id, action
+        nonlocal context, initial, thread_id, action, materials
         async with factory.begin() as db:
             run, command = await _command(db, fence)
             if command.id != command_id:
@@ -136,6 +143,10 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
                 guest_id=run.guest_id,
             )
             binding = select_binding(bundle, actor, active)
+            materials = [
+                KnowledgeMaterial.model_validate(value)
+                for value in current.knowledge.get(binding.agent_id, [])
+            ]
             if active != "xiaohe-reception" and conversation.direction != active.removeprefix(
                 "xiaohe-"
             ):
@@ -223,6 +234,7 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
         return {"candidate": None}
 
     async def business_agent(state):
+        nonlocal materials
         from xiaohe.graph import _auth_intent
 
         if action.get("control") == "switch_direction":
@@ -301,6 +313,26 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
             return {"candidate": None}
         from xiaohe.graph import reception_model
 
+        if knowledge is not None:
+            async with factory.begin() as db:
+                _, command = await _command(db, fence)
+                current = DeepExecution.model_validate(command.payload["deepExecution"])
+            key = context.binding.agent_id
+            if key not in current.knowledge:
+                try:
+                    materials = await knowledge.query(bundle, key, context.binding.skills)
+                except Exception:
+                    logger.warning("xiaohe_knowledge:unavailable")
+                    materials = []
+                async with factory.begin() as db:
+                    _, command = await _command(db, fence)
+                    current = DeepExecution.model_validate(command.payload["deepExecution"])
+                    _persist(
+                        command,
+                        current,
+                        knowledge=current.knowledge
+                        | {key: [value.model_dump(mode="json") for value in materials]},
+                    )
         agent = build_business_agent(
             bundle,
             execution,
@@ -308,6 +340,7 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
             model=model or reception_model(),
             tools=make_business_tools(context),
             checkpointer=checkpointer,
+            materials=materials,
         )
         config = {
             "configurable": {"thread_id": thread_id, "checkpoint_ns": ""},
@@ -360,7 +393,7 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
             parts = []
             if candidate and candidate.answer:
                 answer = candidate.answer
-                source_ids = set(context.binding.skills)
+                source_ids = set(context.binding.skills) | {value.source for value in materials}
                 if _claims_business_success(answer.text) or set(answer.source_ids) - source_ids:
                     if not submitted and not saved:
                         raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
@@ -369,9 +402,27 @@ async def run_deep_turn(factory, fence, *, execution, model, business_client, ch
                     parts.append(
                         {
                             "type": "text",
-                            "text": re.sub(r"</?br\s*/?\s*>", "\n", answer.text, flags=re.IGNORECASE),
+                            "text": re.sub(
+                                r"</?br\s*/?\s*>", "\n", answer.text, flags=re.IGNORECASE
+                            ),
                         }
                     )
+                    cited = {
+                        (value.display_source, value.conditions)
+                        for value in materials
+                        if value.source in answer.source_ids
+                    }
+                    if cited:
+                        parts.append(
+                            {
+                                "type": "text",
+                                "text": "资料来源："
+                                + "；".join(
+                                    f"{source}（{conditions}）"
+                                    for source, conditions in sorted(cited)
+                                ),
+                            }
+                        )
             if submitted or saved:
                 notice = (
                     "accepted"

@@ -66,7 +66,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-rag = ["langchain-chroma ~=1.1.0"]
+rag = ["langchain-chroma ~=1.1.0", "chromadb ==1.5.9"]
 
 # Supply-chain cooldown: resolution only considers releases >=14 days old. Needs the
 # repo's pinned uv version (older uv ignores this and strips it from uv.lock on re-lock).

@@ -71,6 +71,7 @@ class DeepExecution(DefinitionModel):
     handoffs: int = Field(default=0, ge=0, le=1)
     threads: dict[str, dict] = Field(default_factory=dict)
     effects: dict[str, dict] = Field(default_factory=dict)
+    knowledge: dict[str, list[dict]] = Field(default_factory=dict)
     result: dict | None = None
 
 

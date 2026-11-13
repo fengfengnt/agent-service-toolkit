@@ -138,6 +138,14 @@ def load_runtime_bundle(resource_root: Path) -> RuntimeBundle:
         }
         if set(bindings) != set(AGENT_IDS) or set(fields) != {"buyer", "organization", "supplier"}:
             raise ValueError("missing role binding")
+        from xiaohe.knowledge.sources import MANIFEST_KEY, read_manifest, validate_scope
+
+        if (root / MANIFEST_KEY).exists():
+            resources[MANIFEST_KEY] = _read(root, MANIFEST_KEY)
+            manifest = read_manifest(resources[MANIFEST_KEY])
+            allowed = {key: set(value.skills) for key, value in bindings.items()}
+            for entry in manifest.entries.values():
+                validate_scope(entry, allowed)
         bundle = RuntimeBundle(
             skills=skills,
             bindings=bindings,

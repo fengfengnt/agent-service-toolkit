@@ -89,6 +89,7 @@ def build_graph(
     factory=None,
     model: BaseChatModel | None = None,
     business_client=None,
+    knowledge=None,
 ):
     async def respond(state: GraphState, config: RunnableConfig):
         if handler is None:
@@ -127,6 +128,7 @@ def build_graph(
                 model=model,
                 business_client=business_client,
                 checkpointer=graph.checkpointer,
+                knowledge=knowledge,
             )
             async with factory.begin() as db:
                 run = await require_write(db, fence)
