@@ -75,3 +75,22 @@ def test_child_result_cannot_claim_authority(extra):
 
     with pytest.raises(ValidationError):
         ChildResult.model_validate({"summary": "结果", extra: {"accepted": True}})
+
+
+@pytest.mark.asyncio
+async def test_child_receives_shared_source_without_parent_context():
+    bundle = load_runtime_bundle(ROOT)
+    binding = RuntimeBinding(agent_id="xiaohe-buyer", skills=[], tools=[])
+    model = make_script_model([final_response("ChildResult", summary="资料已分析")])
+    child = factory().build_readonly_child(bundle, binding, model=model)
+    state = {
+        "messages": [HumanMessage(content="公开资料分析")],
+        "actor": {"user_id": "private-sentinel"},
+        "files": {"/private": {"content": ["private-sentinel"]}},
+    }
+    await child["runnable"].ainvoke(state)
+    prompt = model.requests[0][0].text
+    assert "shared:platform-common" in prompt
+    assert "云鹤智元（上海）科技有限公司" in prompt
+    assert "private-sentinel" not in str(model.requests)
+    assert not {"save_lead", "submit_lead", "execute", "write_file"} & set(model.bound_tool_names)

@@ -197,3 +197,63 @@ async def test_parent_delegates_to_explicit_readonly_child():
     assert "buyer-security" in child_prompt
     assert "buyer-lead-capture" not in child_prompt
     assert result["structured_response"].wait_for_input is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "agent_id", ["xiaohe-reception", "xiaohe-buyer", "xiaohe-organization", "xiaohe-supplier"]
+)
+@pytest.mark.parametrize("authenticated", [False, True])
+async def test_all_bindings_receive_full_shared_source(agent_id, authenticated):
+    from xiaohe.knowledge.sources import load_sources
+    from xiaohe.skill_schema import AGENT_IDS
+
+    bundle = load_runtime_bundle(ROOT)
+    binding = select_binding(bundle, actor(authenticated), agent_id)
+    model = make_script_model([final_response(wait_for_input=True)])
+    graph = factory().build_business_agent(
+        bundle,
+        DeepExecution(bundle_id=bundle.bundle_id),
+        binding,
+        model=model,
+        tools=stub_tools(binding),
+        checkpointer=InMemorySaver(),
+    )
+    await graph.ainvoke(
+        {"messages": [HumanMessage(content="介绍平台")]},
+        {"configurable": {"thread_id": "shared-" + agent_id + str(authenticated)}},
+    )
+    source = next(
+        s
+        for s in load_sources(ROOT / "knowledge", {a: set() for a in AGENT_IDS})
+        if s.id == "platform-common"
+    )
+    prompt = model.requests[0][0].text
+    assert source.text in prompt
+    assert "shared:platform-common" in prompt
+    assert "具体说明、适用条件与交付范围尚未确认" in prompt
+
+
+@pytest.mark.asyncio
+async def test_historical_bundle_never_reads_current_shared_file():
+    from xiaohe.knowledge.shared import SHARED_PATH, SHARED_SOURCE_ID
+
+    bundle = load_runtime_bundle(ROOT)
+    bundle = bundle.model_copy(
+        update={"resources": {k: v for k, v in bundle.resources.items() if k != SHARED_PATH}}
+    )
+    binding = select_binding(bundle, actor(), "xiaohe-buyer")
+    model = make_script_model([final_response(wait_for_input=True)])
+    graph = factory().build_business_agent(
+        bundle,
+        DeepExecution(bundle_id=bundle.bundle_id),
+        binding,
+        model=model,
+        tools=stub_tools(binding),
+        checkpointer=InMemorySaver(),
+    )
+    await graph.ainvoke(
+        {"messages": [HumanMessage(content="介绍平台")]},
+        {"configurable": {"thread_id": "historical-shared"}},
+    )
+    assert SHARED_SOURCE_ID not in model.requests[0][0].text

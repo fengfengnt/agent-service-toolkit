@@ -17,6 +17,7 @@ from xiaohe.deep_runtime.factory import build_business_agent
 from xiaohe.deep_runtime.models import DeepExecution, DeepTurnResult
 from xiaohe.deep_runtime.tools import ToolContext, execute_effect, make_business_tools
 from xiaohe.graph import _safe_model_text
+from xiaohe.knowledge.shared import SHARED_SOURCE_ID, shared_source
 from xiaohe.knowledge.sources import KnowledgeMaterial
 from xiaohe.lead_skills.notices import render_lead_notice
 from xiaohe.models import Command, Conversation, Message, Run, System
@@ -394,6 +395,8 @@ async def run_deep_turn(
             if candidate and candidate.answer:
                 answer = candidate.answer
                 source_ids = set(context.binding.skills) | {value.source for value in materials}
+                if shared_source(bundle) is not None:
+                    source_ids.add(SHARED_SOURCE_ID)
                 if _claims_business_success(answer.text) or set(answer.source_ids) - source_ids:
                     if not submitted and not saved:
                         raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)

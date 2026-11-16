@@ -35,7 +35,7 @@ class KnowledgeFixture:
         if self.unavailable:
             raise TimeoutError("private upstream detail")
         manifest = manifest_from_bundle(bundle)
-        key, entry = next(iter(manifest.entries.items()))
+        key, entry = next((k, v) for k, v in manifest.entries.items() if v.id == "policy")
         return [
             KnowledgeMaterial(
                 text="仅用于测试的虚构政策。",
@@ -78,7 +78,8 @@ async def bound_context(factory, tmp_path, agent="xiaohe-buyer"):
 
 def source_id(bundle):
     manifest = manifest_from_bundle(bundle)
-    return f"kb:{manifest.version}:{next(iter(manifest.entries))}"
+    key = next(k for k, v in manifest.entries.items() if v.id == "policy")
+    return f"kb:{manifest.version}:{key}"
 
 
 async def invoke(context, model, knowledge, saver=None):
@@ -325,3 +326,25 @@ async def test_startup_failure_restores_registry_and_closes_knowledge(monkeypatc
         async with app.router.lifespan_context(app):
             pytest.fail("startup must fail")
     assert main._active_app is None and agents.get("xiaohe") is previous
+
+
+@pytest.mark.pg
+@pytest.mark.parametrize("source", ["shared:platform-common", "shared:forged"])
+async def test_shared_answer_without_retrieval_has_valid_source(
+    pg_factory, job_app, tmp_path, source
+):
+    context, _, _ = await bound_context(pg_factory, tmp_path)
+    model = make_script_model(
+        [
+            final_response(
+                answer={"text": "平台介绍", "basis": "confirmed_material", "source_ids": [source]}
+            )
+        ]
+    )
+    if source == "shared:forged":
+        with pytest.raises(ServiceError):
+            await invoke(context, model, None)
+    else:
+        result = await invoke(context, model, None)
+        texts = [p.text for p in result.parts if p.type == "text"]
+        assert texts == ["平台介绍"]
