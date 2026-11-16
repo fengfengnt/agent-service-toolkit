@@ -51,7 +51,7 @@ def main() -> None:
                 manifest,
                 [KnowledgeChunk(**item) for item in data["chunks"]],
                 args.directory,
-                create_embeddings(settings),
+                create_embeddings(settings, request_timeout=30.0),
             )
             return
         resources = args.resources.resolve()

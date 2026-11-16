@@ -223,7 +223,8 @@ def test_cli_builds_candidate_but_does_not_publish_bundle(tmp_path):
             timeout=45,
         )
         assert result.returncode == 0, result.stderr
-        assert requests[0]["input"] == ["仅用于测试的虚构政策。"]
+        assert "仅用于测试的虚构政策。" in requests[0]["input"]
+        assert all(request["dimensions"] == 3 for request in requests)
         assert json.loads(result.stdout)["published"] is False
         assert candidate.exists()
         assert not (root / "knowledge/manifest.json").exists()
@@ -303,3 +304,31 @@ async def test_reuse_validates_real_index_offline_without_mutating_published_fil
         finally:
             if owner is not None:
                 await owner.aclose()
+
+
+def test_embedding_constructor_sends_dimensions_and_explicit_timeouts(monkeypatch):
+    import langchain_openai
+
+    from xiaohe.knowledge.build import create_embeddings
+    from xiaohe.settings import Settings
+
+    calls = []
+    monkeypatch.setattr(
+        langchain_openai, "OpenAIEmbeddings", lambda **kw: calls.append(kw) or object()
+    )
+    settings = Settings(
+        toolkit_base_url="http://localhost",
+        auth_secret="fixture",
+        knowledge_embedding_base_url="https://api.wenwen-ai.com/v1",
+        knowledge_embedding_model="text-embedding-3-small",
+        knowledge_embedding_api_key="fixture-private",
+        knowledge_embedding_dimensions=1024,
+    )
+    create_embeddings(settings)
+    assert calls[-1].get("dimensions") == 1024
+    assert calls[-1]["request_timeout"] == 3.0 and calls[-1]["max_retries"] == 0
+    create_embeddings(settings, request_timeout=30.0)
+    assert calls[-1]["request_timeout"] == 30.0
+    from xiaohe.knowledge.runtime import QUERY_TIMEOUT
+
+    assert QUERY_TIMEOUT == 4.0

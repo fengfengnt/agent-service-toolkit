@@ -15,7 +15,7 @@ from xiaohe.settings import Settings
 from xiaohe.skill_schema import AgentId
 
 logger = logging.getLogger(__name__)
-QUERY_TIMEOUT = 2.0
+QUERY_TIMEOUT = 4.0
 
 
 class EmbeddedKnowledge:

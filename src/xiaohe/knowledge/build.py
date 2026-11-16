@@ -146,7 +146,7 @@ def verify_existing(directory: Path, root: Path, manifest: KnowledgeManifest) ->
         _owners.pop(root).close()
 
 
-def create_embeddings(settings: Settings):
+def create_embeddings(settings: Settings, *, request_timeout: float = 3.0):
     from langchain_openai import OpenAIEmbeddings
 
     endpoint = settings.knowledge_embedding_base_url
@@ -158,8 +158,9 @@ def create_embeddings(settings: Settings):
         base_url=endpoint,
         model=model,
         api_key=key.get_secret_value(),
+        dimensions=settings.knowledge_embedding_dimensions,
         max_retries=0,
-        request_timeout=1.5,
+        request_timeout=request_timeout,
         check_embedding_ctx_length=False,
     )
 

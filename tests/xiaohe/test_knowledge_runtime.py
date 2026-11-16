@@ -130,6 +130,7 @@ async def test_each_agent_reads_only_explicitly_authorized_general_material(
         assert hits[0].version == knowledge_release[1].version
         assert hits[0].source.startswith("kb:" + hits[0].version + ":")
         assert requests[-1]["input"] == ["平台介绍与服务方向"]
+        assert requests[-1]["dimensions"] == 3
     finally:
         await knowledge.aclose()
 
