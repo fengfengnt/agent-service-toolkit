@@ -48,7 +48,7 @@ topics:
 
 可直接复制[参数模板](../../../deploy/xiaohe/knowledge.env.example)。四项 Embedding 参数必须一起填写；示例维度不能代替模型实际维度。模板不包含业务、登录或聊天模型密钥，不要用它覆盖原有完整运行配置。
 
-WSL 0.1.12 将专用文件 `/home/fengfeng/yunhezhiyuan/aibackend/config/knowledge.env` 作为 API 的 `env_file`，worker 不读取该文件。修改后执行以下命令重新读取配置，不能只执行 `restart`：
+WSL 从 0.1.12 起将专用文件 `/home/fengfeng/yunhezhiyuan/aibackend/config/knowledge.env` 作为 API 的 `env_file`，worker 不读取该文件。0.1.13 已完成小采配置的私有接线与首份共享索引发布，详见[发布回执](2026-11-16-shared-knowledge-wsl.md)。修改后执行以下命令重新读取配置，不能只执行 `restart`：
 
 ```powershell
 wsl.exe -d Ubuntu -- sh /home/fengfeng/yunhezhiyuan/aibackend/compose.sh up -d --no-deps --no-build --pull never --force-recreate aibackend-api
@@ -70,11 +70,11 @@ Embedding 与聊天模型独立，不能根据聊天模型能工作就判定 Emb
 
 已批准复用小采 UAT/生产共用实例 `39.106.42.10` 的 `https://api.wenwen-ai.com/v1`、`text-embedding-3-small`、1024 维及其实际有效 APIPro Key。小鹤仍使用上述独立配置项，索引和存储各自独立；共用 Key 会共用额度并受到相同限流/轮换影响。
 
-私有接线流程（本次源码实施不执行环境接线）：严格校验目标 SSH 主机；以活动 API 容器的有效 `FLARE_EMBEDDING_API_KEY or APIPRO_API_KEY` 为凭据来源，不采用历史 `.env` 猜值。单个私有进程将源端凭据经加密通道直接送入目标写入器的 stdin；不得把值放进命令行、模型上下文、公开输出、Git 或制品，不复制整份小采配置。目标写入器只更新四项知识库参数，原子替换 0600 文件并保留属主、其他字段与受限回退副本。只报告已配置/一致的布尔结果，不能打印 Key 或摘要。失败保持旧配置；不得改动或重启小采。
+私有接线流程（WSL 0.1.13 已执行，其他环境未随之接线）：严格校验目标 SSH 主机；以活动 API 容器的有效 `FLARE_EMBEDDING_API_KEY or APIPRO_API_KEY` 为凭据来源，不采用历史 `.env` 猜值。单个私有进程将源端凭据经加密通道直接送入目标写入器的 stdin；不得把值放进命令行、模型上下文、公开输出、Git 或制品，不复制整份小采配置。目标写入器只更新四项知识库参数，原子替换 0600 文件并保留属主、其他字段与受限回退副本。只报告已配置/一致的布尔结果，不能打印 Key 或摘要。失败保持旧配置；不得改动或重启小采。
 
 配置齐全时，API 在启动阶段初始化本地 Embedding 客户端，不发送 Embedding 请求；在线请求超时 3 秒、整次检索预算 4 秒，离线建库请求超时 30 秒，均不自动重试。首次客户端初始化不占用用户查询预算。
 
-文档正文会在入库时发送给配置的 Embedding 服务，因此知识源仅放已确认可对客的资料；不要将用户上传附件、申请材料或会话导入。测试使用本地受控向量服务，不代表真实服务已验收。
+文档正文会在入库时发送给配置的 Embedding 服务，因此知识源仅放已确认可对客的资料；不要将用户上传附件、申请材料或会话导入。源码测试使用本地受控向量服务，不能代替真实服务验收；WSL 0.1.13 的真实共享文档建库结果另见发布回执。
 
 ## 3. 构建候选版本
 
