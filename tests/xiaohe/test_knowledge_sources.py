@@ -179,7 +179,9 @@ def test_empty_version_is_valid_and_no_manifest_is_legacy(tmp_path):
     assert manifest.entries == {}
     assert chunks == []
     assert read_manifest(manifest.model_dump_json()) == manifest
-    bundle = load_runtime_bundle(write_test_bundle(tmp_path / "resources"))
+    root = write_test_bundle(tmp_path / "resources")
+    (root / "knowledge/manifest.json").unlink(missing_ok=True)
+    bundle = load_runtime_bundle(root)
     assert manifest_from_bundle(bundle) is None
 
 

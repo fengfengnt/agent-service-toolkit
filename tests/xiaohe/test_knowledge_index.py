@@ -191,6 +191,7 @@ def test_failed_new_version_does_not_change_live_index(tmp_path):
 def test_cli_builds_candidate_but_does_not_publish_bundle(tmp_path):
     pytest.importorskip("chromadb")
     root = write_test_bundle(tmp_path / "resources")
+    (root / "knowledge/manifest.json").unlink(missing_ok=True)
     write_knowledge_source(root / "knowledge", topics=("general",))
     env = os.environ.copy()
     env["PYTHONPATH"] = str(Path("src").resolve())
