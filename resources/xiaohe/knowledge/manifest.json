@@ -1,0 +1,27 @@
+{
+  "format_version": 1,
+  "version": "8615077b33259735867edc786843ebe5b983564f44fc9c5291497f88805b3c3d",
+  "embedding_model": "text-embedding-3-small",
+  "embedding_identity": "539df27d5bb68efc987b083d28050af344eadb1f4b5cc285fe7f13cfed927205",
+  "dimensions": 1024,
+  "chunk_size": 1200,
+  "chunk_overlap": 200,
+  "entries": {
+    "platform-common:0": {
+      "id": "platform-common",
+      "title": "平台与公司官方共享知识",
+      "source": "平台官方维护资料",
+      "conditions": "用于本平台公开介绍；标记为待补充的内容尚未形成已确认的服务说明，不构成交付、时效、收费或效果承诺。",
+      "agents": [
+        "xiaohe-buyer",
+        "xiaohe-organization",
+        "xiaohe-reception",
+        "xiaohe-supplier"
+      ],
+      "topics": [
+        "general"
+      ],
+      "text_sha256": "90c5b875fd11507ed32a4ee9fe2726a15a96ef6f9e483d1455dc7075565cf8b7"
+    }
+  }
+}
