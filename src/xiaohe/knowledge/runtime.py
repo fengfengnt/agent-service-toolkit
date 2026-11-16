@@ -9,6 +9,7 @@ from typing import Any
 
 from xiaohe.deep_runtime.models import RuntimeBundle
 from xiaohe.knowledge.build import COLLECTION, check_complete, claim_root, validate_vectors
+from xiaohe.knowledge.shared import SHARED_DOCUMENT_ID, shared_source, stale_shared_entry_ids
 from xiaohe.knowledge.sources import KnowledgeMaterial, embedding_identity, manifest_from_bundle
 from xiaohe.settings import Settings
 from xiaohe.skill_schema import AgentId
@@ -110,6 +111,20 @@ class EmbeddedKnowledge:
         if set(topics) - set(definition.skills):
             logger.warning("xiaohe_knowledge:invalid_scope")
             return []
+        scopes = ["general", *sorted(set(topics))]
+        excluded = stale_shared_entry_ids(bundle, manifest)
+        eligible = {
+            key: entry
+            for key, entry in manifest.entries.items()
+            if key not in excluded
+            and agent_id in entry.agents
+            and set(entry.topics).intersection(scopes)
+        }
+        if not eligible or (
+            shared_source(bundle) is not None
+            and all(entry.id == SHARED_DOCUMENT_ID for entry in eligible.values())
+        ):
+            return []
         settings = self.settings
         endpoint = settings.knowledge_embedding_base_url
         model = settings.knowledge_embedding_model
@@ -147,7 +162,6 @@ class EmbeddedKnowledge:
         if topics:
             query = "；".join(bundle.skills[topic].description for topic in sorted(set(topics)))
         (vector,) = validate_vectors([self._embeddings.embed_query(query)], 1, manifest.dimensions)
-        scopes = ["general", *sorted(set(topics))]
         topic_filters = [{"topic." + topic: {"$eq": True}} for topic in scopes]
         where = {
             "$and": [
@@ -161,7 +175,8 @@ class EmbeddedKnowledge:
             .get_collection(COLLECTION, embedding_function=None)
             .query(
                 query_embeddings=[vector],
-                n_results=min(3, len(manifest.entries)),
+                ids=list(eligible),
+                n_results=min(3, len(eligible)),
                 where=where,
                 include=["documents", "metadatas", "distances"],
             )
@@ -177,6 +192,7 @@ class EmbeddedKnowledge:
             entry = manifest.entries.get(key)
             if (
                 entry is None
+                or key not in eligible
                 or key in seen
                 or agent_id not in entry.agents
                 or not set(entry.topics).intersection(scopes)

@@ -17,7 +17,7 @@ from xiaohe.deep_runtime.factory import build_business_agent
 from xiaohe.deep_runtime.models import DeepExecution, DeepTurnResult
 from xiaohe.deep_runtime.tools import ToolContext, execute_effect, make_business_tools
 from xiaohe.graph import _safe_model_text
-from xiaohe.knowledge.shared import SHARED_SOURCE_ID, shared_source
+from xiaohe.knowledge.shared import SHARED_SOURCE_ID, filter_shared_materials, shared_source
 from xiaohe.knowledge.sources import KnowledgeMaterial
 from xiaohe.lead_skills.notices import render_lead_notice
 from xiaohe.models import Command, Conversation, Message, Run, System
@@ -144,10 +144,13 @@ async def run_deep_turn(
                 guest_id=run.guest_id,
             )
             binding = select_binding(bundle, actor, active)
-            materials = [
-                KnowledgeMaterial.model_validate(value)
-                for value in current.knowledge.get(binding.agent_id, [])
-            ]
+            materials = filter_shared_materials(
+                bundle,
+                [
+                    KnowledgeMaterial.model_validate(value)
+                    for value in current.knowledge.get(binding.agent_id, [])
+                ],
+            )
             if active != "xiaohe-reception" and conversation.direction != active.removeprefix(
                 "xiaohe-"
             ):
@@ -325,6 +328,7 @@ async def run_deep_turn(
                 except Exception:
                     logger.warning("xiaohe_knowledge:unavailable")
                     materials = []
+                materials = filter_shared_materials(bundle, materials)
                 async with factory.begin() as db:
                     _, command = await _command(db, fence)
                     current = DeepExecution.model_validate(command.payload["deepExecution"])

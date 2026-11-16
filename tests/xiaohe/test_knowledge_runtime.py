@@ -66,7 +66,7 @@ def configured(tmp_path, release):
     config = yaml.safe_load((resources / "deep-runtime.yaml").read_text("utf-8"))
     config["agents"]["xiaohe-buyer"].update(skills=["buyer-rfx"], flow_skill=None, children=[])
     (resources / "deep-runtime.yaml").write_text(yaml.safe_dump(config), "utf-8")
-    (resources / "knowledge").mkdir()
+    (resources / "knowledge").mkdir(exist_ok=True)
     (resources / "knowledge/manifest.json").write_text(manifest.model_dump_json(), "utf-8")
     settings = Settings(
         toolkit_base_url="http://localhost",
@@ -421,3 +421,57 @@ async def test_professional_query_uses_approved_title_and_topic_filter(tmp_path,
         assert requests[-1]["input"] == [bundle.skills["buyer-rfx"].description]
     finally:
         await knowledge.aclose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["stale", "matching", "mixed"])
+async def test_shared_index_filtering_before_embedding(tmp_path, monkeypatch, mode):
+    from chromadb.api.models.Collection import Collection
+
+    from xiaohe.knowledge.runtime import EmbeddedKnowledge
+    from xiaohe.knowledge.shared import shared_source
+
+    calls = []
+    query = Collection.query
+
+    def record(self, *args, **kwargs):
+        calls.append(kwargs)
+        return query(self, *args, **kwargs)
+
+    monkeypatch.setattr(Collection, "query", record)
+    reference = load_runtime_bundle(write_test_bundle(tmp_path / "reference"))
+    source = shared_source(reference)
+    if mode != "matching":
+        source = source.model_copy(update={"text": "旧资料。" * 1500})
+    with embedding_server() as (endpoint, requests):
+        sources = [source]
+        if mode == "mixed":
+            sources.append(source.model_copy(update={"id": "other", "text": "其他授权知识"}))
+        manifest, chunks = prepare_manifest(
+            sources,
+            embedding_model="fixture",
+            embedding_identity=embedding_identity(endpoint, "fixture"),
+            dimensions=3,
+        )
+        indexes = tmp_path / "built"
+        indexes.mkdir()
+        stage = indexes / ".stage"
+        result = build_child(stage, manifest, chunks)
+        assert result.returncode == 0, result.stderr
+        publish_index(stage, indexes, manifest)
+        settings, bundle, _ = configured(tmp_path, (indexes, manifest, endpoint, requests))
+        knowledge = EmbeddedKnowledge(settings)
+        await knowledge.start()
+        before = len(requests)
+        try:
+            hits = await knowledge.query(bundle, "xiaohe-buyer", [])
+            if mode == "mixed":
+                assert [v.text for v in hits] == ["其他授权知识"]
+                assert calls and calls[-1]["ids"] == ["other:0"]
+                assert len([e for e in manifest.entries.values() if e.id == "platform-common"]) >= 4
+            else:
+                assert hits == []
+                assert len(requests) == before
+                assert calls == []
+        finally:
+            await knowledge.aclose()

@@ -86,3 +86,68 @@ def test_shared_symlink_cannot_escape_resources(tmp_path):
         pytest.skip("symbolic link permission unavailable")
     with pytest.raises(SkillValidationError):
         load_runtime_bundle(root)
+
+
+@pytest.mark.parametrize(
+    "change", ["same", "text", "more", "less", "source", "conditions", "agents"]
+)
+def test_shared_manifest_change_excludes_all_old_chunks(tmp_path, change):
+    from xiaohe.knowledge import shared
+    from xiaohe.knowledge.sources import prepare_manifest
+
+    root = write_test_bundle(tmp_path / "resources")
+    write_shared(root, text="共享正文。" * 400)
+    bundle = load_runtime_bundle(root)
+    source = shared.shared_source(bundle)
+    changes = {
+        "text": {"text": "旧正文。" * 600},
+        "more": {"text": source.text + "额外旧块。" * 600},
+        "less": {"text": "旧简版"},
+        "source": {"source": "旧来源"},
+        "conditions": {"conditions": "旧条件"},
+        "agents": {"agents": ["xiaohe-buyer"]},
+    }
+    old = source.model_copy(update=changes.get(change, {}))
+    other = source.model_copy(update={"id": "other", "text": "其他知识"})
+    manifest, _ = prepare_manifest(
+        [old, other], embedding_model="fixture", embedding_identity="a" * 64, dimensions=3
+    )
+    stale = getattr(shared, "stale_shared_entry_ids", lambda *a: frozenset())(bundle, manifest)
+    expected = (
+        {k for k, v in manifest.entries.items() if v.id == "platform-common"}
+        if change != "same"
+        else set()
+    )
+    assert stale == expected
+    historical = bundle.model_copy(
+        update={"resources": {k: v for k, v in bundle.resources.items() if k != SHARED}}
+    )
+    assert (
+        getattr(shared, "stale_shared_entry_ids", lambda *a: frozenset())(historical, manifest)
+        == frozenset()
+    )
+
+
+def test_shared_materials_are_removed_by_exact_manifest_identity(tmp_path):
+    from xiaohe.knowledge import shared
+    from xiaohe.knowledge.sources import KnowledgeMaterial, prepare_manifest
+
+    root = write_test_bundle(tmp_path / "resources")
+    bundle = load_runtime_bundle(root)
+    source = shared.shared_source(bundle)
+    manifest, _ = prepare_manifest(
+        [source], embedding_model="fixture", embedding_identity="a" * 64, dimensions=3
+    )
+    bundle.resources["knowledge/manifest.json"] = manifest.model_dump_json()
+    material = KnowledgeMaterial(
+        text=source.text,
+        source=f"kb:{manifest.version}:platform-common:0",
+        version=manifest.version,
+        display_source=source.source,
+        conditions=source.conditions,
+    )
+    other = material.model_copy(update={"source": f"kb:{manifest.version}:other:0"})
+    result = getattr(shared, "filter_shared_materials", lambda b, m: list(m))(
+        bundle, [material, other]
+    )
+    assert result == [other]

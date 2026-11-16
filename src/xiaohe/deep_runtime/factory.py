@@ -27,7 +27,7 @@ from xiaohe.deep_runtime.models import (
     RuntimeBinding,
     RuntimeBundle,
 )
-from xiaohe.knowledge.shared import SHARED_SOURCE_ID, shared_source
+from xiaohe.knowledge.shared import SHARED_SOURCE_ID, filter_shared_materials, shared_source
 from xiaohe.knowledge.sources import KnowledgeMaterial
 
 
@@ -125,6 +125,7 @@ def build_business_agent(
 ) -> CompiledStateGraph:
     if execution.bundle_id != bundle.bundle_id:
         raise ValueError("execution skill snapshot mismatch")
+    materials = filter_shared_materials(bundle, materials)
     if len(tools) != len(binding.tools) or {tool.name for tool in tools} != set(binding.tools):
         raise ValueError("business tools must exactly match the authorized binding")
     by_name = {tool.name: tool for tool in tools}

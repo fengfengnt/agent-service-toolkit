@@ -175,6 +175,9 @@ async def test_pending_command_keeps_published_knowledge_snapshot(pg_factory, jo
         dimensions=3,
     )
     (root / "knowledge/manifest.json").write_text(newer.model_dump_json(), encoding="utf-8")
+    shared_path = root / "knowledge/platform-common.md"
+    header = shared_path.read_text("utf-8").split("\n---\n", 1)[0]
+    shared_path.write_text(header + "\n---\n新的共享平台事实", "utf-8")
     await publish_runtime(pg_factory, root)
     current = load_runtime_bundle(root)
     assert current.bundle_id != old.bundle_id
@@ -193,6 +196,10 @@ async def test_pending_command_keeps_published_knowledge_snapshot(pg_factory, jo
     await invoke(context, model, knowledge)
     assert knowledge.calls[0][0] == old.bundle_id
     assert newer.version not in model.requests[0][0].text
+    from xiaohe.knowledge.shared import shared_source
+
+    assert shared_source(old).text in model.requests[0][0].text
+    assert "新的共享平台事实" not in model.requests[0][0].text
 
 
 @pytest.mark.pg
@@ -348,3 +355,49 @@ async def test_shared_answer_without_retrieval_has_valid_source(
         result = await invoke(context, model, None)
         texts = [p.text for p in result.parts if p.type == "text"]
         assert texts == ["平台介绍"]
+
+
+@pytest.mark.pg
+async def test_shared_vector_is_deduplicated_before_prompt_and_cache(pg_factory, job_app, tmp_path):
+    from xiaohe.knowledge.shared import shared_source
+
+    context, bundle, _ = await bound_context(pg_factory, tmp_path)
+    manifest = manifest_from_bundle(bundle)
+    key = next(k for k, v in manifest.entries.items() if v.id == "platform-common")
+    source = shared_source(bundle)
+
+    class SharedKnowledge:
+        calls = 0
+
+        async def query(self, *args):
+            self.calls += 1
+            return [
+                KnowledgeMaterial(
+                    text=source.text,
+                    source=f"kb:{manifest.version}:{key}",
+                    version=manifest.version,
+                    display_source=source.source,
+                    conditions=source.conditions,
+                )
+            ]
+
+    knowledge = SharedKnowledge()
+    model = make_script_model(
+        [
+            final_response(
+                answer={
+                    "text": "平台介绍",
+                    "basis": "confirmed_material",
+                    "source_ids": ["shared:platform-common"],
+                }
+            )
+        ]
+    )
+    saver = InMemorySaver()
+    first = await invoke(context, model, knowledge, saver)
+    assert await invoke(context, model, knowledge, saver) == first
+    assert knowledge.calls == 1
+    assert model.requests[0][0].text.count("云鹤智元（上海）科技有限公司") == 1
+    async with pg_factory() as db:
+        command = await db.get(Command, context.command_id)
+        assert command.payload["deepExecution"]["knowledge"]["xiaohe-buyer"] == []
