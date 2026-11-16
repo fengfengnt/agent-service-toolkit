@@ -395,6 +395,10 @@ async def run_deep_turn(
             effects = list(current.effects.values())
             submitted = [effect for effect in effects if effect["operation"] == "submit_lead"]
             saved = [effect for effect in effects if effect["operation"] == "save_lead"]
+            composed = any(
+                effect["operation"] == "compose_form" and effect["status"] == "ok"
+                for effect in effects
+            )
             parts = []
             if candidate and candidate.answer:
                 answer = candidate.answer
@@ -402,7 +406,7 @@ async def run_deep_turn(
                 if shared_source(bundle) is not None:
                     source_ids.add(SHARED_SOURCE_ID)
                 if _claims_business_success(answer.text) or set(answer.source_ids) - source_ids:
-                    if not submitted and not saved:
+                    if not submitted and not saved and not composed:
                         raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
                     candidate = None
                 else:
@@ -430,6 +434,15 @@ async def run_deep_turn(
                                 ),
                             }
                         )
+            if composed and not candidate and not submitted and not saved:
+                parts.append(
+                    {
+                        "type": "text",
+                        "text": render_lead_notice(
+                            bundle.interaction_policy, "prepare", direction=conversation.direction
+                        ),
+                    }
+                )
             if submitted or saved:
                 notice = (
                     "accepted"
