@@ -13,6 +13,7 @@ from xiaohe.deep_runtime.models import (
     RuntimeBundle,
     SkillSpec,
 )
+from xiaohe.knowledge.shared import SHARED_PATH, parse_shared_source
 from xiaohe.lead_skills.models import CommonPolicy, FieldPolicy, InteractionPolicy
 from xiaohe.resources import MAX_DEFINITION_BYTES, MAX_RESOURCE_BYTES, DefinitionLoader
 from xiaohe.skill_schema import AGENT_IDS, AgentId, SkillValidationError
@@ -84,6 +85,10 @@ def load_runtime_bundle(resource_root: Path) -> RuntimeBundle:
         RECEPTION_POLICY: _read(root, RECEPTION_POLICY),
     }
     try:
+        if (root / SHARED_PATH).is_symlink():
+            raise ValueError("linked shared knowledge")
+        resources[SHARED_PATH] = _read(root, SHARED_PATH)
+        parse_shared_source(resources[SHARED_PATH])
         config = _yaml(resources["deep-runtime.yaml"])
         if (
             set(config) != {"version", "skills", "agents", "field_policies", "common_policy"}

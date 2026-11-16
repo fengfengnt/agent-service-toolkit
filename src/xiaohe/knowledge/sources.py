@@ -118,6 +118,23 @@ def validate_scope(source: KnowledgeMetadata, allowed_topics: Mapping[AgentId, s
         raise ValueError("invalid knowledge scope")
 
 
+def parse_source(text: str, allowed_topics: Mapping[AgentId, set[str]]) -> KnowledgeSource:
+    if len(text.encode("utf-8")) > MAX_RESOURCE_BYTES:
+        raise ValueError("knowledge source too large")
+    text = text.removeprefix("\ufeff").replace("\r\n", "\n").replace("\r", "\n")
+    if not text.startswith("---\n"):
+        raise ValueError("knowledge front matter required")
+    header, delimiter, body = text[4:].partition("\n---\n")
+    if not delimiter:
+        raise ValueError("knowledge front matter not closed")
+    metadata = yaml.load(header, Loader=DefinitionLoader)
+    if not isinstance(metadata, dict) or "text" in metadata:
+        raise ValueError("invalid knowledge metadata")
+    source = KnowledgeSource(**metadata, text=body)
+    validate_scope(source, allowed_topics)
+    return source
+
+
 def load_sources(root: Path, allowed_topics: Mapping[AgentId, set[str]]) -> list[KnowledgeSource]:
     if root.is_symlink():
         raise ValueError("knowledge directory cannot be a link")
@@ -132,17 +149,7 @@ def load_sources(root: Path, allowed_topics: Mapping[AgentId, set[str]]) -> list
                 raw = stream.read(MAX_RESOURCE_BYTES + 1)
             if len(raw) > MAX_RESOURCE_BYTES:
                 raise ValueError("knowledge source too large")
-            text = raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n")
-            if not text.startswith("---\n"):
-                raise ValueError("knowledge front matter required")
-            header, delimiter, body = text[4:].partition("\n---\n")
-            if not delimiter:
-                raise ValueError("knowledge front matter not closed")
-            metadata = yaml.load(header, Loader=DefinitionLoader)
-            if not isinstance(metadata, dict) or "text" in metadata:
-                raise ValueError("invalid knowledge metadata")
-            source = KnowledgeSource(**metadata, text=body)
-            validate_scope(source, allowed_topics)
+            source = parse_source(raw.decode("utf-8-sig"), allowed_topics)
             if source.id in seen:
                 raise ValueError("duplicate knowledge source id")
             seen.add(source.id)
