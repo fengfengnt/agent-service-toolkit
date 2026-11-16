@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- 当前授权仅限设计与实施计划，暂时不要写产品代码、测试文件或修改运行环境。下列复选框均为后续工作，不代表已执行。
+- 计划编写时仅授权文档；后续用户已选择本会话 Native 并授权继续实施代码，保留业务文案待补充。运行环境接线、推送和部署仍需后续目标指令；实际进度与验证以任务 ledger 和验证记录为准。
 - 共享文件固定为 `resources/xiaohe/knowledge/platform-common.md`，文档 ID 为 `platform-common`，主题为 `general`，显式授权四个业务 Agent；正文 UTF-8 上限 8 KiB，超限拒绝发布，不截断。
 - 主/子 Agent 使用同一命令绑定的 Bundle；新命令才使用新发布版本。历史缺少共享文件的旧 Bundle 不补读全局最新版。
 - 允许正文先发布；未同步时排除该文档所有旧向量条目，不阻塞其他授权知识，不删除旧索引。默认正文与向量命中不重复注入。
@@ -44,7 +44,7 @@
 | 对应 `tests/xiaohe/` 文件 | 复用现有确定性模型、受控 Embedding、Chroma 与隔离 PG fixture |
 | `docs/xiaohe/operations/knowledge.md`、`deploy/xiaohe/knowledge.env.example` | 公开维护与接线说明，仅占位密钥 |
 
-依次完成 Task 1 → Task 2 → Task 3 → Task 4 → Task 5。依赖紧密，不并行修改同一运行时文件；实施方式仍待用户选择。下列测试名称是待新增的验证契约，辅助数据使用现有 `write_test_bundle`、`write_knowledge_source`、`make_script_model` 和隔离 PG fixture，不另造测试框架。
+依次完成 Task 1 → Task 2 → Task 3 → Task 4 → Task 5。依赖紧密，不并行修改同一运行时文件；用户已选择本会话 Native。下列测试名称是待新增的验证契约，辅助数据使用现有 `write_test_bundle`、`write_knowledge_source`、`make_script_model` 和隔离 PG fixture，不另造测试框架。
 
 ---
 
@@ -92,8 +92,8 @@
 
 - [ ] **Step 1：新增失败测试。** `test_shared_manifest_change_excludes_all_old_chunks` 参数化正文改动、分块增加/删除、来源、条件、ACL 改动，断言旧文档全部 key 排除、其他文档 key 不排除；一致文档返回空集。比较过程不得发起 Embedding。
 - [ ] **Step 2：运行 RED。** `python -m pytest tests/xiaohe/test_shared_knowledge.py tests/xiaohe/test_knowledge_runtime.py -q`，预期新排除/去重行为失败。
-- [ ] **Step 3：实现纯比较与查询前过滤。** 对共享源调用现有 `prepare_manifest([source], embedding_model=manifest.embedding_model, embedding_identity=manifest.embedding_identity, dimensions=manifest.dimensions)`，比较该文档完整 entries 集合，复用现有分块参数；不改 manifest 格式。查询前按 Agent、topics 与 stale keys 计算候选，Chroma `query(ids=候选列表, ...)` 保留既有 where、摘要、距离、版本复核，`n_results=min(3,候选数)`。已核对锁定 Chroma 1.5.9 支持 ids 参数。
-- [ ] **Step 4：实现空候选与材料去重。** 无候选直接返回；候选只有已默认常驻的共享文档时也直接返回，不请求 Embedding。若还有其他知识，允许同步共享条目参与原有召回，但在模型装配和缓存前去重；不新增意图分类或重排流程。
+- [ ] **Step 3：实现纯比较与查询前过滤。** 对共享源调用现有 `prepare_manifest([source], embedding_model=manifest.embedding_model, embedding_identity=manifest.embedding_identity, dimensions=manifest.dimensions)`，比较该文档完整 entries 集合，复用现有分块参数；不改 manifest 格式。查询前按 Agent、topics 计算候选，若 Bundle 有常驻共享正文，则提前排除该文档所有条目；stale 比较保留为同步状态诊断，Chroma `query(ids=候选列表, ...)` 保留既有 where、摘要、距离、版本复核，`n_results=min(3,候选数)`。已核对锁定 Chroma 1.5.9 支持 ids 参数。
+- [ ] **Step 4：实现空候选与材料去重。** 无候选直接返回；候选只有已默认常驻的共享文档时也直接返回，不请求 Embedding。若还有其他知识，同步共享条目也不参与本轮 top-k，避免占满前三名后才去重而丢失专业资料；缓存与直接装配仍保留去重防线，不新增意图分类或重排流程。
 - [ ] **Step 5：验证真实 Chroma 和恢复。** `test_stale_shared_chunks_cannot_crowd_out_other_hits` 放入至少四个同源旧块和一条其他授权资料，断言仍命中其他资料且实际 query ids 不含旧块；`test_only_shared_candidates_make_no_embedding_request` 同时覆盖匹配/未同步两态。PG 测试 `test_retry_child_and_handoff_keep_shared_snapshot` 在切换当前发布版本后恢复旧命令，断言主/子与交接仍用旧正文、材料不重复、缓存不再次查询；另以删除共享资源的历史 bundle 验证不读取新文件。
 - [ ] **Step 6：运行 GREEN 并提交。** 运行 Step 2 与 `python -m pytest tests/xiaohe/test_knowledge_workflow.py tests/xiaohe/test_deep_recovery.py -q`，需提供本任务专用隔离 PG。预期新增与既有超时/篡改/ACL 测试通过；提交 `feat(xiaohe): isolate stale shared vectors from pinned command context`。
 
@@ -129,4 +129,4 @@
 
 设计覆盖对应关系：单一来源/校验/长度 → Task 1；主子装配/权限/来源 → Task 2；先发正文/旧向量/快照缓存 → Task 3；模型/维度/预算 → Task 4；同 URL 与 Key 的私有接线、真实验收与操作边界 → Task 5。已逐项检查五类 Review Focus 的拥有者、接口名称和测试归属；不新增未使用的通用服务、迁移或前端功能。
 
-建议后续采用 Native：由当前会话依次完成五个紧密依赖的任务，最后独立审查整组差异，减少工厂、来源和缓存接口在多个实现者间反复交接。用户也可选择 Subagent-driven；本计划不预先启动任何实现代理。用户当前明确要求暂不写代码，先交付计划供审阅，不因计划完成而开始实施。
+建议后续采用 Native：由当前会话依次完成五个紧密依赖的任务，最后独立审查整组差异，减少工厂、来源和缓存接口在多个实现者间反复交接。用户也可选择 Subagent-driven；本计划不预先启动任何实现代理。用户后续已审阅并选择 Native，撤销文档阶段暂停，授权继续逐项实施；不因此自动推送或部署。

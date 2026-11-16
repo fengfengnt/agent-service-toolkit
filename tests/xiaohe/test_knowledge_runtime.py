@@ -425,7 +425,7 @@ async def test_professional_query_uses_approved_title_and_topic_filter(tmp_path,
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("mode", ["stale", "matching", "mixed"])
+@pytest.mark.parametrize("mode", ["stale", "matching", "mixed", "synced_mixed"])
 async def test_shared_index_filtering_before_embedding(tmp_path, monkeypatch, mode):
     from chromadb.api.models.Collection import Collection
 
@@ -440,13 +440,22 @@ async def test_shared_index_filtering_before_embedding(tmp_path, monkeypatch, mo
         return query(self, *args, **kwargs)
 
     monkeypatch.setattr(Collection, "query", record)
-    reference = load_runtime_bundle(write_test_bundle(tmp_path / "reference"))
+    reference_root = write_test_bundle(tmp_path / "reference")
+    if mode == "synced_mixed":
+        write_knowledge_source(
+            reference_root / "knowledge",
+            id="platform-common",
+            agents=AGENT_IDS,
+            topics=("general",),
+            text="public platform facts " * 260,
+        )
+    reference = load_runtime_bundle(reference_root)
     source = shared_source(reference)
-    if mode != "matching":
+    if mode not in {"matching", "synced_mixed"}:
         source = source.model_copy(update={"text": "旧资料。" * 1500})
     with embedding_server() as (endpoint, requests):
         sources = [source]
-        if mode == "mixed":
+        if mode in {"mixed", "synced_mixed"}:
             sources.append(source.model_copy(update={"id": "other", "text": "其他授权知识"}))
         manifest, chunks = prepare_manifest(
             sources,
@@ -461,14 +470,20 @@ async def test_shared_index_filtering_before_embedding(tmp_path, monkeypatch, mo
         assert result.returncode == 0, result.stderr
         publish_index(stage, indexes, manifest)
         settings, bundle, _ = configured(tmp_path, (indexes, manifest, endpoint, requests))
+        if mode == "synced_mixed":
+            shutil.copyfile(
+                reference_root / "knowledge/platform-common.md",
+                tmp_path / "resources/knowledge/platform-common.md",
+            )
+            bundle = load_runtime_bundle(tmp_path / "resources")
         knowledge = EmbeddedKnowledge(settings)
         await knowledge.start()
         before = len(requests)
         try:
             hits = await knowledge.query(bundle, "xiaohe-buyer", [])
-            if mode == "mixed":
-                assert [v.text for v in hits] == ["其他授权知识"]
+            if mode in {"mixed", "synced_mixed"}:
                 assert calls and calls[-1]["ids"] == ["other:0"]
+                assert [v.text for v in hits] == ["其他授权知识"]
                 assert len([e for e in manifest.entries.values() if e.id == "platform-common"]) >= 4
             else:
                 assert hits == []

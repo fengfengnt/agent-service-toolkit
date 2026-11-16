@@ -112,18 +112,17 @@ class EmbeddedKnowledge:
             logger.warning("xiaohe_knowledge:invalid_scope")
             return []
         scopes = ["general", *sorted(set(topics))]
-        excluded = stale_shared_entry_ids(bundle, manifest)
+        source = shared_source(bundle)
+        if stale_shared_entry_ids(bundle, manifest):
+            logger.info("xiaohe_knowledge:shared_index_stale")
         eligible = {
             key: entry
             for key, entry in manifest.entries.items()
-            if key not in excluded
-            and agent_id in entry.agents
+            if agent_id in entry.agents
             and set(entry.topics).intersection(scopes)
+            and (source is None or entry.id != SHARED_DOCUMENT_ID)
         }
-        if not eligible or (
-            shared_source(bundle) is not None
-            and all(entry.id == SHARED_DOCUMENT_ID for entry in eligible.values())
-        ):
+        if not eligible:
             return []
         settings = self.settings
         endpoint = settings.knowledge_embedding_base_url
