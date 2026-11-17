@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "version": "8615077b33259735867edc786843ebe5b983564f44fc9c5291497f88805b3c3d",
+  "version": "ddc10fe32d0ceb7be151cd5457c93616092525161f45de1d69556b950cd0295a",
   "embedding_model": "text-embedding-3-small",
   "embedding_identity": "539df27d5bb68efc987b083d28050af344eadb1f4b5cc285fe7f13cfed927205",
   "dimensions": 1024,
@@ -10,8 +10,8 @@
     "platform-common:0": {
       "id": "platform-common",
       "title": "平台与公司官方共享知识",
-      "source": "平台官方维护资料",
-      "conditions": "用于本平台公开介绍；标记为待补充的内容尚未形成已确认的服务说明，不构成交付、时效、收费或效果承诺。",
+      "source": "平台业务资料草稿（2026-11-17）及草稿所列公开入口",
+      "conditions": "用于业务初步介绍；待确认的范围、计时、费用、权益和指标不构成交付、时效或经营结果承诺，具体服务以双方确认的方案及现行政策为准。",
       "agents": [
         "xiaohe-buyer",
         "xiaohe-organization",
@@ -21,7 +21,55 @@
       "topics": [
         "general"
       ],
-      "text_sha256": "90c5b875fd11507ed32a4ee9fe2726a15a96ef6f9e483d1455dc7075565cf8b7"
+      "text_sha256": "c1f4b78454f98fa4a025bbf185b054572bb893631f87daf0ce0ece1a333b74c1"
+    },
+    "platform-common:1": {
+      "id": "platform-common",
+      "title": "平台与公司官方共享知识",
+      "source": "平台业务资料草稿（2026-11-17）及草稿所列公开入口",
+      "conditions": "用于业务初步介绍；待确认的范围、计时、费用、权益和指标不构成交付、时效或经营结果承诺，具体服务以双方确认的方案及现行政策为准。",
+      "agents": [
+        "xiaohe-buyer",
+        "xiaohe-organization",
+        "xiaohe-reception",
+        "xiaohe-supplier"
+      ],
+      "topics": [
+        "general"
+      ],
+      "text_sha256": "f041e9c8407b24819eecfb3546c52b1ff896a0eae2fecc7b2bfe4a5733b406e6"
+    },
+    "platform-common:2": {
+      "id": "platform-common",
+      "title": "平台与公司官方共享知识",
+      "source": "平台业务资料草稿（2026-11-17）及草稿所列公开入口",
+      "conditions": "用于业务初步介绍；待确认的范围、计时、费用、权益和指标不构成交付、时效或经营结果承诺，具体服务以双方确认的方案及现行政策为准。",
+      "agents": [
+        "xiaohe-buyer",
+        "xiaohe-organization",
+        "xiaohe-reception",
+        "xiaohe-supplier"
+      ],
+      "topics": [
+        "general"
+      ],
+      "text_sha256": "c979c650712067bc02b4d6caf5fec4ecd6e859dae356b2dfd6395bf4b3a7cde4"
+    },
+    "platform-common:3": {
+      "id": "platform-common",
+      "title": "平台与公司官方共享知识",
+      "source": "平台业务资料草稿（2026-11-17）及草稿所列公开入口",
+      "conditions": "用于业务初步介绍；待确认的范围、计时、费用、权益和指标不构成交付、时效或经营结果承诺，具体服务以双方确认的方案及现行政策为准。",
+      "agents": [
+        "xiaohe-buyer",
+        "xiaohe-organization",
+        "xiaohe-reception",
+        "xiaohe-supplier"
+      ],
+      "topics": [
+        "general"
+      ],
+      "text_sha256": "2f70410e5308d98f27264dfc189ca97d918b81dade15246bc62724e735d66759"
     }
   }
 }
