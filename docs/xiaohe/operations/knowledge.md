@@ -54,6 +54,8 @@ WSL 从 0.1.12 起将专用文件 `/home/fengfeng/yunhezhiyuan/aibackend/config/
 wsl.exe -d Ubuntu -- sh /home/fengfeng/yunhezhiyuan/aibackend/compose.sh up -d --no-deps --no-build --pull never --force-recreate aibackend-api
 ```
 
+2026-11-17，WSL 0.1.14 已按业务草稿更新共享正文与四分块索引，沿用上述私有配置，详见[草稿整理版发布回执](2026-11-17-platform-common-draft-wsl.md)。
+
 配置模型仅使检索具备运行条件；首次使用还需按第 3、4 节构建并发布真实知识索引。修改模型、endpoint 或维度后必须重建索引。该 WSL 路径不代表 UAT 或生产已接入此文件。
 
 在私有环境中配置，不提交 `.env` 或密钥：
