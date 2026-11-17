@@ -263,7 +263,7 @@ async def test_all_bindings_receive_full_shared_source(agent_id, authenticated):
     prompt = model.requests[0][0].text
     assert source.text in prompt
     assert "shared:platform-common" in prompt
-    assert "具体说明、适用条件与交付范围尚未确认" in prompt
+    assert source.conditions in prompt
 
 
 @pytest.mark.asyncio
