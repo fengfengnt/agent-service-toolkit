@@ -57,6 +57,7 @@ class BootstrapInputV2(WireModel):
 
 
 class CreateAuthOperationV2(CreateAuthOperation):
+    intent: Literal["lead", "register", "login", "restore", "portal_login"]
     expected_identity: ExpectedIdentity | None = Field(
         default=None, exclude_if=lambda value: value is None
     )

@@ -5,7 +5,7 @@ import json
 import math
 import secrets
 from datetime import timedelta
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Request, Response
@@ -187,7 +187,7 @@ def _view(operation, center):
         agreement = None
         if stage in ("CREATED", "SMS_SENT"):
             public_stage = "PHONE_REQUIRED"
-            if operation.intent == "restore" and stage == "CREATED":
+            if operation.intent in ("restore", "portal_login") and stage == "CREATED":
                 public_stage = "BROWSER_COMPLETION_REQUIRED"
                 completion = {
                     "method": "POST",
@@ -283,6 +283,15 @@ class AuthService:
                 ):
                     raise ServiceError("IDENTITY_MISMATCH", 409)
             stamp = await database_now(db)
+            fast_session = False
+            if body.intent == "portal_login" and source is not None and source.user_id is not None:
+                user = await db.get(User, source.user_id)
+                expected = ExpectedIdentity(
+                    issuer=user.issuer, sub=user.sub, source_tenant_id=user.source_tenant_id
+                )
+                fast_session = (
+                    user.enabled and source.revoked_at is None and stamp < source.expires_at
+                )
             await db.execute(
                 insert(AuthOperationRecord)
                 .values(
@@ -316,6 +325,35 @@ class AuthService:
         async with self.factory.begin() as db:
             operation, context, _ = await bound_operation(db, request, operation_id)
             oidc = operation.oidc
+            if body.intent == "portal_login":
+                if operation.source_session_id != (source.id if source else None):
+                    raise ServiceError("IDENTITY_MISMATCH", 409)
+                if fast_session and operation.center_transaction_id is None:
+                    operation.stage = "OIDC_REQUIRED"
+                    parameters = {
+                        "client_id": oidc["clientId"],
+                        "redirect_uri": oidc["redirectUri"],
+                        "response_type": "code",
+                        "scope": "openid profile",
+                        "state": oidc["state"],
+                        "nonce": oidc["nonce"],
+                        "code_challenge": oidc["codeChallenge"],
+                        "code_challenge_method": "S256",
+                    }
+                    return AuthOperation.model_validate(
+                        {
+                            "operationId": str(operation.id),
+                            "stage": "OIDC_REQUIRED",
+                            "expiresAt": operation.expires_at,
+                            "completion": {
+                                "method": "GET",
+                                "fields": {},
+                                "action": registered.issuer
+                                + "/oauth2/authorize?"
+                                + urlencode(parameters),
+                            },
+                        }
+                    )
             center = await self.client.request(
                 "POST",
                 "/transactions",
@@ -378,7 +416,7 @@ class AuthService:
         phone_digest = digest("mobile:" + body.mobile.get_secret_value())
         async with self.factory.begin() as db:
             operation, _, _ = await bound_operation(db, request, operation_id)
-            if operation.verified_completion or operation.intent == "restore":
+            if operation.verified_completion or operation.intent in ("restore", "portal_login"):
                 raise ServiceError("AUTH_REPLAY", 409)
             if fingerprint in operation.retired_sms_digests:
                 raise ServiceError("IDEMPOTENCY_CONFLICT", 409)
@@ -445,11 +483,16 @@ class AuthService:
             )
             if action == "cancel" and operation.cancelled_at:
                 return None
+            if operation.intent == "portal_login" and action != "cancel":
+                raise ServiceError("AUTH_REPLAY", 409)
             if operation.verified_completion and action != "cancel":
                 raise ServiceError("AUTH_REPLAY", 409)
             if action == "cancel" and operation.bound_user_id:
                 return None
             if operation.center_transaction_id is None:
+                if operation.intent == "portal_login" and action == "cancel":
+                    operation.cancelled_at = await database_now(db)
+                    return None
                 raise ServiceError("AUTH_NOT_READY", 409, True, retry_after=1)
             path = f"/transactions/{operation.center_transaction_id}/{action}"
             payload = body.model_dump(mode="json", by_alias=True)
