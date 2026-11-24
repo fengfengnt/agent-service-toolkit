@@ -15,7 +15,6 @@ from sqlalchemy.engine import make_url
 from xiaohe.settings import Settings
 
 DB = "xiaohe_triad_local_20261104"
-BUCKET = "xiaohe-triad-local-20261104"
 ISSUER = "https://sso.lvh.me"
 CALLBACK = "https://portal.lvh.me/portal/auth/callback"
 
@@ -52,8 +51,7 @@ def runtime_settings(path):
         (url.drivername, url.host, url.port, url.database)
         != ("postgresql+psycopg", "127.0.0.1", 35417, DB)
         or url.query
-        or settings.minio_bucket != BUCKET
-        or settings.minio_endpoint != "http://127.0.0.1:35418"
+        or settings.reception_base_url != "http://127.0.0.1:35419"
         or settings.toolkit_base_url != "http://127.0.0.1:18090"
     ):
         raise ValueError("runtime is restricted to dedicated local triad resources")

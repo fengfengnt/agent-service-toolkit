@@ -26,8 +26,8 @@ from sqlalchemy.orm import Session
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "src"))
 WORKTREES = ROOT.parent
-JAVA = ROOT.parents[1] / "xiaocai/my-xiaocai-group/xiaocai-admin-server"
-PORTAL = ROOT.parents[1] / "yunhezhiyuan-portal/frontend"
+JAVA = Path(os.environ.get("RECEPTION_TEST_SERVER_ROOT", str(ROOT.parents[1] / "xiaocai/my-xiaocai-group/xiaocai-admin-server")))
+PORTAL = Path(os.environ.get("RECEPTION_TEST_PORTAL_ROOT", str(ROOT.parents[1] / "yunhezhiyuan-portal/frontend")))
 MAVEN = "C:/Program Files/apache-maven-3.9.16/bin/mvn.cmd"
 FLAGS = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
 
@@ -169,8 +169,10 @@ def main():
             name,
             "--label",
             "codex.task=xiaohe-reception-j1",
+            "--cpus",
+            "1",
             "--memory",
-            "1g",
+            {"pg": "384m", "mysql": "768m", "minio": "256m"}[kind],
             "--tmpfs",
             mount,
             "-p",
@@ -301,6 +303,10 @@ def main():
             "RECEPTION_JOURNEY_ISSUER": origin,
             "RECEPTION_JOURNEY_DIRECTORY": str(directory),
             "RECEPTION_JOURNEY_AI_ORIGIN": f"http://127.0.0.1:{api_port}",
+            "RECEPTION_JOURNEY_STORAGE_ENDPOINT": minio_origin,
+            "RECEPTION_JOURNEY_STORAGE_BUCKET": bucket,
+            "RECEPTION_JOURNEY_STORAGE_ACCESS_KEY": "journey-root",
+            "RECEPTION_JOURNEY_STORAGE_SECRET": minio_secret,
         }
         java = start(
             [
@@ -321,10 +327,6 @@ def main():
             "toolkit_base_url": f"http://127.0.0.1:{api_port}",
             "auth_secret": toolkit_secret,
             "database_url": pg_url,
-            "minio_endpoint": minio_origin,
-            "minio_bucket": bucket,
-            "minio_access_key": "journey-root",
-            "minio_secret_key": minio_secret,
             "reception_base_url": f"http://127.0.0.1:{java_port}",
             "reception_application_id": "journey-ai",
             "reception_secret": secret,
@@ -341,10 +343,13 @@ def main():
         }
         config = {
             "directory": str(directory),
+            "forms_only": forms_only,
             "origin": origin,
             "api_origin": f"http://127.0.0.1:{api_port}",
             "runtime_origin": f"http://127.0.0.1:{runtime_port}",
             "java_origin": f"http://127.0.0.1:{java_port}",
+            "storage_origin": minio_origin,
+            "storage_bucket": bucket,
             "gateway_port": gateway_port,
             "api_port": api_port,
             "certificate": str(cert_path),
@@ -370,9 +375,10 @@ def main():
             )
 
         ready(api_ready)
-        worker = start([sys.executable, runtime_script, "worker"], ROOT, env, "worker")
+        if not forms_only:
+            worker = start([sys.executable, runtime_script, "worker"], ROOT, env, "worker")
         start([sys.executable, runtime_script, "gateway"], ROOT, env, "gateway")
-        print("J1：真实 Java/AI/worker 已启动，执行 HTTP 与数据库闭环", flush=True)
+        print("J1：真实 Java/AI 测试路由已启动，执行 HTTP 与数据库闭环", flush=True)
         pytest = start(
             [
                 sys.executable,
@@ -449,7 +455,7 @@ def main():
         }
         command("npm.cmd run build", PORTAL, portal_env, "portal-build")
         command(
-            "npm.cmd run test:browser -- --config playwright.reception-real.config.ts --headed",
+            "npm.cmd run test:browser -- --config playwright.reception-real.config.ts",
             PORTAL,
             portal_env,
             "browser",

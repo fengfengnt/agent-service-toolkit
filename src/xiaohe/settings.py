@@ -33,14 +33,6 @@ class Settings(BaseSettings):
         default=None, validation_alias="XIAOHE_SSO_REDIRECT_URI"
     )
     database_url: SecretStr | None = Field(default=None, validation_alias="XIAOHE_DATABASE_URL")
-    minio_endpoint: str | None = Field(default=None, validation_alias="XIAOHE_MINIO_ENDPOINT")
-    minio_bucket: str | None = Field(default=None, validation_alias="XIAOHE_MINIO_BUCKET")
-    minio_access_key: SecretStr | None = Field(
-        default=None, validation_alias="XIAOHE_MINIO_ACCESS_KEY"
-    )
-    minio_secret_key: SecretStr | None = Field(
-        default=None, validation_alias="XIAOHE_MINIO_SECRET_KEY"
-    )
     reception_base_url: str | None = Field(
         default=None, validation_alias="XIAOHE_RECEPTION_BASE_URL"
     )
@@ -136,11 +128,6 @@ class Settings(BaseSettings):
             raise ValueError("AUTH_SECRET must be a nonempty ASCII bearer credential")
         return value
 
-    @field_validator("minio_endpoint")
-    @classmethod
-    def minio_origin(cls, value):
-        return cls.internal_origin(value) if value is not None else None
-
     @field_validator("reception_base_url")
     @classmethod
     def reception_origin(cls, value):
@@ -179,12 +166,3 @@ class Settings(BaseSettings):
         if not origin.startswith("https://"):
             raise ValueError("SSO bridge requires a fixed HTTPS origin")
         return origin
-
-    @field_validator("minio_bucket")
-    @classmethod
-    def bucket_name(cls, value):
-        import re
-
-        if value is not None and re.fullmatch(r"[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]", value) is None:
-            raise ValueError("invalid bucket name")
-        return value

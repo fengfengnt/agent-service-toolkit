@@ -1,44 +1,35 @@
 import asyncio
-import threading
 from uuid import UUID
 
 import pytest
-from botocore.exceptions import ClientError
+from server_file_support import files_env as files_env
 from sqlalchemy import select
 from test_artifact_versions import staged
 from test_cleanup_races import cleanup
 from test_visitor_expiry import due
 
-from integration.minio_support import minio_env as minio_env
 from xiaohe.contracts import ServiceError
 from xiaohe.models import ArtifactVersion, GuestObjectTombstone, Message, Session
 
-pytestmark = [pytest.mark.pg, pytest.mark.minio, pytest.mark.asyncio]
+pytestmark = [pytest.mark.pg, pytest.mark.asyncio]
 
 
 async def exists(service, key):
-    try:
-        await asyncio.to_thread(
-            service._s3.head_object, Bucket=service.settings.minio_bucket, Key=key
-        )
-        return True
-    except ClientError as error:
-        assert error.response["ResponseMetadata"]["HTTPStatusCode"] == 404
-        return False
+    return "content" in service.files.transport.handler.__self__.rows.get(key, {})
 
 
-async def test_real_object_delete_failure_is_retryable_and_expiry_stays_enforced(
-    pg_factory, job_app, minio_env, monkeypatch
+async def test_server_delete_failure_is_retryable_and_expiry_stays_enforced(
+    pg_factory, job_app, files_env, monkeypatch
 ):
-    service, who, fence, version = await staged(pg_factory, job_app, artifacts=minio_env.service)
+    service, who, fence, version = await staged(pg_factory, job_app, artifacts=files_env.service)
     await service.write_artifact_object(version.id, b"test-only")
     await due(pg_factory, who)
-    original = service._s3.delete_object
+    original = service.files.remove
 
-    def fail(**kwargs):
-        raise OSError("controlled delete failure")
+    async def fail(*args, **kwargs):
+        raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
 
-    monkeypatch.setattr(service._s3, "delete_object", fail)
+    monkeypatch.setattr(service.files, "remove", fail)
     with pytest.raises(ServiceError):
         await cleanup(pg_factory, who.guest_id, service)
     async with pg_factory() as db:
@@ -47,29 +38,28 @@ async def test_real_object_delete_failure_is_retryable_and_expiry_stays_enforced
     with pytest.raises(ServiceError) as error:
         await service.read_artifact(who, version.artifact_id, version.version)
     assert error.value.http_status == 410 and await exists(service, version.object_key)
-    monkeypatch.setattr(service._s3, "delete_object", original)
+    monkeypatch.setattr(service.files, "remove", original)
     assert await cleanup(pg_factory, who.guest_id, service)
     assert not await exists(service, version.object_key)
 
 
 @pytest.mark.parametrize("cancel_upload", [False, True])
 async def test_cleanup_waits_for_inflight_upload_and_reclaims_late_object(
-    pg_factory, job_app, minio_env, monkeypatch, cancel_upload
+    pg_factory, job_app, files_env, monkeypatch, cancel_upload
 ):
-    service, who, fence, version = await staged(pg_factory, job_app, artifacts=minio_env.service)
-    entered, release = threading.Event(), threading.Event()
-    original = service._s3.put_object
+    service, who, fence, version = await staged(pg_factory, job_app, artifacts=files_env.service)
+    entered, release = asyncio.Event(), asyncio.Event()
+    original = service.files.write
 
-    def delayed(**kwargs):
+    async def delayed(*args, **kwargs):
         entered.set()
-        if not release.wait(15):
-            raise TimeoutError("controlled upload gate")
-        return original(**kwargs)
+        await asyncio.wait_for(release.wait(), 15)
+        return await original(*args, **kwargs)
 
-    monkeypatch.setattr(service._s3, "put_object", delayed)
+    monkeypatch.setattr(service.files, "write", delayed)
     uploading = asyncio.create_task(service.write_artifact_object(version.id, b"test-only"))
     try:
-        assert await asyncio.to_thread(entered.wait, 5)
+        await asyncio.wait_for(entered.wait(), 5)
         await due(pg_factory, who)
         if cancel_upload:
             uploading.cancel()
@@ -91,16 +81,16 @@ async def test_cleanup_waits_for_inflight_upload_and_reclaims_late_object(
 
 
 async def test_cancel_cleanup_after_object_deleted_retries_without_losing_metadata(
-    pg_factory, job_app, minio_env, monkeypatch
+    pg_factory, job_app, files_env, monkeypatch
 ):
-    service, who, fence, version = await staged(pg_factory, job_app, artifacts=minio_env.service)
+    service, who, fence, version = await staged(pg_factory, job_app, artifacts=files_env.service)
     await service.write_artifact_object(version.id, b"test-only")
     await due(pg_factory, who)
     deleted = asyncio.Event()
     original = service.delete_expired_object
 
-    async def stop_after_delete(key):
-        await original(key)
+    async def stop_after_delete(key, **kwargs):
+        await original(key, **kwargs)
         deleted.set()
         await asyncio.Event().wait()
 
@@ -124,8 +114,8 @@ async def test_cancel_cleanup_after_object_deleted_retries_without_losing_metada
 
 
 @pytest.mark.parametrize("pending", [False, True])
-async def test_claimed_real_files_never_enter_anonymous_purge(
-    pg_factory, job_app, runtime_env, minio_env, pending
+async def test_claimed_server_files_never_enter_anonymous_purge(
+    pg_factory, job_app, runtime_env, files_env, pending
 ):
     from test_admission import finish, send
     from test_guest_claim import prepare
@@ -142,7 +132,7 @@ async def test_claimed_real_files_never_enter_anonymous_purge(
     target = await send(pg_factory, member, canonical.id, "target")
     if not pending:
         await finish(pg_factory, target.run.id)
-    service = minio_env.service
+    service = files_env.service
     async with client_for(pg_factory) as (client, app):
         guest = await session(client)
         source = await actor(pg_factory, client.cookies.get("__Host-XIAOHESESSION"))
@@ -175,70 +165,41 @@ async def test_claimed_real_files_never_enter_anonymous_purge(
         assert len(calls) == 1
 
 
-async def test_hard_kill_after_real_object_delete_can_retry_same_cleanup(
-    pg_factory, job_app, minio_env
-):
-    import os
-    import subprocess
-    import sys
-    import tempfile
-    from datetime import UTC, datetime
-    from pathlib import Path
+async def test_server_delete_then_database_failure_retries_with_new_client(pg_factory, job_app, files_env, monkeypatch):
+    from xiaohe import expiry
+    from xiaohe.artifacts import ArtifactService
+    from xiaohe.settings import Settings
 
-    from integration.test_runtime_crashes import line, stop
-    from xiaohe.expiry import expire_guests
-
-    service, who, fence, version = await staged(pg_factory, job_app, artifacts=minio_env.service)
+    service, who, _, version = await staged(pg_factory, job_app, artifacts=files_env.service)
     await service.write_artifact_object(version.id, b"test-only")
     await due(pg_factory, who)
-    async with pg_factory.begin() as db:
-        await expire_guests(db, datetime.now(UTC), 100)
-    log = tempfile.TemporaryFile(mode="w+t", encoding="utf-8")
-    process = subprocess.Popen(
-        [sys.executable, str(Path(__file__).with_name("cleanup_probe.py")), str(who.guest_id)],
-        stdout=subprocess.PIPE,
-        stderr=log,
-        text=True,
-        encoding="utf-8",
-        env={**os.environ, "PYTHONPATH": str(Path("src").resolve())},
-    )
-    process.probe_log = log
-    try:
-        await line(process, "DELETED")
-        assert not await exists(service, version.object_key)
-        await stop(process)
-        async with pg_factory() as db:
-            assert await db.get(ArtifactVersion, version.id) is not None
-            assert (await db.get(Session, who.session_id)).purged_at is None
+    original = expiry._delete_guest_bodies
 
-        async def retry_after_disconnect():
-            while not await cleanup(pg_factory, who.guest_id, service):
-                await asyncio.sleep(0.02)
+    async def fail(*args):
+        raise OSError("controlled failure after Server deletion")
 
-        await asyncio.wait_for(retry_after_disconnect(), 5)
-        async with pg_factory() as db:
-            assert await db.get(ArtifactVersion, version.id) is None
-            assert (await db.get(Session, who.session_id)).purged_at is not None
-    finally:
-        if process.poll() is None:
-            await stop(process)
+    monkeypatch.setattr(expiry, "_delete_guest_bodies", fail)
+    with pytest.raises(OSError):
+        await cleanup(pg_factory, who.guest_id, service)
+    assert not await exists(service, version.object_key)
+    async with pg_factory() as db:
+        assert await db.get(ArtifactVersion, version.id) is not None
+        assert (await db.get(Session, who.session_id)).purged_at is None
+    monkeypatch.setattr(expiry, "_delete_guest_bodies", original)
+    replacement = ArtifactService(pg_factory, Settings(toolkit_base_url="http://runtime", auth_secret="fixture-auth"))
+    replacement.files = files_env.server.client()
+    assert await cleanup(pg_factory, who.guest_id, replacement)
 
 
 async def test_delayed_storage_commit_after_purge_is_reaped_from_durable_key_receipt(
-    pg_factory, job_app, minio_env
+    pg_factory, job_app, files_env
 ):
     from xiaohe.expiry import purge_expired_guests
 
-    service, who, fence, version = await staged(pg_factory, job_app, artifacts=minio_env.service)
+    service, who, fence, version = await staged(pg_factory, job_app, artifacts=files_env.service)
     await due(pg_factory, who)
     assert await cleanup(pg_factory, who.guest_id, service)
-    # Simulate S3 completing an already accepted request after its client process died.
-    await asyncio.to_thread(
-        service._s3.put_object,
-        Bucket=service.settings.minio_bucket,
-        Key=version.object_key,
-        Body=b"test-only",
-    )
+    files_env.server.rows[version.object_key]["content"] = b"test-only"
     assert await exists(service, version.object_key)
     await purge_expired_guests(pg_factory, service, limit=1)
     assert not await exists(service, version.object_key)
@@ -246,28 +207,11 @@ async def test_delayed_storage_commit_after_purge_is_reaped_from_durable_key_rec
         assert await db.get(ArtifactVersion, version.id) is None
 
 
-async def test_native_version_marker_never_counts_as_physical_purge(
-    pg_factory, job_app, minio_env, monkeypatch
-):
-    service, who, fence, version = await staged(pg_factory, job_app, artifacts=minio_env.service)
-    await service.write_artifact_object(version.id, b"test-only")
-    original = service._s3.head_object
-
-    def versioned(**kwargs):
-        return {**original(**kwargs), "VersionId": "fixture-native-version"}
-
-    monkeypatch.setattr(service._s3, "head_object", versioned)
-    await due(pg_factory, who)
-    with pytest.raises(ServiceError):
-        await cleanup(pg_factory, who.guest_id, service)
-    assert await exists(service, version.object_key)
-    async with pg_factory() as db:
-        assert (await db.get(Session, who.session_id)).purged_at is None
 
 
 @pytest.mark.parametrize("claim_wins", [False, True])
-async def test_overlapping_claim_and_real_delete_serialize_at_session_lock(
-    pg_factory, job_app, minio_env, monkeypatch, claim_wins
+async def test_overlapping_claim_and_server_delete_serialize_at_session_lock(
+    pg_factory, job_app, files_env, monkeypatch, claim_wins
 ):
     from datetime import UTC, datetime, timedelta
 
@@ -287,7 +231,7 @@ async def test_overlapping_claim_and_real_delete_serialize_at_session_lock(
     async with pg_factory.begin() as db:
         target = await default_conversation(db, member)
     await send(pg_factory, member, target.id, "busy-target")
-    service = minio_env.service
+    service = files_env.service
     entered, release = asyncio.Event(), asyncio.Event()
     async with client_for(pg_factory) as (client, app):
         guest = await session(client)
@@ -364,7 +308,7 @@ async def test_overlapping_claim_and_real_delete_serialize_at_session_lock(
 
 @pytest.mark.parametrize("phase", ["guest", "receipt"])
 async def test_slow_storage_yields_single_worker_to_chat_and_next_recovery_scan(
-    pg_factory, pg_url, runtime_env, minio_env, monkeypatch, phase
+    pg_factory, pg_url, runtime_env, files_env, monkeypatch, phase
 ):
     from test_admission import send, visitor
 
@@ -373,14 +317,14 @@ async def test_slow_storage_yields_single_worker_to_chat_and_next_recovery_scan(
     from xiaohe.models import GuestObjectTombstone, Run
     from xiaohe.worker import RunWorker
 
-    service, who, fence, version = await staged(pg_factory, None, artifacts=minio_env.service)
+    service, who, fence, version = await staged(pg_factory, None, artifacts=files_env.service)
     await service.write_artifact_object(version.id, b"test-only")
     await due(pg_factory, who)
     if phase == "receipt":
         assert await cleanup(pg_factory, who.guest_id, service)
     entered = asyncio.Event()
 
-    async def slow_store(key):
+    async def slow_store(key, **kwargs):
         entered.set()
         await asyncio.Event().wait()
 
@@ -447,7 +391,7 @@ async def test_slow_storage_yields_single_worker_to_chat_and_next_recovery_scan(
 
 
 async def test_large_guest_keeps_object_progress_when_its_time_budget_expires(
-    pg_factory, job_app, minio_env, monkeypatch
+    pg_factory, job_app, files_env, monkeypatch
 ):
     from datetime import UTC, datetime
 
@@ -455,7 +399,7 @@ async def test_large_guest_keeps_object_progress_when_its_time_budget_expires(
 
     from xiaohe import expiry
 
-    service, who, fence, first = await staged(pg_factory, job_app, artifacts=minio_env.service)
+    service, who, fence, first = await staged(pg_factory, job_app, artifacts=files_env.service)
     versions = [first]
     for content in (b"second", b"third"):
         async with pg_factory.begin() as db:
@@ -476,11 +420,11 @@ async def test_large_guest_keeps_object_progress_when_its_time_budget_expires(
         await expiry.expire_guests(db, datetime.now(UTC), 100)
     remove = service.delete_expired_object
 
-    async def delayed(key):
+    async def delayed(key, **kwargs):
         calls.append(key)
         if len(calls) > 1:
             await asyncio.sleep(10)
-        await remove(key)
+        await remove(key, **kwargs)
 
     calls = []
     monkeypatch.setattr(service, "delete_expired_object", delayed)

@@ -46,7 +46,7 @@ def environment():
         "xiaohe_copilot_candidate_20261105",
     )
     assert not target.query and not settings.sso_bridge_enabled
-    assert settings.minio_bucket == "xiaohe-copilot-candidate-20261105"
+    assert settings.reception_base_url == "http://127.0.0.1:35429"
     tls = ssl.create_default_context(
         cadata=wsl("cat", "/home/fengfeng/yunhezhiyuan/certs/local-ca.pem")
     )

@@ -21,6 +21,7 @@ from xiaohe.models import (
     Run,
     RunAttempt,
     Session,
+    System,
 )
 from xiaohe.reception.models import (
     ReceptionDraft,
@@ -29,6 +30,7 @@ from xiaohe.reception.models import (
     ReceptionSubmission,
 )
 from xiaohe.runs import TERMINAL
+from xiaohe.server_files import guest_owner
 
 CLEANUP_BUDGET_SECONDS = 5
 
@@ -296,7 +298,7 @@ async def purge_expired_guest(factory, guest_id: UUID, artifacts) -> bool:
                 )
             if deleted_at is not None:
                 continue
-            await artifacts.delete_expired_object(object_key)
+            await artifacts.delete_expired_object(object_key, owner=guest_owner(await db.get(System, session.system_id), session.guest_id))
             # Persist completed external work even when the guest's remaining budget expires.
             async with factory.begin() as progress:
                 await progress.execute(
@@ -398,7 +400,7 @@ async def _reap_late_objects(factory, artifacts, limit):
                 )
                 if receipt is None:
                     continue
-                await artifacts.delete_expired_object(key)
+                await artifacts.delete_expired_object(key, owner=guest_owner(await db.get(System, session.system_id), session.guest_id))
                 receipt.checked_at = await database_now(db)
         except Exception:
             async with factory.begin() as db:

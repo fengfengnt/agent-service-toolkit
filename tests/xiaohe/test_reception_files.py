@@ -4,7 +4,7 @@ import zipfile
 from uuid import UUID
 
 import pytest
-from integration.minio_support import minio_env as minio_env
+from server_file_support import files_env as files_env
 from sqlalchemy import func, update
 from test_admission import visitor
 
@@ -140,18 +140,18 @@ async def test_other_directions_store_material_without_extracting_fields(pg_fact
 @pytest.mark.pg
 @pytest.mark.minio
 @pytest.mark.asyncio
-async def test_real_private_upload_download_boundaries_and_detach(pg_factory, minio_env):
+async def test_server_private_upload_download_boundaries_and_detach(pg_factory, files_env):
     body = PDF + b" " * (MAX_BYTES - len(PDF))
     who, conversation, draft_id, upload = await draft_file(pg_factory, len(body))
     ready = await write_file(
-        pg_factory, who, draft_id, upload.file.id, chunks(body), artifacts=minio_env.service
+        pg_factory, who, draft_id, upload.file.id, chunks(body), artifacts=files_env.service
     )
     assert ready.status == "ready" and ready.bytes == MAX_BYTES and ready.sha256
-    ref, downloaded = await download_file(pg_factory, who, ready.id, artifacts=minio_env.service)
+    ref, downloaded = await download_file(pg_factory, who, ready.id, artifacts=files_env.service)
     assert downloaded == body and ref == ready
     stranger, _ = await visitor(pg_factory)
     with pytest.raises(ServiceError, match="FORBIDDEN"):
-        await download_file(pg_factory, stranger, ready.id, artifacts=minio_env.service)
+        await download_file(pg_factory, stranger, ready.id, artifacts=files_env.service)
     async with pg_factory.begin() as db:
         view = await load_reception(db, who, conversation)
         result = await detach_file(db, who, draft_id, ready.id, view.active_draft.revision)
@@ -162,7 +162,7 @@ async def test_real_private_upload_download_boundaries_and_detach(pg_factory, mi
 @pytest.mark.pg
 @pytest.mark.minio
 @pytest.mark.asyncio
-async def test_expired_owner_during_upload_cannot_become_ready(pg_factory, minio_env):
+async def test_expired_owner_during_upload_cannot_become_ready(pg_factory, files_env):
     who, _, draft_id, upload = await draft_file(pg_factory)
 
     async def expire():
@@ -177,7 +177,7 @@ async def test_expired_owner_during_upload_cannot_become_ready(pg_factory, minio
 
     with pytest.raises(ServiceError):
         await write_file(
-            pg_factory, who, draft_id, upload.file.id, expire(), artifacts=minio_env.service
+            pg_factory, who, draft_id, upload.file.id, expire(), artifacts=files_env.service
         )
     async with pg_factory() as db:
         assert (await db.get(ReceptionFile, UUID(upload.file.id))).status != "ready"
@@ -186,13 +186,13 @@ async def test_expired_owner_during_upload_cannot_become_ready(pg_factory, minio
 @pytest.mark.pg
 @pytest.mark.minio
 @pytest.mark.asyncio
-async def test_parallel_upload_does_not_overwrite_first_ready_object(pg_factory, minio_env):
+async def test_parallel_upload_does_not_overwrite_first_ready_object(pg_factory, files_env):
     who, _, draft_id, upload = await draft_file(pg_factory)
     alternative = PDF.replace(b"test-only", b"test-evil")
     results = await asyncio.gather(
         *[
             write_file(
-                pg_factory, who, draft_id, upload.file.id, chunks(body), artifacts=minio_env.service
+                pg_factory, who, draft_id, upload.file.id, chunks(body), artifacts=files_env.service
             )
             for body in (PDF, alternative)
         ],
@@ -202,5 +202,5 @@ async def test_parallel_upload_does_not_overwrite_first_ready_object(pg_factory,
     assert any(
         isinstance(result, ServiceError) and result.code == "DRAFT_CONFLICT" for result in results
     )
-    ref, content = await download_file(pg_factory, who, upload.file.id, artifacts=minio_env.service)
+    ref, content = await download_file(pg_factory, who, upload.file.id, artifacts=files_env.service)
     assert content in (PDF, alternative) and ref.status == "ready"

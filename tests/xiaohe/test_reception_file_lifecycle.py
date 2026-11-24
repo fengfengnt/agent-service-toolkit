@@ -1,7 +1,7 @@
 from uuid import UUID
 
 import pytest
-from integration.minio_support import minio_env as minio_env
+from server_file_support import files_env as files_env
 from test_guest_claim import prepare
 from test_http_api import client_for, session
 from test_identity_sessions import actor, bootstrap, login
@@ -15,30 +15,27 @@ from xiaohe.reception.files import download_file, init_file, write_file
 from xiaohe.reception.models import ReceptionDraft, ReceptionFile, ReceptionFlow
 from xiaohe.reception.store import create_draft, load_reception, patch_draft
 
-pytestmark = [pytest.mark.pg, pytest.mark.minio, pytest.mark.asyncio]
+pytestmark = [pytest.mark.pg, pytest.mark.asyncio]
 
 
-async def test_expired_guest_cleans_reception_objects_and_private_rows(pg_factory, minio_env):
+async def test_expired_guest_cleans_reception_objects_and_private_rows(pg_factory, files_env):
     who, _, draft_id, upload = await draft_file(pg_factory)
     await write_file(
-        pg_factory, who, draft_id, upload.file.id, chunks(PDF), artifacts=minio_env.service
+        pg_factory, who, draft_id, upload.file.id, chunks(PDF), artifacts=files_env.service
     )
     async with pg_factory() as db:
         key = (await db.get(ReceptionFile, UUID(upload.file.id))).object_key
     await due(pg_factory, who)
-    assert await purge_expired_guest(pg_factory, who.guest_id, minio_env.service)
+    assert await purge_expired_guest(pg_factory, who.guest_id, files_env.service)
     async with pg_factory() as db:
         assert await db.get(ReceptionFile, UUID(upload.file.id)) is None
         assert await db.get(ReceptionDraft, UUID(draft_id)) is None
-    result = await minio_env.service._io(
-        lambda: minio_env.service._s3.list_objects_v2(Bucket=minio_env.bucket, Prefix=key)
-    )
-    assert not result.get("Contents")
+    assert files_env.server.rows[key]["state"] == "removed"
 
 
 @pytest.mark.parametrize("existing_user", [False, True])
 async def test_login_claim_preserves_draft_and_private_file_in_target_conversation(
-    pg_factory, minio_env, existing_user
+    pg_factory, files_env, existing_user
 ):
     if existing_user:
         _, token = await login(pg_factory)
@@ -81,7 +78,7 @@ async def test_login_claim_preserves_draft_and_private_file_in_target_conversati
             )
             (await db.get(Conversation, conversation_id)).direction = "supplier"
         await write_file(
-            pg_factory, who, draft.id, upload.file.id, chunks(PDF), artifacts=minio_env.service
+            pg_factory, who, draft.id, upload.file.id, chunks(PDF), artifacts=files_env.service
         )
         operation_id, _ = await prepare(client, app)
         completed = await client.post(
@@ -101,6 +98,6 @@ async def test_login_claim_preserves_draft_and_private_file_in_target_conversati
             if target != conversation_id:
                 assert await db.get(ReceptionFlow, conversation_id) is None
         _, content = await download_file(
-            pg_factory, user, upload.file.id, artifacts=minio_env.service
+            pg_factory, user, upload.file.id, artifacts=files_env.service
         )
         assert content == PDF

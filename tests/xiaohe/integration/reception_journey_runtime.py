@@ -28,8 +28,11 @@ def configuration():
     target = make_url(settings.database_url.get_secret_value())
     if target.host != "127.0.0.1" or not target.database.startswith("test_xiaohe_reception_"):
         raise ValueError("禁止连接已有业务库")
-    if not settings.minio_bucket.startswith("test-xiaohe-reception-"):
-        raise ValueError("禁止连接已有桶")
+    from urllib.parse import urlsplit
+
+    server = urlsplit(settings.reception_base_url or "")
+    if server.hostname != "127.0.0.1" or not server.port or value.get("java_origin") != settings.reception_base_url:
+        raise ValueError("文件服务必须是本次独立 Java HTTP 测试容器")
     return value, settings
 
 
@@ -40,8 +43,9 @@ def api_app(config, settings):
     original = dotenv.find_dotenv
     dotenv.find_dotenv = lambda *args, **kwargs: ""
     try:
-        from agents.agents import Agent, agents
-        from core.settings import settings as upstream
+        if not config.get("forms_only"):
+            from agents.agents import Agent, agents
+            from core.settings import settings as upstream
     finally:
         dotenv.find_dotenv = original
     from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
@@ -49,56 +53,59 @@ def api_app(config, settings):
     from psycopg import AsyncConnection
     from psycopg.rows import dict_row
     from sqlalchemy.ext.asyncio import async_sessionmaker
-    from xiaohe.agents.runtime import load_agent_registry
+    if not config.get("forms_only"):
+        from xiaohe.agents.runtime import load_agent_registry
+
+        from xiaohe.graph import build_graph
 
     from xiaohe.agui import create_agui_router
     from xiaohe.api import create_public_router, install_error_handlers
     from xiaohe.artifacts import ArtifactService
     from xiaohe.auth_bridge import SsoBridgeClient
     from xiaohe.database import create_database_engine
-    from xiaohe.graph import build_graph
     from xiaohe.reception.api import create_reception_file_router, create_reception_router
     from xiaohe.reception.business_client import ReceptionBusinessClient
     from xiaohe.toolkit_runtime import create_execution_router
 
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from langchain_core.runnables import RunnableLambda
-    from test_reception_graph import DecisionModel
+    if not config.get("forms_only"):
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        from langchain_core.runnables import RunnableLambda
+        from test_reception_graph import DecisionModel
 
-    class JourneyModel(DecisionModel):
-        def with_structured_output(self, schema, **kwargs):
-            async def respond(messages):
-                if schema.__name__ != "SemanticDecision":
-                    return {
-                        "text": "当前具体安全承诺待确认，请以正式材料为准。",
-                        "basis": "needs_confirmation",
-                        "source_ids": [],
+        class JourneyModel(DecisionModel):
+            def with_structured_output(self, schema, **kwargs):
+                async def respond(messages):
+                    if schema.__name__ != "SemanticDecision":
+                        return {
+                            "text": "当前具体安全承诺待确认，请以正式材料为准。",
+                            "basis": "needs_confirmation",
+                            "source_ids": [],
+                        }
+                    context = json.loads(messages[-1].content)
+                    message = context["text"]
+                    scripted = {
+                        "继续采集资料": {"action": "provide_details"},
+                        "查看汇总": {"action": "show_summary"},
+                        "好的": {"action": "unclear", "needs_clarification": True},
+                        "确认提交当前汇总": {"action": "confirm_current_summary"},
+                        "查询提交结果": {"action": "query_progress"},
+                        "切换到供应商": {
+                            "action": "switch_direction",
+                            "target_direction": "supplier",
+                            "explicit_switch": True,
+                        },
+                        "切换到采购商": {
+                            "action": "switch_direction",
+                            "target_direction": "buyer",
+                            "explicit_switch": True,
+                        },
+                        "我们想优化采购寻源": {"action": "consultation", "target_direction": "buyer"},
                     }
-                context = json.loads(messages[-1].content)
-                message = context["text"]
-                scripted = {
-                    "继续采集资料": {"action": "provide_details"},
-                    "查看汇总": {"action": "show_summary"},
-                    "好的": {"action": "unclear", "needs_clarification": True},
-                    "确认提交当前汇总": {"action": "confirm_current_summary"},
-                    "查询提交结果": {"action": "query_progress"},
-                    "切换到供应商": {
-                        "action": "switch_direction",
-                        "target_direction": "supplier",
-                        "explicit_switch": True,
-                    },
-                    "切换到采购商": {
-                        "action": "switch_direction",
-                        "target_direction": "buyer",
-                        "explicit_switch": True,
-                    },
-                    "我们想优化采购寻源": {"action": "consultation", "target_direction": "buyer"},
-                }
-                return scripted.get(message, {"action": "consultation"})
+                    return scripted.get(message, {"action": "consultation"})
 
-            return RunnableLambda(respond)
+                return RunnableLambda(respond)
 
-    upstream.AUTH_SECRET = settings.auth_secret
+        upstream.AUTH_SECRET = settings.auth_secret
     engine = create_database_engine(settings.database_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     artifacts = ArtifactService(factory, settings)
@@ -107,6 +114,16 @@ def api_app(config, settings):
 
     @asynccontextmanager
     async def lifespan(app):
+        if config.get("forms_only"):
+            from xiaohe.deep_runtime.runtime import publish_runtime
+
+            await publish_runtime(factory, Path(config["resource_root"]))
+            try:
+                yield
+            finally:
+                await artifacts.close()
+                await engine.dispose()
+            return
         async with (
             await AsyncConnection.connect(dsn, autocommit=True, row_factory=dict_row) as saver_conn,
             await AsyncConnection.connect(dsn, autocommit=True, row_factory=dict_row) as store_conn,
@@ -193,7 +210,8 @@ def api_app(config, settings):
     app.include_router(create_reception_router(factory, business))
     app.include_router(create_reception_file_router(factory, settings, artifacts))
     app.include_router(create_agui_router(factory))
-    app.include_router(create_execution_router(factory, settings))
+    if not config.get("forms_only"):
+        app.include_router(create_execution_router(factory, settings))
     return app
 
 

@@ -10,10 +10,9 @@ def configuration():
         "database_url": "postgresql+psycopg://candidate:fixture@127.0.0.1:35427/xiaohe_copilot_candidate_20261105",
         "toolkit_base_url": "http://127.0.0.1:18111",
         "auth_secret": "fixture-only",
-        "minio_endpoint": "http://127.0.0.1:35428",
-        "minio_bucket": "xiaohe-copilot-candidate-20261105",
-        "minio_access_key": "fixture-access",
-        "minio_secret_key": "fixture-secret",
+        "reception_base_url": "http://127.0.0.1:35429",
+        "reception_application_id": "test-file-client",
+        "reception_secret": "fixture-server-file-credential-0123456789",
         "trusted_proxy_cidrs": ["127.0.0.1/32"],
     }
 
@@ -29,8 +28,8 @@ def configuration():
             )
         },
         {"database_url": configuration()["database_url"] + "?host=foreign"},
-        {"minio_bucket": "xiaohe-triad-local-20261104"},
-        {"minio_endpoint": "http://127.0.0.1:35418"},
+        {"reception_base_url": "http://127.0.0.1:18082"},
+        {"reception_base_url": "https://storage.example"},
         {"sso_bridge_enabled": True},
     ],
 )

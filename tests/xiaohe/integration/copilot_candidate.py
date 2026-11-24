@@ -15,7 +15,6 @@ from integration.triad_runtime import _read_private
 from xiaohe.settings import Settings
 
 DATABASE = "xiaohe_copilot_candidate_20261105"
-BUCKET = "xiaohe-copilot-candidate-20261105"
 
 
 def load_settings(path):
@@ -74,8 +73,7 @@ def load_settings(path):
         (target.drivername, target.host, target.port, target.database)
         != ("postgresql+psycopg", "127.0.0.1", 35427, DATABASE)
         or target.query
-        or settings.minio_endpoint != "http://127.0.0.1:35428"
-        or settings.minio_bucket != BUCKET
+        or settings.reception_base_url != "http://127.0.0.1:35429"
         or settings.toolkit_base_url != "http://127.0.0.1:18111"
         or settings.trusted_proxy_cidrs != ["127.0.0.1/32"]
     ):

@@ -13,6 +13,34 @@ from integration.test_reception_journey import identity
 pytestmark = [pytest.mark.pg, pytest.mark.asyncio]
 
 
+async def test_server_generated_files_guest_transfer_private_storage_and_late_upload_rejection():
+    import hashlib
+
+    from xiaohe.contracts import ServiceError
+    from xiaohe.server_files import ServerFileClient
+
+    config, settings = configuration()
+    files = ServerFileClient(settings)
+    guest = {"systemId": "portal", "issuer": config["origin"], "sourceTenantId": 1, "subject": "guest:" + str(uuid4())}
+    user = {"systemId": "portal", "issuer": config["origin"], "sourceTenantId": 2, "subject": "journey-user"}
+    file_id, content = str(uuid4()), b"test-only generated report"
+    await files.write(guest, file_id, "report.txt", "text/plain", content, "artifact")
+    assert await files.read(guest, file_id) == content
+    async with httpx.AsyncClient(trust_env=False) as anonymous:
+        key = "server-private/" + hashlib.sha256(file_id.encode()).hexdigest() + "/content"
+        response = await anonymous.get(config["storage_origin"] + "/" + config["storage_bucket"] + "/" + key)
+        assert response.status_code == 403
+    await files.transfer(guest, user, file_id)
+    await files.transfer(guest, user, file_id)
+    with pytest.raises(ServiceError):
+        await files.read(guest, file_id)
+    assert await files.read(user, file_id) == content
+    await files.remove(user, file_id)
+    assert await files.removed(user, file_id)
+    with pytest.raises(ServiceError):
+        await files.write(user, file_id, "report.txt", "text/plain", content, "artifact")
+
+
 @pytest.mark.parametrize("direction", ["buyer", "organization", "supplier"])
 async def test_standalone_forms_preserve_progress_files_and_chat_history(direction):
     config, settings = configuration()

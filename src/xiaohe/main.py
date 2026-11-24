@@ -129,7 +129,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 await db.execute(text("SELECT 1 FROM xiaohe.systems LIMIT 1"))
                 await db.execute(text("SELECT 1 FROM procrastinate_jobs LIMIT 1"))
             artifacts = app.state.xiaohe_artifacts
-            await artifacts._io(lambda: artifacts._s3.head_bucket(Bucket=settings.minio_bucket))
+            await artifacts.files.health()
         except Exception:
             return JSONResponse({"status": "not_ready"}, status_code=503)
         return {"status": "ready"}

@@ -3,6 +3,7 @@ from uuid import UUID
 
 import httpx
 import pytest
+from server_file_support import files_env as files_env
 from sqlalchemy import select, text, update
 from test_artifact_versions import digest
 from test_http_api import client_for, session
@@ -10,18 +11,17 @@ from test_identity_sessions import actor
 from test_reception_graph import model
 from test_visitor_expiry import due
 
-from integration.minio_support import minio_env as minio_env
 from xiaohe.contracts import AgentOutcome, WriteFence
 from xiaohe.events import stream_events
 from xiaohe.jobs import RUN_QUEUE, build_job_app
 from xiaohe.models import ArtifactVersion, Command, Conversation, Event, Run, Session
 from xiaohe.worker import RunWorker
 
-pytestmark = [pytest.mark.pg, pytest.mark.minio, pytest.mark.asyncio]
+pytestmark = [pytest.mark.pg, pytest.mark.asyncio]
 
 
 async def test_guest_directions_reconnect_private_artifact_and_expiry(
-    pg_factory, pg_url, runtime_env, minio_env, monkeypatch
+    pg_factory, pg_url, runtime_env, files_env, monkeypatch
 ):
     from agents.agents import agents
     from xiaohe.graph import build_graph
@@ -31,12 +31,12 @@ async def test_guest_directions_reconnect_private_artifact_and_expiry(
     async def document(state):
         fence = WriteFence.model_validate(state["write_fence"])
         async with pg_factory.begin() as db:
-            version = await minio_env.service.stage_artifact(
+            version = await files_env.service.stage_artifact(
                 db, fence, "接待说明", "text/plain", digest(payload)
             )
-        await minio_env.service.write_artifact_object(version.id, payload)
+        await files_env.service.write_artifact_object(version.id, payload)
         async with pg_factory.begin() as db:
-            await minio_env.service.finish_artifact(db, fence, version.id)
+            await files_env.service.finish_artifact(db, fence, version.id)
         return AgentOutcome(
             parts=[{"type": "text", "text": "验收用接待结果"}],
             wait_for_input=False,
@@ -59,7 +59,7 @@ async def test_guest_directions_reconnect_private_artifact_and_expiry(
             )
 
     async with client_for(pg_factory) as (client, app):
-        app.state.xiaohe_artifacts = minio_env.service
+        app.state.xiaohe_artifacts = files_env.service
         initial = await session(client)
         path = f"/ai-api/v1/conversations/{initial['conversationId']}"
         accepted = await client.post(
@@ -71,7 +71,7 @@ async def test_guest_directions_reconnect_private_artifact_and_expiry(
     await run_pending()
 
     async with client_for(pg_factory) as (client, app):
-        app.state.xiaohe_artifacts = minio_env.service
+        app.state.xiaohe_artifacts = files_env.service
         client.cookies = cookies
         restored = await session(client)
         assert restored["conversationId"] == initial["conversationId"]
@@ -125,10 +125,10 @@ async def test_guest_directions_reconnect_private_artifact_and_expiry(
         ]
         async with httpx.AsyncClient(trust_env=False) as anonymous:
             assert (
-                await anonymous.get(f"{minio_env.endpoint}/{minio_env.bucket}/{version.object_key}")
+                await anonymous.get(f"{files_env.endpoint}/{files_env.bucket}/{version.object_key}")
             ).status_code == 403
         async with client_for(pg_factory) as (stranger, other_app):
-            other_app.state.xiaohe_artifacts = minio_env.service
+            other_app.state.xiaohe_artifacts = files_env.service
             stranger.headers.update(
                 {"X-Xiaohe-System-Id": "other", "Origin": "https://other.example"}
             )
@@ -170,7 +170,7 @@ async def test_quota_retries_reconnect_and_expiry_never_reset_guest(pg_factory, 
 
 
 async def test_guest_to_existing_user_with_process_restart_and_artifact(
-    pg_factory, pg_url, job_app, minio_env
+    pg_factory, pg_url, job_app, files_env
 ):
     import asyncio
     import socket
@@ -210,7 +210,7 @@ async def test_guest_to_existing_user_with_process_restart_and_artifact(
         api = await ready_api("document", port)
         processes.append(api)
         async with client_for(pg_factory) as (client, app):
-            app.state.xiaohe_artifacts = minio_env.service
+            app.state.xiaohe_artifacts = files_env.service
             guest = await session(client)
             path = f"/ai-api/v1/conversations/{guest['conversationId']}"
             first = await client.post(
@@ -237,7 +237,7 @@ async def test_guest_to_existing_user_with_process_restart_and_artifact(
         processes.append(api)
         await run_pending()
         async with client_for(pg_factory) as (client, app):
-            app.state.xiaohe_artifacts = minio_env.service
+            app.state.xiaohe_artifacts = files_env.service
             client.cookies = cookies
             restored = await session(client)
             assert restored["viewer"]["messageCount"] == 2
@@ -275,7 +275,7 @@ async def test_guest_to_existing_user_with_process_restart_and_artifact(
             ToolkitClient(
                 Settings(toolkit_base_url=f"http://127.0.0.1:{port}", auth_secret="fixture-auth")
             ),
-            artifacts=minio_env.service,
+            artifacts=files_env.service,
         )
         async with build_job_app(
             pg_url, coordinator.execute_run, on_claim=coordinator.finish_claim
@@ -288,7 +288,7 @@ async def test_guest_to_existing_user_with_process_restart_and_artifact(
             )
         await coordinator.maintain()
         async with client_for(pg_factory) as (client, app):
-            app.state.xiaohe_artifacts = minio_env.service
+            app.state.xiaohe_artifacts = files_env.service
             app.state.xiaohe_settings = auth_settings
             client.cookies = cookies
             client.headers["X-Xiaohe-Auth-CSRF"] = auth_csrf

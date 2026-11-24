@@ -7,11 +7,12 @@ from sqlalchemy.dialects.postgresql import insert
 
 from xiaohe.contracts import ServiceError
 from xiaohe.models import System, User
-from xiaohe.reception.contracts import UploadView
+from xiaohe.reception.contracts import FileRef, UploadView
 from xiaohe.reception.files import MAX_BYTES, _filename, _ref, validate_material
 from xiaohe.reception.forms import authority, form_scope
 from xiaohe.reception.models import ReceptionFormFile, ReceptionFormSubmission
 from xiaohe.reception.store import _uuid
+from xiaohe.server_files import user_owner
 
 
 async def owned_form_file(db, actor, form_id, file_id):
@@ -33,7 +34,7 @@ async def init_form_file(factory, actor, form_id, request):
         await db.execute(insert(ReceptionFormFile).values(id=file_id, system_id=scope[0], tenant_id=scope[1], user_id=scope[2],
             form_id=_uuid(form_id), client_upload_id=request.client_upload_id, upload_request=raw,
             category=request.category, filename=request.filename, media_type=request.media_type, bytes=request.bytes,
-            object_key=f"xiaohe/reception/forms/{file_id}/initial", object_keys=[], status="pending", detached=False).on_conflict_do_nothing())
+            object_key=str(file_id), object_keys=[], status="pending", detached=False).on_conflict_do_nothing())
         row = await db.scalar(select(ReceptionFormFile).where(ReceptionFormFile.system_id == scope[0],
             ReceptionFormFile.tenant_id == scope[1], ReceptionFormFile.user_id == scope[2],
             ReceptionFormFile.form_id == _uuid(form_id), ReceptionFormFile.client_upload_id == request.client_upload_id).with_for_update())
@@ -43,7 +44,7 @@ async def init_form_file(factory, actor, form_id, request):
 
 
 async def write_form_file(factory, actor, form_id, file_id, stream, *, artifacts):
-    key = f"xiaohe/reception/forms/{_uuid(file_id)}/{uuid4()}"
+    key = str(_uuid(file_id))
     async with factory.begin() as db:
         row = await owned_form_file(db, actor, form_id, file_id)
         expected = _ref(row)
@@ -105,12 +106,24 @@ async def download_form_file(factory, actor, file_id, *, artifacts):
     async def authorized(db):
         await authority(db, actor)
         row = await db.get(ReceptionFormFile, _uuid(file_id))
-        if row is None or (row.system_id, row.tenant_id, row.user_id) != form_scope(actor) or row.detached or row.status != "ready":
+        if row is None:
+            return None, user_owner(await db.get(User, actor.user_id))
+        if (row.system_id, row.tenant_id, row.user_id) != form_scope(actor) or row.detached or row.status != "ready":
             raise ServiceError("FORBIDDEN", 403)
         return _ref(row), row.object_key
     async with factory.begin() as db:
         ref, key = await authorized(db)
-    content = await artifacts.read_reception_object(key, ref.bytes, ref.sha256)
+    if ref is None:
+        metadata = await artifacts.files.view(key, str(file_id))
+        try:
+            ref = FileRef(id=str(file_id), category=metadata["purpose"], filename=metadata["filename"],
+                          media_type=metadata["mediaType"], bytes=metadata["bytes"],
+                          sha256=metadata["sha256"], status=metadata["status"])
+        except ValueError:
+            raise ServiceError("FORBIDDEN", 403) from None
+        content = await artifacts.files.read(key, str(file_id))
+    else:
+        content = await artifacts.read_reception_object(key, ref.bytes, ref.sha256)
     async with factory.begin() as db:
         await authorized(db)
     return ref, content
@@ -153,6 +166,6 @@ async def purge_form_files(factory, artifacts, limit=100):
                 row.detached = True
             for key in row.object_keys:
                 if not protected or key != row.object_key:
-                    await artifacts.delete_expired_object(key)
+                    await artifacts.delete_expired_object(key, owner=user_owner(await db.get(User, row.user_id)))
             # 保留定位记录，后续扫描继续回收 DB 提交失败或迟到写入的对象。
             row.cleanup_checked_at = datetime.now(UTC)

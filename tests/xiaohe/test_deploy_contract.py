@@ -82,7 +82,7 @@ def test_images_are_pinned_and_processes_separate(deployment):
     assert services["worker"]["command"] == ["worker"]
     assert services["worker"]["depends_on"]["api"]["condition"] == "service_healthy"
     lock = json.loads((ROOT / "deploy/xiaohe/images.lock.json").read_text("utf-8"))
-    for name in ("postgres", "minio"):
+    for name in ("postgres",):
         assert services[name]["image"] == lock[name]["repository"] + "@" + lock[name]["digest"]
         assert "build" not in services[name]
         assert services[name]["volumes"]
@@ -100,7 +100,8 @@ def test_deployment_names(deployment, release_project):
     assert services["worker"]["container_name"] == name + "-worker"
     assert services["postgres"]["container_name"] == "yunhezhiyuan-aibackend-pg"
     assert deployment["volumes"]["postgres-data"]["name"] == "xiaohe_postgres-data"
-    assert deployment["volumes"]["minio-data"]["name"] == "xiaohe_minio-data"
+    assert "minio" not in services and "minio-data" not in deployment["volumes"]
+    assert "server" in services["api"]["networks"] and "server" in services["worker"]["networks"]
 
 
 def test_secrets_not_in_browser_or_logs(deployment):
@@ -131,10 +132,9 @@ def test_deployment_fails_closed_on_unsafe_runtime(change):
         auth_secret="fixture-secret",
         database_url="postgresql+psycopg://u:p@postgres/xiaohe",
         trusted_proxy_cidrs=["172.31.240.2/32"],
-        minio_endpoint="http://minio:9000",
-        minio_bucket="xiaohe",
-        minio_access_key="fixture",
-        minio_secret_key="fixture",
+        reception_base_url="https://server.test",
+        reception_application_id="test-app",
+        reception_secret="fixture-server-file-credential-0123456789",
     )
     upstream = SimpleNamespace(
         USE_FAKE_MODEL=False,

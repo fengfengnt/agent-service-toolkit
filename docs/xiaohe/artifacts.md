@@ -1,46 +1,25 @@
-# P7 私有产出物与版本
+# 私有产出物与文件管理
 
-`ArtifactService(factory, settings)` 提供 stage_artifact、write_artifact_object、finish_artifact、read_artifact、download_artifact。复用已锁定的 boto3/botocore，无新增 SDK 依赖；网络操作和流读取通过 asyncio.to_thread，不持 ORM 事务等待 S3。
+用户上传的合作附件和 AI 生成的可下载文件统一由 Server 管理。`ArtifactService` 保留对话、运行 fence、版本及展示引用；`ServerFileClient` 复用现有受信接待服务认证，通过 HTTP 请求 Server。AI 不持有对象存储凭据，不直接读写 MinIO，也不保存完整文件预览文本。
 
-## 版本与发布
+## 版本、写入和下载
 
-stage 在业务 fence 下保存 pending 版本与随机不变 object_key。首次创建按 run+逻辑标题/media_type 收敛；对已有产出物追加版本必须传明确的可选 artifact_id，先验证当前对话权限，不跨 run 根据同名文件自动合并。相同 artifact/run/digest 重试返回同一版本，不同内容生成新版本和新 key；同内容重试更换元数据拒绝。
+`stage_artifact` 生成稳定版本 UUID；兼容字段 `object_key` 的值为该文件 ID，不再是对象存储路径。相同运行/摘要重试复用版本，更换元数据拒绝。`write_artifact_object` 校验 32 MiB 上限和 SHA-256，经 Server 初始化、写入并读回核验；`finish_artifact` 继续在运行 fence 下原子发布 ready 和事件。旧 attempt 不能完成当前版本。
 
-上传上限 32 MiB，先核服务器 SHA256，再以 IfNoneMatch 条件上传，已有 key 不覆盖。上传后重新读取真实对象核对完整摘要和长度，保存上传证明及预览；finish 再持 fence 校验并原子保存 ready/事件。数据库也拒绝没有完整非空证明的 ready 行。恢复可以采用前一 attempt 已有的同摘要对象，旧 attempt 不能结束当前版本。
+Server 负责文件唯一写入、主体隔离、长度/摘要、正式引用保护及删除墓碑。业务正式提交前再次核对材料类型签名。门户与小鹤提交创建独立申请，不共享表单/草稿；文件服务统一不改变这一点。
 
-失败或到期时 pending 版本保留 cleanup_pending 及随机 key，作为可重试清理意图；P10 再实现清理消费，本阶段没有宣称对象已自动清除。归并通过业务 Artifact 当前 conversation 取得归属，版本的 creator run 是审计；不因未来归并移动或复制对象。
+浏览器接口仍为 `GET /ai-api/v1/artifacts/{id}/versions/{version}` 及 `/download`。下载使用 attachment、private/no-store、nosniff，每块发送前重验当前会话及归属；不返回桶、对象键或凭据。单个下载最多缓冲 32 MiB。Server 对有效 UTF-8 且不超过 128 KiB 的 text/plain、text/markdown 提供纯文本预览，其余为 download_only。
 
-worker 消费既有 AgentOutcome.artifact_version_ids，逐项确认当前对话内实际 ready 版本，从数据库重建 canonical artifact_ref。handler 伪造的标题、媒体类型和状态不会替代真实记录，未声明或越权引用拒绝，消息/事件提交整体回滚。
+访客认领先幂等转移 Server 文件归属，成功后完成 AI 记录归并；失败保留可重试状态。过期/失败清理由 Server 删除；正式业务保留的文件不能由 AI 清除。删除墓碑拒绝迟到写入，重复删除回收已知定位上的迟到对象。
 
-## 浏览器接口和安全预览
+## 配置与迁移
 
-- `GET /ai-api/v1/artifacts/{id}/versions/{version}` 返回既有 ArtifactView。
-- `GET .../download` 逐块重验用户/访客会话和当前归属，返回 attachment、RFC5987 文件名、private/no-store、nosniff。
-- pending/failed 不提供下载路径。只返回后端 downloadPath，不返回 bucket、object_key、MinIO 地址或凭据。
-- text/plain、text/markdown 在 UTF-8 且不超过 128 KiB 时提供 format=text 的纯文本预览；Markdown 首版也作为文本显示，避免额外 HTML 渲染攻击面。其余文件 download_only，不增加图片/PDF/Word 生成或专用预览。
+AI 使用现有 `XIAOHE_RECEPTION_BASE_URL`、`XIAOHE_RECEPTION_APPLICATION_ID`、`XIAOHE_RECEPTION_APPLICATION_SECRET`。API 就绪检查要求 Server 私有文件配置可用。移除所有 `XIAOHE_MINIO_*` 环境变量；启动器拒绝仍注入存储账号的配置。通用 Compose 通过 `XIAOHE_SERVER_NETWORK` 接入已有 Server 网络，不创建或删除历史 MinIO 数据服务及卷。
 
-后台写入继续使用 run 的独立授权；浏览器本地 logout 不自动取消已受理用户任务，但该浏览器立即失去文件读取权限。访客到期不能读、下载或把迟到上传标为 ready。
+历史文件迁移保留原 ID、所有权、长度、SHA-256 和正式业务引用。先复制至 Server 专用私有桶并读回验证，再在暂停旧 AI 写入后核对最后增量、规范化 AI 引用。切换及权限验收通过后才删除清单内的已迁移原对象。迁移后不能盲目回退仍使用旧定位的 AI 镜像。
 
-## MinIO 来源与隔离配置
+## 验证
 
-[官方仓库](https://github.com/minio/minio)已归档，官方 Docker Hub/Quay 旧 tag 在本次核验中未返回可用 manifest。[官方安全版本说明](https://github.com/minio/minio/releases/tag/RELEASE.2025-10-15T17-29-55Z)改为源码发行；没有执行其中的构建步骤。
+HTTP 客户端、运行并发、访客认领和到期清理测试使用可控 HTTP 文件服务替身。`run_reception_journey.py --forms` 使用独占 PostgreSQL、MySQL、真实 MinIO 和 Java 文件接口，身份服务为受控替身，不调用付费模型或发送短信。生产上线及历史迁移结果另记实际发布记录；测试通过不代表生产已切换。
 
-本次使用可获取的[社区预编译镜像](https://github.com/coollabsio/minio)，发布方 coollabsio，非 MinIO 官方发布。tag 为 RELEASE.2025-10-15T17-29-55Z，index digest 为 `sha256:69b55a1c1c5dc285ce04db96689f5b2102317fc77a50680a1874ca6efd1c87f9`，linux/amd64 manifest 为 `sha256:4f75fd76598afa23919555d1363e1fb13c632d9bcd4ce8edcf21d3cca2ed0579`，记录在 images.lock.json。已核验实际二进制版本；它报告 commit-id=DEVELOPMENT.GOGET，没有验证具体源 commit、签名或生产安全性，不能从 image label 的 MinIO 字样推定官方来源。保留归档及社区供应链风险，本次仅用于隔离集成。
-
-测试容器 xiaohe-agent-test-minio，仅绑定 127.0.0.1:35418，关闭浏览器控制台、只读 rootfs、丢弃 capabilities、禁止提权；数据保存于本次贴有测试标签的专用 named volume。配置/凭据在 git-ignored scratch 中由测试进程随机生成，不输出、不提交、不读取生产 .env。应用账号仅可访问测试 bucket 及 xiaohe/* 对象，根凭据只用于 fixture 初始化。现有 PostgreSQL 容器和用户卷保持。
-
-```powershell
-uv run --frozen --python 3.14.7 python tests/xiaohe/integration/provision_minio.py
-# 将脚本输出的配置文件路径赋给 XIAOHE_TEST_MINIO_CONFIG，勿打印配置内容。
-# 同时显式指定 test_xiaohe_ 前缀的 XIAOHE_TEST_DATABASE_URL。
-uv run --frozen --python 3.14.7 pytest tests/xiaohe/test_artifact_versions.py -q -m pg
-uv run --frozen --python 3.14.7 pytest tests/xiaohe/integration/test_minio_private.py -q -m minio
-```
-
-产品配置使用 XIAOHE_MINIO_ENDPOINT、XIAOHE_MINIO_BUCKET、XIAOHE_MINIO_ACCESS_KEY、XIAOHE_MINIO_SECRET_KEY；测试凭据不作为生产默认值。未配置时对象 I/O 安全失败，不切换成本地目录或假 S3。生产镜像选择、凭据、TLS、网络隔离及运维权限仍属 P11/正式部署验收。
-
-## 证据范围
-
-真实 MinIO 已验证匿名 403、应用越桶 403、条件写重试、完整摘要检查、坏对象不 ready、上传中到期与可重试清理意图、线程等待不阻塞独立数据库事务、HTTP 私有下载及元数据不泄漏存储路径、容器和客户端重启后实际对象仍可读取，以及 ready 引用重建/越权 worker 拒绝。另有元数据/SQL约束和下载分块到期检查。
-
-完整业务及原 client/threads 回归 218 项通过（新增分块到期测试另行核验），Ruff/Alembic 检查通过，19 条既有依赖警告。未连接生产 MinIO，没有部署生产 AI 服务、调用真实模型或发送短信。
+旧对象存储镜像来源记录保留在 `deploy/xiaohe/images.lock.json` 及历史验收文档中；它们不再是当前 AI 的配置要求。

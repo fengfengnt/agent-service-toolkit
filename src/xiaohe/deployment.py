@@ -15,12 +15,12 @@ def validate_runtime(settings, upstream):
         or not settings.trusted_proxy_cidrs
         or not all(
             (
-                settings.minio_endpoint,
-                settings.minio_bucket,
-                settings.minio_access_key,
-                settings.minio_secret_key,
+                settings.reception_base_url,
+                settings.reception_application_id,
+                settings.reception_secret,
             )
         )
+        or any(os.environ.get(name) for name in ("XIAOHE_MINIO_ACCESS_KEY", "XIAOHE_MINIO_SECRET_KEY"))
     ):
         raise ValueError("unsafe deployment configuration")
 

@@ -47,6 +47,11 @@ async def _merge(db, claim, source, target):
     if active is not None:
         active.holds_slot = False
         await db.flush()
+    from xiaohe.server_files import transfer_conversation_files
+
+    if not await transfer_conversation_files(db, claim, source):
+        claim.updated_at = await database_now(db)
+        return False
     await db.execute(text("SET CONSTRAINTS ALL DEFERRED"))
     source_messages = (
         await db.scalars(

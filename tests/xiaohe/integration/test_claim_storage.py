@@ -1,6 +1,7 @@
 from uuid import UUID
 
 import pytest
+from server_file_support import files_env as files_env
 from sqlalchemy import select, text
 from test_admission import finish, send
 from test_artifact_versions import digest
@@ -8,7 +9,6 @@ from test_guest_claim import prepare
 from test_http_api import client_for, session
 from test_identity_sessions import actor, login
 
-from integration.minio_support import minio_env as minio_env
 from xiaohe.contracts import AgentOutcome, ToolkitOutcome
 from xiaohe.conversations import default_conversation
 from xiaohe.jobs import MAINTENANCE_QUEUE, RUN_QUEUE, build_job_app, recover_stalled_jobs
@@ -19,24 +19,24 @@ pytestmark = [pytest.mark.pg, pytest.mark.asyncio]
 
 
 @pytest.mark.minio
-async def test_claim_preserves_real_private_object_key_version_and_message_ids(
-    pg_factory, runtime_env, minio_env
+async def test_claim_preserves_server_file_reference_version_and_message_ids(
+    pg_factory, runtime_env, files_env
 ):
     payload = "认领前后的同一私有文件".encode()
     async with client_for(pg_factory) as (client, app):
-        app.state.xiaohe_artifacts = minio_env.service
+        app.state.xiaohe_artifacts = files_env.service
         guest = await session(client)
         who = await actor(pg_factory, client.cookies.get("__Host-XIAOHESESSION"))
         turn = await send(pg_factory, who, UUID(guest["conversationId"]), "document")
         async with pg_factory.begin() as db:
             fence = await acquire_run(db, UUID(turn.run.id))
-            version = await minio_env.service.stage_artifact(
+            version = await files_env.service.stage_artifact(
                 db, fence, "认领文档", "text/plain", digest(payload)
             )
             command = await db.scalar(select(Command).where(Command.run_id == fence.run_id))
-        await minio_env.service.write_artifact_object(version.id, payload)
+        await files_env.service.write_artifact_object(version.id, payload)
         async with pg_factory.begin() as db:
-            await minio_env.service.finish_artifact(db, fence, version.id)
+            await files_env.service.finish_artifact(db, fence, version.id)
         await runtime_env.worker._save(
             fence,
             command.id,

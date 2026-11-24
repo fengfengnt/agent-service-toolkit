@@ -21,7 +21,7 @@ class Objects:
     async def read_reception_object(self, key, size, digest):
         return self.values[key]
 
-    async def delete_expired_object(self, key):
+    async def delete_expired_object(self, key, *, owner):
         self.values.pop(key, None)
 
 

@@ -115,7 +115,7 @@ async def init_file(db, actor, draft_id, request):
         media_type=request.media_type,
         bytes=request.bytes,
         status="pending",
-        object_key=f"xiaohe/reception/{file_id}/initial",
+        object_key=str(file_id),
     )
     db.add(row)
     _changed(draft)
@@ -138,7 +138,7 @@ async def _owned_file(db, actor, draft_id, file_id):
 
 
 async def write_file(factory, actor, draft_id, file_id, stream, *, artifacts):
-    key = f"xiaohe/reception/{_uuid(file_id)}/{uuid4()}"
+    key = str(_uuid(file_id))
     async with factory.begin() as db:
         draft, row = await _owned_file(db, actor, draft_id, file_id)
         _mutable(draft)
@@ -214,7 +214,8 @@ async def download_file(factory, actor, file_id, *, artifacts):
     from xiaohe.reception.models import ReceptionFormFile
     async with factory.begin() as db:
         form_file = await db.get(ReceptionFormFile, _uuid(file_id))
-    if form_file is not None:
+        draft_file = await db.get(ReceptionFile, _uuid(file_id))
+    if form_file is not None or (draft_file is None and actor.user_id is not None):
         from xiaohe.reception.form_files import download_form_file
         return await download_form_file(factory, actor, file_id, artifacts=artifacts)
     async with factory.begin() as db:

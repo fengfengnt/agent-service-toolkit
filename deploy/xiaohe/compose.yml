@@ -8,7 +8,6 @@ x-business: &business
   environment: &business_environment
     DATABASE_TYPE: postgres
     TOOLKIT_BASE_URL: http://api:8080
-    XIAOHE_MINIO_ENDPOINT: http://minio:9000
     XIAOHE_TRUSTED_PROXY_CIDRS: '["172.31.240.2/32"]'
     USE_FAKE_MODEL: 'false'
     LANGCHAIN_TRACING_V2: 'false'
@@ -22,7 +21,6 @@ x-business: &business
   restart: unless-stopped
   depends_on:
     postgres: {condition: service_healthy}
-    minio: {condition: service_started}
 services:
   api:
     <<: *business
@@ -35,6 +33,7 @@ services:
     expose: ['8080']
     networks:
       private:
+      server:
       ingress: {ipv4_address: 172.31.240.3}
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/internal/xiaohe/health/ready',timeout=8).close()"]
@@ -46,11 +45,10 @@ services:
     <<: *business
     container_name: yunhezhiyuan-aibackend-${VERSION:?run sh deploy/xiaohe/compose.sh to read VERSION}-worker
     command: [worker]
-    networks: [private]
+    networks: [private, server]
     depends_on:
       api: {condition: service_healthy}
       postgres: {condition: service_healthy}
-      minio: {condition: service_started}
   postgres:
     container_name: yunhezhiyuan-aibackend-pg
     image: postgres@sha256:3b0cda93be7c8dba2ed484d19393d93845dc3dafb88973e248ba8e6d99d784e1
@@ -66,18 +64,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 12
-    restart: unless-stopped
-  minio:
-    image: ghcr.io/coollabsio/minio@sha256:69b55a1c1c5dc285ce04db96689f5b2102317fc77a50680a1874ca6efd1c87f9
-    platform: linux/amd64
-    environment:
-      MINIO_ROOT_USER_FILE: /run/secrets/minio_root_user
-      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
-      MINIO_BROWSER: 'off'
-    secrets: [minio_root_user, minio_root_password]
-    command: [server, /data, --console-address, ':9001']
-    volumes: [minio-data:/data]
-    networks: [private]
     restart: unless-stopped
   gateway:
     image: nginx@sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236
@@ -96,16 +82,13 @@ services:
     restart: unless-stopped
 secrets:
   postgres_password: {file: '${XIAOHE_POSTGRES_PASSWORD_FILE:?set private password file}'}
-  minio_root_user: {file: '${XIAOHE_MINIO_ROOT_USER_FILE:?set private root user file}'}
-  minio_root_password: {file: '${XIAOHE_MINIO_ROOT_PASSWORD_FILE:?set private root password file}'}
 volumes:
   knowledge-data:
     name: xiaohe_knowledge-data
   postgres-data:
     name: xiaohe_postgres-data
-  minio-data:
-    name: xiaohe_minio-data
 networks:
+  server: {external: true, name: "${XIAOHE_SERVER_NETWORK:?set existing Server network}"}
   private: {internal: true}
   ingress:
     ipam:

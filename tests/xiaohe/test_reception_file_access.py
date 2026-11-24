@@ -1,11 +1,12 @@
 from uuid import UUID
 
 import pytest
-from integration.minio_support import minio_env as minio_env
+from native_support import send_in_db
+from server_file_support import files_env as files_env
+from sqlalchemy import select
 from test_http_api import client_for, session
 from test_identity_sessions import actor, bootstrap, login
 from test_reception_files import PDF, chunks
-from native_support import send_in_db
 
 from xiaohe.contracts import ServiceError
 from xiaohe.reception.api import create_reception_file_router, create_reception_router
@@ -23,19 +24,19 @@ from xiaohe.reception.submission import confirm_draft, create_draft_from_busines
 from xiaohe.runs import acquire_run
 from xiaohe.settings import Settings
 
-pytestmark = [pytest.mark.pg, pytest.mark.minio, pytest.mark.asyncio]
+pytestmark = [pytest.mark.pg, pytest.mark.asyncio]
 
 
 async def test_corrupt_application_reference_cannot_expose_another_owners_file(
-    pg_factory, minio_env
+    pg_factory, files_env
 ):
     from sqlalchemy import select
 
     from xiaohe.reception.models import ReceptionSubmission
 
-    first, _, first_draft, _, _ = await confirmed_file(pg_factory, minio_env.service)
+    first, _, first_draft, _, _ = await confirmed_file(pg_factory, files_env.service)
     _, _, _, second_file, second_payload = await confirmed_file(
-        pg_factory, minio_env.service, sub="member:1:another-user"
+        pg_factory, files_env.service, sub="member:1:another-user"
     )
     async with pg_factory.begin() as db:
         record = await db.scalar(
@@ -49,7 +50,7 @@ async def test_corrupt_application_reference_cannot_expose_another_owners_file(
             second_file,
             "accepted-app",
             first.user_id,
-            artifacts=minio_env.service,
+            artifacts=files_env.service,
         )
 
 
@@ -89,6 +90,11 @@ async def confirmed_file(factory, artifacts, *, invalid=False, sub="member:1:fix
         view = await patch_draft(db, who, draft.id, row.revision, {"companyName": "甲公司", "contactName": "张先生", "contactPhone": "企业总台"})
         row.state, row.step, row.summary_version = "review", "summary", view.revision
         turn = await send_in_db(db, who, conversation, "确认提交")
+        from xiaohe.models import Command
+
+        command = await db.scalar(select(Command).where(Command.message_id == UUID(turn.message.id)))
+        command.payload = command.payload | {"reception": {"action": "confirm", "draftId": str(row.id),
+            "expectedRevision": row.revision, "summaryVersion": row.revision}}
         submission = await confirm_draft(
             db, who, draft.id, row.revision, row.revision, UUID(turn.message.id)
         )
@@ -113,13 +119,13 @@ async def confirmed_file(factory, artifacts, *, invalid=False, sub="member:1:fix
 
 
 async def test_historic_file_survives_edit_detach_and_wrong_operational_binding_is_denied(
-    pg_factory, minio_env
+    pg_factory, files_env
 ):
     who, conversation, draft_id, file_id, payload = await confirmed_file(
-        pg_factory, minio_env.service
+        pg_factory, files_env.service
     )
     ref, content = await download_operational_file(
-        pg_factory, "portal", file_id, "accepted-app", who.user_id, artifacts=minio_env.service
+        pg_factory, "portal", file_id, "accepted-app", who.user_id, artifacts=files_env.service
     )
     assert content == PDF
     async with client_for(pg_factory) as (client, app):
@@ -130,7 +136,7 @@ async def test_historic_file_survives_edit_detach_and_wrong_operational_binding_
             reception_file_secret="f" * 48,
             reception_file_system_id="portal",
         )
-        app.include_router(create_reception_file_router(pg_factory, settings, minio_env.service))
+        app.include_router(create_reception_file_router(pg_factory, settings, files_env.service))
         result = await client.post(
             "/internal-api/reception-files/v1/files/" + file_id + "/download",
             json={"applicationId": "accepted-app", "ownerAiUserId": who.user_id},
@@ -139,7 +145,7 @@ async def test_historic_file_survives_edit_detach_and_wrong_operational_binding_
         assert result.status_code == 200 and result.content == PDF
     with pytest.raises(ServiceError, match="FORBIDDEN"):
         await download_operational_file(
-            pg_factory, "portal", file_id, "wrong-app", who.user_id, artifacts=minio_env.service
+            pg_factory, "portal", file_id, "wrong-app", who.user_id, artifacts=files_env.service
         )
 
     class CurrentSource:
@@ -169,21 +175,21 @@ async def test_historic_file_survives_edit_detach_and_wrong_operational_binding_
     async with pg_factory.begin() as db:
         assert not (await detach_file(db, who, edit.id, file_id, edit.revision)).files
     _, content = await download_operational_file(
-        pg_factory, "portal", file_id, "accepted-app", who.user_id, artifacts=minio_env.service
+        pg_factory, "portal", file_id, "accepted-app", who.user_id, artifacts=files_env.service
     )
     assert content == PDF
 
 
-async def test_failed_optional_upload_does_not_block_minimum_submission(pg_factory, minio_env):
-    _, _, _, _, payload = await confirmed_file(pg_factory, minio_env.service, invalid=True)
+async def test_failed_optional_upload_does_not_block_minimum_submission(pg_factory, files_env):
+    _, _, _, _, payload = await confirmed_file(pg_factory, files_env.service, invalid=True)
     assert payload["files"] == [] and payload["publicFields"]["companyName"] == "甲公司"
 
 
 async def test_http_file_access_uses_cookie_or_independent_operational_credential(
-    pg_factory, minio_env
+    pg_factory, files_env
 ):
     async with client_for(pg_factory) as (client, app):
-        app.state.xiaohe_artifacts = minio_env.service
+        app.state.xiaohe_artifacts = files_env.service
         app.include_router(create_reception_router(pg_factory))
         snapshot = await session(client)
         draft = await client.post(
@@ -220,7 +226,7 @@ async def test_http_file_access_uses_cookie_or_independent_operational_credentia
             reception_file_secret="f" * 48,
             reception_file_system_id="portal",
         )
-        app.include_router(create_reception_file_router(pg_factory, settings, minio_env.service))
+        app.include_router(create_reception_file_router(pg_factory, settings, files_env.service))
         private_url = (
             "/internal-api/reception-files/v1/files/" + upload.json()["file"]["id"] + "/download"
         )

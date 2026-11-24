@@ -1,7 +1,5 @@
 import asyncio
 import json
-from contextlib import asynccontextmanager
-from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
@@ -11,12 +9,10 @@ from test_admission import send, visitor
 from test_toolkit_execution import frame
 
 from xiaohe import api
-from xiaohe.artifacts import ArtifactService
 from xiaohe.contracts import ServiceError
 from xiaohe.jobs import build_job_app, recover_stalled_jobs
 from xiaohe.models import Command, Event, Message, Run
 from xiaohe.runs import acquire_run
-from xiaohe.settings import Settings
 
 pytestmark = [pytest.mark.pg, pytest.mark.asyncio]
 
@@ -160,22 +156,14 @@ class Body:
 
 
 async def download_without_external_io(monkeypatch):
-    @asynccontextmanager
-    async def transaction():
-        yield None
+    from xiaohe.artifacts import _DownloadStream
 
-    service = ArtifactService(
-        SimpleNamespace(begin=transaction),
-        Settings(toolkit_base_url="http://unused", auth_secret="fixture-auth"),
-    )
     body = Body()
-    service._s3 = SimpleNamespace(get_object=lambda **kwargs: {"Body": body})
 
-    async def read(*args):
-        return SimpleNamespace(status="ready", object_key="unit-test-key")
+    async def chunks():
+        yield b"test-only"
 
-    monkeypatch.setattr(service, "_read", read)
-    return body, await service.download_artifact(None, None, 1)
+    return body, _DownloadStream(chunks(), body)
 
 
 async def test_unstarted_download_close_releases_body(monkeypatch):

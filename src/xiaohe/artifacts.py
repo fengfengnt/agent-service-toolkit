@@ -1,20 +1,20 @@
 import asyncio
 import hashlib
+import io
 import json
+import mimetypes
 import re
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import anyio
-import boto3
-from botocore.config import Config
-from botocore.exceptions import ClientError
 from sqlalchemy import func, select, text
 
 from xiaohe.contracts import ArtifactView, ServiceError, WriteFence
 from xiaohe.conversations import require_conversation
 from xiaohe.events import record_event
-from xiaohe.models import Artifact, ArtifactVersion, Conversation
+from xiaohe.models import Artifact, ArtifactVersion, Conversation, System, User
 from xiaohe.runs import require_write
+from xiaohe.server_files import ServerFileClient, guest_owner, user_owner
 
 _MAX_BYTES = 32 * 1024 * 1024
 _PREVIEW_BYTES = 128 * 1024
@@ -97,43 +97,28 @@ async def referenced_parts(db, fence, version_ids, parts):
 class ArtifactService:
     def __init__(self, factory, settings):
         self.factory, self.settings = factory, settings
-        self._s3 = None
-        if all(
-            (
-                settings.minio_endpoint,
-                settings.minio_bucket,
-                settings.minio_access_key,
-                settings.minio_secret_key,
-            )
-        ):
-            self._s3 = boto3.client(
-                "s3",
-                endpoint_url=settings.minio_endpoint,
-                region_name="us-east-1",
-                aws_access_key_id=settings.minio_access_key.get_secret_value(),
-                aws_secret_access_key=settings.minio_secret_key.get_secret_value(),
-                config=Config(
-                    signature_version="s3v4",
-                    s3={"addressing_style": "path"},
-                    connect_timeout=5,
-                    read_timeout=30,
-                    retries={"total_max_attempts": 1},
-                    proxies={},
-                ),
-            )
+        self.files = ServerFileClient(settings)
 
-    async def _io(self, operation):
-        if self._s3 is None:
-            raise ServiceError("UPSTREAM_UNAVAILABLE", 503)
-        failed = False
-        result = None
-        try:
-            result = await asyncio.to_thread(operation)
-        except Exception:
-            failed = True
-        if failed:
-            raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
-        return result
+    @property
+    def files(self):
+        return self._files
+
+    @files.setter
+    def files(self, value):
+        self._files = value
+        if hasattr(self.factory, "kw"):
+            self.factory.kw.setdefault("info", {})["server_files"] = value
+
+    async def owner(self, db, conversation):
+        if conversation.user_id is not None:
+            user = await db.get(User, conversation.user_id)
+            if user is None or user.system_id != conversation.system_id or not user.enabled:
+                raise ServiceError("FORBIDDEN", 403)
+            return user_owner(user)
+        system = await db.get(System, conversation.system_id)
+        if system is None or conversation.guest_id is None:
+            raise ServiceError("FORBIDDEN", 403)
+        return guest_owner(system, conversation.guest_id)
 
     async def stage_artifact(
         self, db, fence, title, media_type, content_digest, *, artifact_id=None
@@ -193,7 +178,9 @@ class ArtifactService:
                     )
                 return existing
             artifact.latest_version += 1
+            version_id = uuid4()
             row = ArtifactVersion(
+                id=version_id, object_key=str(version_id),
                 artifact_id=artifact.id,
                 system_id=run.system_id,
                 tenant_id=run.tenant_id,
@@ -239,47 +226,13 @@ class ArtifactService:
             raise ServiceError("WRITE_FENCE_STALE", 409)
         return run, row
 
-    def _upload(self, row, content):
-        bucket = self.settings.minio_bucket
-        try:
-            self._s3.put_object(
-                Bucket=bucket,
-                Key=row.object_key,
-                Body=content,
-                ContentType=row.media_type,
-                Metadata={"sha256": row.content_digest},
-                IfNoneMatch="*",
-            )
-        except ClientError as error:
-            if error.response["ResponseMetadata"]["HTTPStatusCode"] != 412:
-                raise
-        response = self._s3.get_object(Bucket=bucket, Key=row.object_key)
-        body = response["Body"]
-        checked = hashlib.sha256()
-        size = 0
-        preview = bytearray()
-        try:
-            while block := body.read(65536):
-                size += len(block)
-                if size > _MAX_BYTES:
-                    raise ValueError("object exceeds internal bound")
-                checked.update(block)
-                if len(preview) <= _PREVIEW_BYTES:
-                    preview.extend(block)
-        finally:
-            body.close()
-        if checked.hexdigest() != row.content_digest or size != len(content):
-            raise ValueError("object digest mismatch")
-        view = {"format": "download_only"}
-        if row.media_type in ("text/plain", "text/markdown") and size <= _PREVIEW_BYTES:
-            text = None
-            try:
-                text = preview.decode("utf-8")
-            except UnicodeDecodeError:
-                pass
-            if text is not None and "\x00" not in text:
-                view = {"format": "text", "text": text}
-        return size, view
+    async def _upload(self, row, content, owner):
+        filename = re.sub(r"[\\/\x00-\x1f\x7f]", "_", row.title)[:200]
+        extension = mimetypes.guess_extension(row.media_type) or ".bin"
+        if not filename.lower().endswith(extension):
+            filename += extension
+        value = await self.files.write(owner, str(row.id), filename, row.media_type, content, "artifact")
+        return value["bytes"], {"format": "download_only"}
 
     async def write_artifact_object(self, version_id: UUID, content: bytes):
         engine = self.factory.kw["bind"]
@@ -302,10 +255,11 @@ class ArtifactService:
                     attempt=locator.producer_attempt,
                     ownership_epoch=locator.producer_epoch,
                 )
-                _, row = await self._owned_version(db, fence, version_id)
+                run, row = await self._owned_version(db, fence, version_id)
+                owner = await self.owner(db, await db.get(Conversation, run.conversation_id))
                 if row.status == "ready":
                     return
-            upload = asyncio.create_task(self._io(lambda: self._upload(row, content)))
+            upload = asyncio.create_task(self._upload(row, content, owner))
             try:
                 size, preview = await asyncio.shield(upload)
             except asyncio.CancelledError:
@@ -373,20 +327,31 @@ class ArtifactService:
 
     async def read_artifact(self, actor, artifact_id: UUID, version: int):
         async with self.factory.begin() as db:
-            return _view(await self._read(db, actor, artifact_id, version))
+            row = await self._read(db, actor, artifact_id, version)
+            result = _view(row)
+            if row.status != "ready":
+                return result
+            artifact = await db.get(Artifact, row.artifact_id)
+            owner = await self.owner(db, await db.get(Conversation, artifact.conversation_id))
+        metadata = await self.files.view(owner, str(row.id))
+        if metadata["sha256"] != row.content_digest or metadata["bytes"] != row.bytes_size:
+            raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
+        return result.model_copy(update={"preview": metadata["preview"]})
 
     async def download_artifact(self, actor, artifact_id: UUID, version: int):
         async with self.factory.begin() as db:
             row = await self._read(db, actor, artifact_id, version)
             if row.status != "ready":
                 raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
-        response = await self._io(
-            lambda: self._s3.get_object(Bucket=self.settings.minio_bucket, Key=row.object_key)
-        )
-        body = response["Body"]
+            artifact = await db.get(Artifact, row.artifact_id)
+            owner = await self.owner(db, await db.get(Conversation, artifact.conversation_id))
+        content = await self.files.read(owner, str(row.id))
+        if len(content) != row.bytes_size or hashlib.sha256(content).hexdigest() != row.content_digest:
+            raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
+        body = io.BytesIO(content)
 
         async def chunks():
-            while block := await self._io(lambda: body.read(65536)):
+            while block := body.read(65536):
                 async with self.factory.begin() as db:
                     await self._read(db, actor, artifact_id, version)
                 yield block
@@ -394,78 +359,53 @@ class ArtifactService:
         return _DownloadStream(chunks(), body)
 
     async def close(self):
-        if self._s3 is not None:
-            await asyncio.to_thread(self._s3.close)
+        pass
 
-    async def write_reception_object(self, object_key, content, digest):
-        if not object_key.startswith("xiaohe/reception/"):
-            raise ServiceError("FORBIDDEN", 403)
-        await self._io(
-            lambda: self._s3.put_object(
-                Bucket=self.settings.minio_bucket,
-                Key=object_key,
-                Body=content,
-                ContentType="application/octet-stream",
-                Metadata={"sha256": digest},
-                IfNoneMatch="*",
-            )
-        )
-        metadata = await self._io(
-            lambda: self._s3.head_object(Bucket=self.settings.minio_bucket, Key=object_key)
-        )
-        if (
-            metadata.get("ContentLength") != len(content)
-            or metadata.get("Metadata", {}).get("sha256") != digest
-        ):
-            raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
-
-    async def read_reception_object(self, object_key, size, digest):
-        if not object_key.startswith("xiaohe/reception/"):
-            raise ServiceError("FORBIDDEN", 403)
-        response = await self._io(
-            lambda: self._s3.get_object(Bucket=self.settings.minio_bucket, Key=object_key)
-        )
-        body = response["Body"]
+    async def _descriptor(self, reference):
+        from xiaohe.reception.models import ReceptionFile, ReceptionFormFile
         try:
-            content = await self._io(lambda: body.read(_MAX_BYTES + 1))
-        finally:
-            with anyio.CancelScope(shield=True):
-                await asyncio.to_thread(body.close)
+            file_id = UUID(str(reference))
+        except ValueError:
+            raise ServiceError("FORBIDDEN", 403) from None
+        async with self.factory.begin() as db:
+            row = await db.get(ReceptionFormFile, file_id)
+            if row is not None:
+                user = await db.get(User, row.user_id)
+                if user is None or not user.enabled or user.system_id != row.system_id:
+                    raise ServiceError("FORBIDDEN", 403)
+                return row, user_owner(user)
+            row = await db.get(ReceptionFile, file_id)
+            if row is not None:
+                return row, await self.owner(db, await db.get(Conversation, row.conversation_id))
+            version = await db.get(ArtifactVersion, file_id)
+            if version is not None:
+                artifact = await db.get(Artifact, version.artifact_id)
+                return version, await self.owner(db, await db.get(Conversation, artifact.conversation_id))
+        raise ServiceError("FORBIDDEN", 403)
+
+    async def write_reception_object(self, reference, content, digest):
+        row, owner = await self._descriptor(reference)
+        if hashlib.sha256(content).hexdigest() != digest:
+            raise ServiceError("FILE_INVALID", 422)
+        return await self.files.write(owner, str(row.id), row.filename, row.media_type, content, row.category)
+
+    async def read_reception_object(self, reference, size, digest):
+        row, owner = await self._descriptor(reference)
+        content = await self.files.read(owner, str(row.id))
         if len(content) != size or hashlib.sha256(content).hexdigest() != digest:
             raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
         return content
 
-    async def delete_expired_object(self, object_key):
-        def remove():
-            try:
-                metadata = self._s3.head_object(Bucket=self.settings.minio_bucket, Key=object_key)
-            except ClientError as error:
-                if error.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
-                    return
-                raise
-            # Native S3 version history needs a separate purge; never mark it deleted by a marker.
-            if metadata.get("VersionId") is not None:
-                raise ValueError("versioned bucket purge is not supported")
-            self._s3.delete_object(Bucket=self.settings.minio_bucket, Key=object_key)
-
-        await self._io(remove)
+    async def delete_expired_object(self, reference, *, owner=None):
+        if owner is None:
+            _, owner = await self._descriptor(reference)
+        await self.files.remove(owner, str(UUID(str(reference))))
 
     async def verify_unversioned_cleanup(self):
-        def verify():
-            status = self._s3.get_bucket_versioning(Bucket=self.settings.minio_bucket).get("Status")
-            if status in ("Enabled", "Suspended"):
-                raise ValueError("versioned bucket purge is not supported")
+        await self.files.health()
 
-        await self._io(verify)
-
-    async def verify_object_absent(self, object_key):
-        def verify():
-            try:
-                self._s3.head_object(Bucket=self.settings.minio_bucket, Key=object_key)
-            except ClientError as error:
-                if error.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
-                    return
-                raise
-            raise ValueError("deleted object is still present")
-
-        await self._io(verify)
+    async def verify_object_absent(self, reference, *, owner=None):
+        if owner is None:
+            _, owner = await self._descriptor(reference)
+        if not await self.files.removed(owner, str(UUID(str(reference)))):
+            raise ServiceError("UPSTREAM_UNAVAILABLE", 503, True)
