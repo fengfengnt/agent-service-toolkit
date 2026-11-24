@@ -47,41 +47,53 @@ def form_field_policy(direction, *, expected_bundle_id):
     return policy
 
 
-async def read_application_form(factory, actor, source_application_id, mode, client):
-    if mode not in ("edit", "new"):
+async def read_application_form(
+    factory, actor, source_application_id, mode, client, *, direction=None
+):
+    if mode not in ("edit", "new") or (
+        source_application_id is None
+        and (mode != "new" or direction not in ("buyer", "organization", "supplier"))
+    ):
         raise ServiceError("INPUT_INVALID", 422)
     async with factory.begin() as db:
         bound = await authority(db, actor)
-    if client is None:
-        raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
-    source = await client.application(bound, source_application_id)
-    fields = source.public_fields | source.request_fields
-    if mode == "new":
-        cursor = None
-        while True:
-            query = {"kind": "organization" if source.direction == "organization" else "company"}
-            if cursor:
-                query["cursor"] = cursor
-            page = await client.subjects(bound, query)
-            profile = next((item for item in page.items if item.id == source.subject_id), None)
-            if profile:
-                fields = {
-                    k: v
-                    for k, v in profile.public_fields.items()
-                    if k in PUBLIC_FIELDS[source.direction]
+    source, fields = None, {}
+    if source_application_id is not None:
+        if client is None:
+            raise ServiceError("SUBMISSION_UNKNOWN", 503, True)
+        source = await client.application(bound, source_application_id)
+        if direction is not None and direction != source.direction:
+            raise ServiceError("INPUT_INVALID", 422)
+        direction = source.direction
+        fields = source.public_fields | source.request_fields
+        if mode == "new":
+            cursor = None
+            while True:
+                query = {
+                    "kind": "organization" if source.direction == "organization" else "company"
                 }
-                break
-            if not page.next_cursor or page.next_cursor == cursor:
-                raise ServiceError("FORBIDDEN", 403)
-            cursor = page.next_cursor
-    bundle_id, definition = form_definition(source.direction)
+                if cursor:
+                    query["cursor"] = cursor
+                page = await client.subjects(bound, query)
+                profile = next((item for item in page.items if item.id == source.subject_id), None)
+                if profile:
+                    fields = {
+                        k: v
+                        for k, v in profile.public_fields.items()
+                        if k in PUBLIC_FIELDS[source.direction]
+                    }
+                    break
+                if not page.next_cursor or page.next_cursor == cursor:
+                    raise ServiceError("FORBIDDEN", 403)
+                cursor = page.next_cursor
+    bundle_id, definition = form_definition(direction)
     async with factory.begin() as db:
         await authority(db, actor)
     return ApplicationFormView(
         mode=mode,
-        source_application_id=source.id,
-        subject_id=source.subject_id,
-        direction=source.direction,
+        source_application_id=source.id if source else None,
+        subject_id=source.subject_id if source else None,
+        direction=direction,
         expected_application_revision=source.revision if mode == "edit" else None,
         definition_bundle_id=bundle_id,
         field_layout={
@@ -108,6 +120,8 @@ async def submission_row(db, actor, client_id, *, lock=False):
 
 async def submit_application_form(factory, actor, payload, client):
     raw = payload.model_dump(mode="json", by_alias=True)
+    if payload.direction is None:
+        raw.pop("direction")
     digest = hashlib.sha256(
         json.dumps(raw, sort_keys=True, ensure_ascii=False).encode()
     ).hexdigest()
@@ -118,7 +132,12 @@ async def submit_application_form(factory, actor, payload, client):
             raise ServiceError("IDEMPOTENCY_CONFLICT", 409)
     if existing is None:
         view = await read_application_form(
-            factory, actor, payload.source_application_id, payload.mode, client
+            factory,
+            actor,
+            payload.source_application_id,
+            payload.mode,
+            client,
+            direction=payload.direction,
         )
         if (
             view.expected_application_revision != payload.expected_application_revision

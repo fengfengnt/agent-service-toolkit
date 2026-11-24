@@ -45,6 +45,28 @@ def test_reception_schema_snapshot_matches_master_digest():
     )
 
 
+@pytest.mark.parametrize("direction", ["buyer", "organization", "supplier"])
+def test_new_application_form_without_source_requires_direction(direction):
+    query = contracts.ApplicationFormQuery.model_validate({"mode": "new", "direction": direction})
+    assert query.source_application_id is None and query.direction == direction
+    body = deepcopy(next(case["value"] for case in CASES if case["name"] == "standalone-form-new"))
+    body.update(sourceApplicationId=None, direction=direction)
+    assert contracts.FormSubmissionInput.model_validate(body).direction == direction
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        {"mode": "new"},
+        {"mode": "new", "direction": "unknown"},
+        {"mode": "edit", "direction": "buyer"},
+    ],
+)
+def test_application_form_rejects_missing_source_or_direction(query):
+    with pytest.raises(ValidationError):
+        contracts.ApplicationFormQuery.model_validate(query)
+
+
 @pytest.mark.parametrize("case", CASES, ids=[case["name"] for case in CASES])
 def test_implemented_models_follow_shared_examples(case):
     model = getattr(contracts, case["type"])

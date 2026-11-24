@@ -115,6 +115,7 @@ def create_reception_router(factory, business_client=None):
             query.source_application_id,
             query.mode,
             business_client,
+            direction=query.direction,
         )
         data = view.model_dump(mode="json", by_alias=True)
         from xiaohe.lead_skills.views import (

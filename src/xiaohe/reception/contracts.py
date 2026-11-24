@@ -138,12 +138,19 @@ class FieldLayout(WireModel):
 
 
 class ApplicationFormQuery(WireModel):
-    source_application_id: Id
+    source_application_id: Id | None = None
     mode: Literal["edit", "new"]
+    direction: Direction | None = None
+
+    @model_validator(mode="after")
+    def valid_form_source(self) -> Self:
+        if self.source_application_id is None and (self.mode != "new" or self.direction is None):
+            raise ValueError("a source-free new form requires direction")
+        return self
 
 
 class ApplicationFormView(ApplicationFormQuery):
-    subject_id: Id
+    subject_id: Id | None
     direction: Direction
     expected_application_revision: Positive | None
     definition_bundle_id: Id
